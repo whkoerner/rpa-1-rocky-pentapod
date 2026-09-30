@@ -22,3 +22,6 @@ data/personal/
 media/raw/
 *.bag
 *.db3
+
+# Generated simulation runs
+software/simulation/logs/*.csv

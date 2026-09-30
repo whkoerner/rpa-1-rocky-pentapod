@@ -9,8 +9,14 @@ description = "Deterministic musical-language codec for the RPA-1 pentapod proje
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0,<7"]
 
+[project.optional-dependencies]
+simulation = ["pygame>=2.5,<3"]
+
 [tool.setuptools]
 package-dir = {"" = "software"}
 
 [tool.setuptools.packages.find]
 where = ["software"]
+
+[tool.setuptools.package-data]
+simulation = ["config/*.json"]

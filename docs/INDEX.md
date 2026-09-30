@@ -19,6 +19,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 | Item | Status | Main file |
 |---|---|---|
 | Rocky Brain v0.1 | READY TO TEST | [Build guide](build-guides/brain-v0.1-build.md) |
+| Computer-only Simulation v0.1 | READY TO TEST | [Build guide](build-guides/simulation-v0.1-build.md) |
 | Chordic / CSP-1 | IN PROGRESS | [Language overview](../language/README.md) |
 | Actuator comparison | PLANNED | [Test plan](test-plans/actuator-comparison-test.md) |
 
@@ -46,6 +47,7 @@ Do not use **VERIFIED** without a linked test result. Do not use **RELEASED** ju
 
 - [Firmware](../firmware/)
 - [Software](../software/)
+- [Computer-only simulator](../software/simulation/)
 - [Electronics](../electronics/)
 - [Hardware](../hardware/)
 - [CAD](../cad/)
@@ -63,6 +65,7 @@ Do not use **VERIFIED** without a linked test result. Do not use **RELEASED** ju
 Each active build should use the same basic format and link to the authoritative safety, wiring, firmware, and test files instead of duplicating them.
 
 - [Rocky Brain v0.1](build-guides/brain-v0.1-build.md)
+- [Computer-only Simulation v0.1](build-guides/simulation-v0.1-build.md)
 - [Build-guide template](build-guides/BUILD-GUIDE-TEMPLATE.md)
 
 ## Milestones

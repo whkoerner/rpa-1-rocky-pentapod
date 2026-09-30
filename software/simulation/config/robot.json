@@ -1,0 +1,36 @@
+{
+  "limb_count": 5,
+  "fixed_step_s": 0.02,
+  "display": {
+    "width_px": 900,
+    "height_px": 700,
+    "body_radius_px": 70,
+    "segment_1_px": 95,
+    "segment_2_px": 75
+  },
+  "joints": [
+    {
+      "name": "joint_1",
+      "min_deg": -45.0,
+      "max_deg": 45.0
+    },
+    {
+      "name": "joint_2",
+      "min_deg": 0.0,
+      "max_deg": 90.0
+    }
+  ],
+  "actuator": {
+    "sim_speed_deg_per_s": 90.0
+  },
+  "gait": {
+    "phase_duration_s": 0.5,
+    "swing_joint_1_deg": 20.0,
+    "swing_joint_2_deg": 45.0
+  },
+  "notes": [
+    "All angles, timing, actuator speed, and display dimensions in this file are simulation-only placeholders.",
+    "They are not measurements or validated physical RPA-1 specifications.",
+    "Replace them only after hardware geometry and actuator limits are measured."
+  ]
+}
