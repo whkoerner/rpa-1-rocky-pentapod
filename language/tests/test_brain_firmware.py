@@ -22,7 +22,7 @@ class BrainFirmwareLanguageTests(unittest.TestCase):
 
     def firmware_notes(self, array_name: str) -> tuple[str, ...]:
         match = re.search(
-            rf"const NoteEvent {array_name}\[\] PROGMEM = \{{(.*?)\}};",
+            rf"const NoteEvent {array_name}\[\](?: PROGMEM)? = \{{(.*?)\}};",
             self.firmware,
             re.DOTALL,
         )
@@ -45,21 +45,9 @@ class BrainFirmwareLanguageTests(unittest.TestCase):
             "NOTES_HELLO": ["SOCIAL.hello"],
             "NOTES_YES": ["SOCIAL.yes"],
             "NOTES_NO": ["SOCIAL.no"],
+            "NOTES_HELP": ["ACTION.help"],
             "NOTES_THANK_YOU": ["SOCIAL.thank_you"],
-            "NOTES_AMAZE": ["SOCIAL.amaze"],
-            "NOTES_PLEASE_REPEAT": [
-                "GRAM.imperative",
-                "SOCIAL.please",
-                "ACTION.repeat",
-            ],
-            "NOTES_NOT_UNDERSTOOD": [
-                "GRAM.declarative",
-                "GRAM.negation",
-                "ACTION.understand",
-                "GRAM.agent_role",
-                "ENTITY.self",
-            ],
-            "NOTES_STOP": ["SAFETY.warning", "SAFETY.stop_now"],
+            "NOTES_GOODBYE": ["SOCIAL.goodbye"],
         }
         for array_name, tokens in cases.items():
             with self.subTest(array_name=array_name):

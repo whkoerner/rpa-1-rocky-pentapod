@@ -1,38 +1,64 @@
 # Rocky Brain v0.1 firmware
 
-Open `rocky_brain_v0_1.ino` in Arduino IDE 2, select **Arduino Uno**, select the board's USB port, and click **Upload**.
+This is the smallest bench-testable RPA-1 brain.
 
-The sketch uses only Arduino's built-in functions. It does not require a library installation.
+**Hardware:** Elegoo/Arduino Uno R3, two momentary buttons, one passive buzzer, USB-connected computer.
 
-## Physical controls
+**Not included yet:** motors, internet, AI, Raspberry Pi, microphone, speech recognition, batteries, or autonomous behavior.
 
-- D2 button: switch between Chordic-only and translated-English mode.
-- D4 button: play the selected phrase, then select the next phrase.
-- Built-in LED off: Chordic-only mode.
-- Built-in LED on: translated-English mode.
+Open `rocky_brain_v0_1.ino` in Arduino IDE 2, select **Arduino Uno**, select the board's USB port, click **Verify**, then click **Upload**.
 
-English speech is produced by the companion browser app, not by the passive buzzer. The buzzer always plays the original Chordic phrase.
+No external Arduino libraries are required.
 
-## Serial commands
+## Pins
 
-At 115200 baud, send newline-terminated commands:
+| Uno pin | Connection |
+|---|---|
+| D2 | MODE button to GND |
+| D3 | SPEAK button to GND |
+| D9 | passive buzzer through 220-ohm resistor |
+| GND | button and buzzer return |
+
+The buttons use `INPUT_PULLUP`, so do not add a 5 V wire to either button.
+
+## Modes
+
+- **Communication:** the buzzer plays Chordic and Serial Monitor prints only the CSP-1 token.
+- **Translation:** the same Chordic tones play, and Serial Monitor also prints the fixed English meaning.
+- Press the D2 button to switch modes.
+- Press the D3 button to play the next phrase.
+
+The six starter phrases are existing CSP-1 concepts: `SOCIAL.hello`, `SOCIAL.yes`, `SOCIAL.no`, `ACTION.help`, `SOCIAL.thank_you`, and `SOCIAL.goodbye`.
+
+## Serial Monitor
+
+Use **9600 baud** and **Newline**.
+
+Commands:
 
 ```text
 HELP
-LIST
 STATUS
-MODE MUSICAL
-MODE TRANSLATED
-MODE TOGGLE
-PLAY HELLO
-PLAY YES
-PLAY NO
-PLAY THANK_YOU
-PLAY AMAZE
-PLAY PLEASE_REPEAT
-PLAY NOT_UNDERSTOOD
-PLAY STOP
-STOP
+LIST
+NEXT
+MODE COMM
+MODE TRANSLATE
+SAY HELLO
+SAY YES
+SAY NO
+SAY HELP
+SAY THANK_YOU
+SAY GOODBYE
 ```
 
-Every response begins with `EVENT|`, making it straightforward for later Raspberry Pi, ESP32, ROS 2, or AI software to use the same interface.
+## Quick pre-commit hardware test
+
+1. Upload the sketch.
+2. Open Serial Monitor at 9600 baud.
+3. Send `STATUS`; it should report `MODE: COMMUNICATION`.
+4. Send `SAY HELLO`; the buzzer should play five notes and Serial Monitor should print `CSP-1: SOCIAL.hello`.
+5. Send `MODE TRANSLATE`, then `SAY HELLO`; it should additionally print `ENGLISH: Hello`.
+6. Press D2 once; the displayed mode should switch.
+7. Press D3 repeatedly; the six phrases should cycle and return to HELLO.
+
+Do not record these as demonstrated results until you have actually run the test.
