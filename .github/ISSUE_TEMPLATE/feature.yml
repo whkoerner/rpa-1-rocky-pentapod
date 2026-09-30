@@ -1,0 +1,35 @@
+name: Feature
+description: Propose a capability tied to a requirement and test.
+title: "[FEATURE] "
+labels: ["feature"]
+body:
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement ID
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: User or research value
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach and alternatives
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Measurable acceptance test
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, privacy, cost, and authorization impact
+    validations:
+      required: true

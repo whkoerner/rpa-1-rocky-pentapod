@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RPA-1 Rocky Brain</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+      body { max-width: 900px; margin: 0 auto; padding: 24px; background: #11151b; color: #f3f5f7; }
+      h1 { margin-bottom: 4px; }
+      .subtitle { color: #aeb8c4; margin-top: 0; }
+      .panel { background: #1d2530; border: 1px solid #354253; border-radius: 14px; padding: 18px; margin: 16px 0; }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      button { background: #d3a73a; color: #111; border: 0; border-radius: 9px; padding: 11px 14px; font-weight: 700; cursor: pointer; }
+      button.secondary { background: #8191a7; }
+      button.danger { background: #ef6a63; }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+      .status { display: inline-block; border-radius: 999px; padding: 5px 10px; font-weight: 700; }
+      .good { background: #1f784b; } .bad { background: #75343a; }
+      .translated { background: #167a61; } .musical { background: #365c91; }
+      .phrase-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+      output, code { color: #f5d878; }
+      pre { white-space: pre-wrap; max-height: 230px; overflow: auto; background: #0c1015; padding: 12px; border-radius: 8px; }
+      label { display: flex; gap: 8px; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <h1>RPA-1 Rocky Brain v0.1</h1>
+    <p class="subtitle">Language: <strong>Chordic</strong> · Encoding: CSP-1</p>
+
+    <section class="panel">
+      <div class="row">
+        <button id="connect">Connect to Uno</button>
+        <span id="connection-state" class="status bad">Disconnected</span>
+        <span id="mode-state" class="status musical">Chordic only</span>
+      </div>
+      <p>Close Arduino Serial Monitor before connecting here; only one program can own the USB serial port.</p>
+      <div class="row">
+        <button id="mode-toggle" class="secondary" disabled>Switch to translated English</button>
+        <button id="stop" class="danger" disabled>Stop sound</button>
+        <label><input id="speak-english" type="checkbox" checked /> Speak English</label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Chordic utterances</h2>
+      <div class="phrase-grid">
+        <button data-phrase="HELLO" disabled>Hello</button>
+        <button data-phrase="YES" disabled>Yes</button>
+        <button data-phrase="NO" disabled>No</button>
+        <button data-phrase="THANK_YOU" disabled>Thank you</button>
+        <button data-phrase="AMAZE" disabled>Amaze!</button>
+        <button data-phrase="PLEASE_REPEAT" disabled>Please repeat</button>
+        <button data-phrase="NOT_UNDERSTOOD" disabled>Not understood</button>
+        <button data-phrase="STOP" disabled>Warning: stop</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Deterministic translation</h2>
+      <p>English: <output id="english-output">—</output></p>
+      <p>Chordic tokens: <code id="token-output">—</code></p>
+    </section>
+
+    <section class="panel">
+      <h2>Debug log</h2>
+      <pre id="event-log">Waiting for the Uno…</pre>
+    </section>
+
+    <script src="protocol.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

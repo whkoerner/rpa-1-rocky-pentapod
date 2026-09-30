@@ -1,0 +1,24 @@
+# Build output
+build/
+.pio/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local secrets and personal data
+.env
+*.key
+*.pem
+private/
+data/personal/
+
+# Generated and raw media
+media/raw/
+*.bag
+*.db3

@@ -1,0 +1,40 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  software-and-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run deterministic codec tests
+        run: python -m unittest discover -s language/tests -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run browser protocol tests
+        run: node software/brain_web/protocol.test.js
+
+  arduino-uno:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Uno sketches
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: "arduino:avr:uno"
+          libraries: "[]"
+          sketch-paths: |
+            - firmware
+          enable-warnings-report: true

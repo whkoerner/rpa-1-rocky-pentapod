@@ -1,0 +1,43 @@
+name: Experiment
+description: Plan a controlled test that resolves a design uncertainty.
+title: "[EXP] "
+labels: ["experiment"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What decision will this experiment support?
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis and measurable outcome
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration and variables
+      description: Include controlled, independent, and measured variables.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Hazards and controls
+    validations:
+      required: true
+  - type: textarea
+    id: pass
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: input
+    id: budget
+    attributes:
+      label: Maximum incremental cost
+    validations:
+      required: true

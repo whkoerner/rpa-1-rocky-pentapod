@@ -1,0 +1,23 @@
+id,milestone,item_category,planned_cost_usd,required,carry_forward,notes
+B001,M0,Arduino communicator parts,25,yes,yes,Use existing kit where possible
+B002,M0,wire connectors heat-shrink resistors,20,yes,yes,Shared lab stock may reduce cost
+B003,M0,documentation and measurement supplies,30,yes,yes,Calipers or foamboard if not already available
+B004,M1,electric tendon specimen,70,yes,yes,Motor or servo spring cable pulley and sensor
+B005,M1,low-pressure pneumatic specimen,55,yes,no,Rated or conservatively bounded; no tank
+B006,M1,manual syringe hydraulic specimen,20,yes,no,Water syringes tubing and containment tray
+B007,M1,test fixture and guard materials,30,yes,yes,Makerspace stock preferred
+B008,M2,three-DOF tendon limb actuators and drivers,180,yes,yes,Buy one axis first
+B009,M2,encoders current and force/tension sensors,70,yes,yes,
+B010,M2,links bearings tendons springs and gripper,50,yes,yes,
+B011,M3,scale pentapod actuators,300,yes,yes,Purchase only after joint data
+B012,M3,printed structure fasteners bearings wiring,100,yes,yes,Makerspace access assumed
+B013,M3,IMU and five foot-contact channels,50,yes,yes,
+B014,M4,power distribution safety sensors and spares,150,yes,yes,
+B015,M4,tether pads barriers and course materials,100,yes,yes,
+B016,M5,audio microphone and interface controls,80,yes,yes,
+B017,M5,compute or storage upgrades,80,no,yes,Use existing computer first
+B018,M5,props gripper revisions and lighting,90,yes,yes,
+B019,M6,full-scale lightweight mock-up materials,150,yes,yes,Balsa foam thin tube and printed nodes
+B020,M6,portfolio media test and release supplies,100,yes,no,
+B021,Reserve,replacements shipping and safety contingency,250,yes,yes,Do not pre-spend
+TOTAL,Program,Planned total,2000,yes,,Hard ceiling through assumed May 2028 release

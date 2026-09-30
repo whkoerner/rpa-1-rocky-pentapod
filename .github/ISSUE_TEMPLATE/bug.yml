@@ -1,0 +1,39 @@
+name: Bug or test failure
+description: Report unexpected behavior with enough evidence to reproduce it.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps and configuration
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, plots, photographs, and revision identifiers
+    validations:
+      required: true
+  - type: dropdown
+    id: motion
+    attributes:
+      label: Could this cause hazardous motion or energy?
+      options:
+        - Yes — stop testing and open a safety issue
+        - No
+        - Unknown — treat as yes until reviewed
+    validations:
+      required: true

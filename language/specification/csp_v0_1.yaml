@@ -1,0 +1,474 @@
+spec:
+  name: Chordic
+  protocol_name: Chordic Semantic Protocol
+  short_name: CSP-1
+  version: 0.1.1
+  status: draft
+  date: 2026-09-30
+  inspiration_notice: >-
+    An original constructed musical protocol inspired by the general concept of
+    Rocky-like musical communication; not an official Project Hail Mary language.
+  compatibility_rule: Released class/code pairs must never be reassigned.
+
+audio_safety:
+  normal_level_dba_at_1m: {minimum: 55, maximum: 65}
+  daytime_hard_target_dba_at_1m: 70
+  night_target_dba_at_1m: 55
+  ultrasonic_output_allowed: false
+  measurement_note: Use a characterized sound-level meter for acceptance testing.
+
+phonology:
+  tuning: A4=440Hz
+  core_scale: D_major_pentatonic
+  pitch_symbols:
+    P0: {note: D4, frequency_hz: 293.66, digit: 0}
+    P1: {note: E4, frequency_hz: 329.63, digit: 1}
+    P2: {note: Fsharp4, frequency_hz: 369.99, digit: 2}
+    P3: {note: A4, frequency_hz: 440.00, digit: 3}
+    P4: {note: B4, frequency_hz: 493.88, digit: 4}
+  phrase_header:
+    notes: [D3, A3]
+    mode: simultaneous_open_fifth
+    duration_ms: 300
+    rest_after_ms: 150
+  literal_timing:
+    note_ms: 140
+    inter_note_gap_ms: 35
+    inter_token_gap_ms: 100
+  natural_timing:
+    note_ms_range: [90, 140]
+    inter_note_gap_ms_range: [20, 35]
+    tempo_deviation_percent: 15
+  timbre:
+    core: soft_sine_triangle_with_restrained_marimba_attack
+    attack_ms_range: [10, 30]
+    release_ms_range: [60, 100]
+    semantic_core_is_monophonic: true
+
+classes:
+  GRAM:
+    index: 0
+    prefix_notes: [D4, E4]
+    description: Grammar, roles, tense, and mood
+  ENTITY:
+    index: 1
+    prefix_notes: [D4, Fsharp4]
+    description: People, things, and places
+  ACTION:
+    index: 2
+    prefix_notes: [D4, A4]
+    description: Predicates and actions
+  QUALITY:
+    index: 3
+    prefix_notes: [A4, Fsharp4]
+    description: Properties and states
+  RELATION:
+    index: 4
+    prefix_notes: [A4, D4]
+    description: Spatial and relational concepts
+  NUM_UNIT:
+    index: 5
+    prefix_notes: [Fsharp4, B4]
+    description: Digits and measurement units
+  TECH:
+    index: 6
+    prefix_notes: [B4, E4]
+    description: Engineering and system concepts
+  SOCIAL:
+    index: 7
+    prefix_notes: [E4, A4]
+    description: Conversational and social concepts
+  SAFETY:
+    index: 8
+    prefix_notes: [C4, Fsharp4]
+    description: Warnings and fault states
+
+token_encoding:
+  lexical_radix: 5
+  code_range_per_class: [0, 24]
+  code_assignment: The zero-based index of a concept in its class list is its lexical code.
+  code_digits:
+    first: floor(code / 5)
+    second: code modulo 5
+  checksum_digit: (class_index + first_digit + second_digit) modulo 5
+  emitted_sequence: [class_prefix_note_1, class_prefix_note_2, first_digit_pitch, second_digit_pitch, checksum_pitch]
+  example:
+    concept: SOCIAL.hello
+    class_index: 7
+    lexical_code: 0
+    digits: [0, 0]
+    checksum: 2
+    notes: [E4, A4, D4, D4, Fsharp4]
+
+message_integrity:
+  utterance_id_radix: 5
+  utterance_id_digits: 2
+  checksum_radix: 5
+  checksum_digits: 2
+  checksum_algorithm: Sum each (class_index * 25 + lexical_code), modulo 25.
+  correction_policy: >-
+    A unique one-symbol repair may be shown only as a corrected candidate in
+    debug mode and requires confirmation; it is never silently accepted.
+
+grammar:
+  canonical_order:
+    - mood
+    - tense_aspect
+    - polarity
+    - certainty
+    - predicate
+    - agent_role_and_agent
+    - patient_role_and_patient
+    - location_role_and_location
+    - time_role_and_time
+    - quantity_and_unit
+    - social_affect
+    - safety_urgency
+  rules:
+    statement: Begin with GRAM.declarative.
+    yes_no_question: Begin with GRAM.yes_no_question.
+    content_question: Begin with GRAM.content_question and mark the requested role with GRAM.topic.
+    command: Begin with GRAM.imperative; authorization is evaluated outside the language layer.
+    negation: GRAM.negation immediately precedes the predicate or quality it negates.
+    tense: One of past, present, or future immediately precedes the action; ongoing/completed may follow it.
+    plurality: GRAM.plural immediately precedes an entity unless an explicit number makes it unambiguous.
+    possession: GRAM.possessive, owner entity, then owned entity.
+    uncertainty: GRAM.uncertain records semantic uncertainty and is distinct from decoder confidence.
+    role_marking: Use agent_role, patient_role, location_role, and time_role in literal mode.
+    urgency: A SAFETY concept is required; tempo alone never creates a literal emergency.
+
+prosody:
+  allowed_nonsemantic_variation:
+    volume_db: 6
+    tempo_percent: 15
+    articulation: [staccato, neutral, legato]
+    ornament_register: one_octave_above_core
+    ornament_must_use_separate_timbre: true
+  literal_meaning_never_depends_only_on:
+    - volume
+    - tempo
+    - register
+    - chord_quality
+    - articulation
+
+modes:
+  literal:
+    full_role_markers: true
+    fixed_timing: true
+    token_checksum: true
+    message_checksum: true
+  natural_rocky:
+    bounded_timing_variation: true
+    nonsemantic_ornamentation: true
+    core_token_order_preserved: true
+    semantic_equivalence_required: true
+
+semantic_ir:
+  schema_version: csp-ir-0.1
+  required_fields:
+    - version
+    - utterance_id
+    - speaker
+    - addressee
+    - mood
+    - polarity
+    - certainty
+    - predicate
+    - roles
+    - urgency
+    - affect
+  field_types:
+    version: string
+    utterance_id: integer
+    speaker: concept_or_registered_name
+    addressee: concept_or_registered_name
+    mood: [declarative, yes_no_question, content_question, imperative]
+    time: {tense: [past, present, future, unspecified], at: nullable_datetime}
+    polarity: [positive, negative]
+    certainty: number_0_to_1
+    predicate: ACTION_concept
+    roles:
+      agent: nullable_concept
+      patient: nullable_concept
+      object: nullable_concept
+      location: nullable_concept
+      time: nullable_value
+    quantity: {value: nullable_decimal, unit: nullable_NUM_UNIT_or_TECH_concept}
+    urgency: [normal, attention, warning, emergency]
+    affect: [neutral, calm, happy, worried, encouraging, proud]
+    extensions: mapping_preserve_unknown_fields
+  example:
+    version: csp-ir-0.1
+    utterance_id: 42
+    speaker: rocky_name
+    addressee: user
+    mood: declarative
+    time: {tense: future, at: null}
+    polarity: positive
+    certainty: 0.95
+    predicate: follow
+    roles: {agent: self, patient: user, object: null, location: here, time: null}
+    quantity: {value: null, unit: null}
+    urgency: normal
+    affect: encouraging
+    extensions: {}
+
+lexicon:
+  GRAM:
+    concepts:
+      - declarative
+      - yes_no_question
+      - content_question
+      - imperative
+      - negation
+      - past
+      - present
+      - future
+      - ongoing
+      - completed
+      - plural
+      - possessive
+      - uncertain
+      - quoted
+      - topic
+      - agent_role
+      - patient_role
+      - location_role
+      - time_role
+      - separator
+  ENTITY:
+    concepts:
+      - self
+      - user
+      - person
+      - friend
+      - robot
+      - rocky_name
+      - object
+      - food
+      - water
+      - door
+      - room
+      - home
+      - school
+      - computer
+      - phone
+      - battery
+      - tool
+      - project
+      - pet
+      - obstacle
+      - speaker_device
+      - music
+      - message
+      - task
+      - charger
+  ACTION:
+    concepts:
+      - be
+      - have
+      - need
+      - go
+      - come
+      - stop
+      - start
+      - move
+      - turn
+      - follow
+      - wait
+      - listen
+      - speak
+      - translate
+      - repeat
+      - understand
+      - know
+      - help
+      - remind
+      - study
+      - work
+      - charge
+      - open
+      - close
+      - pick_up
+  QUALITY:
+    concepts:
+      - good
+      - bad
+      - safe
+      - dangerous
+      - ready
+      - busy
+      - happy
+      - worried
+      - calm
+      - tired
+      - complete
+      - failed
+      - near
+      - far
+      - loud
+      - quiet
+      - hot
+      - cold
+      - fast
+      - slow
+  RELATION:
+    concepts:
+      - in
+      - "on"
+      - under
+      - above
+      - beside
+      - behind
+      - in_front_of
+      - toward
+      - away_from
+      - with
+      - without
+      - from
+      - to
+      - here
+      - there
+  NUM_UNIT:
+    concepts:
+      - number_marker
+      - zero
+      - one
+      - two
+      - three
+      - four
+      - five
+      - six
+      - seven
+      - eight
+      - nine
+      - decimal
+      - negative
+      - percent
+      - millimeter
+      - centimeter
+      - meter
+      - second
+      - minute
+      - hour
+      - degree
+      - kilogram
+      - volt
+      - ampere
+      - watt
+  TECH:
+    concepts:
+      - sensor
+      - lidar
+      - camera
+      - microphone
+      - motor
+      - joint
+      - map
+      - position
+      - velocity
+      - current
+      - temperature
+      - celsius
+      - network
+      - software
+      - hardware
+      - error
+      - confidence
+      - data
+      - test
+      - translation_mode
+  SOCIAL:
+    concepts:
+      - hello
+      - goodbye
+      - please
+      - thank_you
+      - sorry
+      - "yes"
+      - "no"
+      - maybe
+      - agree
+      - disagree
+      - amaze
+      - proud
+      - encouragement
+      - congratulations
+      - joke
+      - attention
+      - name
+      - like_affection
+      - concern
+      - okay
+  SAFETY:
+    concepts:
+      - warning
+      - emergency
+      - stop_now
+      - move_away
+      - do_not_touch
+      - low_battery
+      - overcurrent
+      - overtemperature
+      - tip_risk
+      - obstacle_detected
+      - sensor_fault
+      - communications_lost
+      - actuator_fault
+      - unsafe_path
+      - manual_control_required
+      - clear_area
+      - reset_required
+      - all_clear
+      - help_needed
+      - fire_or_smoke
+
+fixed_phrases:
+  not_understood: [GRAM.declarative, GRAM.negation, ACTION.understand, GRAM.agent_role, ENTITY.self]
+  please_repeat: [GRAM.imperative, SOCIAL.please, ACTION.repeat]
+  acknowledgement: [GRAM.declarative, SOCIAL.yes, SOCIAL.okay]
+  low_battery_charge: [GRAM.declarative, SAFETY.low_battery, GRAM.separator, GRAM.imperative, SOCIAL.please, ACTION.charge, GRAM.patient_role, ENTITY.battery]
+  obstacle_stop: [SAFETY.warning, SAFETY.obstacle_detected, GRAM.separator, GRAM.imperative, SAFETY.stop_now]
+  tip_move_away: [SAFETY.warning, GRAM.imperative, SAFETY.move_away, GRAM.separator, SAFETY.tip_risk]
+  amaze_three: [GRAM.declarative, SOCIAL.amaze, SOCIAL.amaze, SOCIAL.amaze]
+
+decoder_policy:
+  minimum_token_confidence: 0.85
+  require_valid_token_checksum: true
+  require_valid_message_checksum_for_exact_translation: true
+  on_unknown_or_low_confidence: show_uncertainty_and_request_repeat
+  ai_may_generate_arbitrary_notes: false
+  ai_may_emit_physical_commands: false
+
+translation_controls:
+  physical_button:
+    authoritative_convenience_control: true
+    network_required: false
+  voice_phrase: Rocky, translation mode
+  clap_pattern:
+    description: two_quick_claps_long_pause_one_clap
+    first_interval_ms: [180, 350]
+    second_interval_ms: [650, 1100]
+    transient_refractory_ms: 120
+    threshold_above_noise_floor_db: 12
+    cooldown_ms: 3000
+    safety_critical_use_allowed: false
+  web_or_phone:
+    authenticated_local_control: true
+  optional_remote:
+    loss_of_link_changes_state: false
+
+translation_outputs:
+  - spoken_english
+  - phone_or_computer_subtitles
+  - concealed_or_removable_display
+  - private_bluetooth_earpiece
+  - debug_tokens_and_confidence
+
+extension_process:
+  - Prefer composition from existing concepts.
+  - Open a vocabulary issue defining the missing primitive and contrasts.
+  - Allocate the next unused code within the correct class.
+  - Never recycle or silently change a released code.
+  - Increment the minor version for compatible additions.
+  - Increment the major version for incompatible grammar or audio changes.

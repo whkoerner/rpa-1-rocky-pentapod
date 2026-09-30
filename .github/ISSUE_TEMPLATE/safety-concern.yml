@@ -1,0 +1,41 @@
+name: Safety concern
+description: Record a hazard, unsafe condition, near miss, or required control.
+title: "[SAFETY] "
+labels: ["safety", "needs-review"]
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Potential severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+  - type: textarea
+    id: hazard
+    attributes:
+      label: Hazard and initiating event
+    validations:
+      required: true
+  - type: textarea
+    id: exposure
+    attributes:
+      label: People, property, or subsystems exposed
+    validations:
+      required: true
+  - type: textarea
+    id: immediate
+    attributes:
+      label: Immediate containment
+      description: State whether testing is stopped.
+    validations:
+      required: true
+  - type: textarea
+    id: permanent
+    attributes:
+      label: Required permanent control and verification
+    validations:
+      required: true
