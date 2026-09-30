@@ -9,7 +9,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 1. [Current milestone](milestones/M0-repository-communication.md)
 2. [Current build guide](build-guides/brain-v0.1-build.md)
-3. [Requirements](requirements/requirements-v0.1.md)
+3. [Requirements](requirements/requirements-v0.2.md)
 4. [Risk register](risk-register/risk-register.md)
 5. [Chordic / CSP-1](../language/README.md)
 6. [Roadmap](roadmap/sophomore-year-roadmap.md)
@@ -35,7 +35,7 @@ Do not use **VERIFIED** without a linked test result. Do not use **RELEASED** ju
 
 ## Engineering documents
 
-- [Requirements](requirements/requirements-v0.1.md)
+- [Requirements](requirements/requirements-v0.2.md)
 - [Architecture](architecture/)
 - [Roadmap](roadmap/sophomore-year-roadmap.md)
 - [Risk register](risk-register/risk-register.md)
