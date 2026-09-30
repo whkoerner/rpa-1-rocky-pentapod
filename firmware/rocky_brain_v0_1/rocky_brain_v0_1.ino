@@ -32,42 +32,54 @@ struct Message {
 };
 
 // CSP-1 pitch symbols from language/specification/csp_v0_1.yaml.
+// Names include NOTE_ so NOTE_A4 does not collide with Arduino's A4 pin macro.
 // Integer frequencies are rounded for Arduino tone().
-const unsigned int D4 = 294;
-const unsigned int E4 = 330;
-const unsigned int FS4 = 370;
-const unsigned int A4 = 440;
-const unsigned int B4 = 494;
+const unsigned int NOTE_D4 = 294;
+const unsigned int NOTE_E4 = 330;
+const unsigned int NOTE_FS4 = 370;
+const unsigned int NOTE_A4 = 440;
+const unsigned int NOTE_B4 = 494;
 
 const unsigned int NOTE_MS = 140;
 const unsigned int GAP_MS = 35;
 
-const NoteEvent HELLO_NOTES[] = {
-  {E4, NOTE_MS}, {A4, NOTE_MS}, {D4, NOTE_MS}, {D4, NOTE_MS}, {FS4, NOTE_MS}
+const NoteEvent NOTES_HELLO[] = {
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_D4, NOTE_MS},
+  {NOTE_D4, NOTE_MS}, {NOTE_FS4, NOTE_MS}
 };
-const NoteEvent YES_NOTES[] = {
-  {E4, NOTE_MS}, {A4, NOTE_MS}, {E4, NOTE_MS}, {D4, NOTE_MS}, {A4, NOTE_MS}
+
+const NoteEvent NOTES_YES[] = {
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_E4, NOTE_MS},
+  {NOTE_D4, NOTE_MS}, {NOTE_A4, NOTE_MS}
 };
-const NoteEvent NO_NOTES[] = {
-  {E4, NOTE_MS}, {A4, NOTE_MS}, {E4, NOTE_MS}, {E4, NOTE_MS}, {B4, NOTE_MS}
+
+const NoteEvent NOTES_NO[] = {
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_E4, NOTE_MS},
+  {NOTE_E4, NOTE_MS}, {NOTE_B4, NOTE_MS}
 };
-const NoteEvent HELP_NOTES[] = {
-  {D4, NOTE_MS}, {A4, NOTE_MS}, {A4, NOTE_MS}, {FS4, NOTE_MS}, {FS4, NOTE_MS}
+
+const NoteEvent NOTES_HELP[] = {
+  {NOTE_D4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_A4, NOTE_MS},
+  {NOTE_FS4, NOTE_MS}, {NOTE_FS4, NOTE_MS}
 };
-const NoteEvent THANK_YOU_NOTES[] = {
-  {E4, NOTE_MS}, {A4, NOTE_MS}, {D4, NOTE_MS}, {A4, NOTE_MS}, {D4, NOTE_MS}
+
+const NoteEvent NOTES_THANK_YOU[] = {
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_D4, NOTE_MS},
+  {NOTE_A4, NOTE_MS}, {NOTE_D4, NOTE_MS}
 };
-const NoteEvent GOODBYE_NOTES[] = {
-  {E4, NOTE_MS}, {A4, NOTE_MS}, {D4, NOTE_MS}, {E4, NOTE_MS}, {A4, NOTE_MS}
+
+const NoteEvent NOTES_GOODBYE[] = {
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}, {NOTE_D4, NOTE_MS},
+  {NOTE_E4, NOTE_MS}, {NOTE_A4, NOTE_MS}
 };
 
 const Message MESSAGES[] = {
-  {"HELLO", "SOCIAL.hello", "Hello", HELLO_NOTES, 5},
-  {"YES", "SOCIAL.yes", "Yes", YES_NOTES, 5},
-  {"NO", "SOCIAL.no", "No", NO_NOTES, 5},
-  {"HELP", "ACTION.help", "Help", HELP_NOTES, 5},
-  {"THANK_YOU", "SOCIAL.thank_you", "Thank you", THANK_YOU_NOTES, 5},
-  {"GOODBYE", "SOCIAL.goodbye", "Goodbye", GOODBYE_NOTES, 5}
+  {"HELLO", "SOCIAL.hello", "Hello", NOTES_HELLO, 5},
+  {"YES", "SOCIAL.yes", "Yes", NOTES_YES, 5},
+  {"NO", "SOCIAL.no", "No", NOTES_NO, 5},
+  {"HELP", "ACTION.help", "Help", NOTES_HELP, 5},
+  {"THANK_YOU", "SOCIAL.thank_you", "Thank you", NOTES_THANK_YOU, 5},
+  {"GOODBYE", "SOCIAL.goodbye", "Goodbye", NOTES_GOODBYE, 5}
 };
 
 const byte MESSAGE_COUNT = sizeof(MESSAGES) / sizeof(MESSAGES[0]);
