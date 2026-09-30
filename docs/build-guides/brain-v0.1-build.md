@@ -1,5 +1,10 @@
 # Build guide: Rocky Brain v0.1
 
+**Status:** READY TO TEST  
+**Milestone:** M0 — Repository and Communication  
+**Release:** Pre-release  
+**Last updated:** 2026-09-30
+
 ## What counts as the brain
 
 Rocky Brain v0.1 has two cooperating layers:
