@@ -1,0 +1,7 @@
+intent,arg,canonical_text,chordic_token
+SOCIAL.HELLO,,Hello.,SOCIAL.hello
+RESPONSE.YES,,Yes.,SOCIAL.yes
+RESPONSE.NO,,No.,SOCIAL.no
+REQUEST.HELP,,Help.,ACTION.help
+SOCIAL.THANKS,,Thank you.,SOCIAL.thank_you
+SOCIAL.GOODBYE,,Goodbye.,SOCIAL.goodbye
