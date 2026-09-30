@@ -66,6 +66,16 @@ media/                original diagrams and selected demo media
 
 ## Start here
 
+## Project navigation
+
+New to RPA-1? Start with the [project index](docs/INDEX.md).
+
+- **Current milestone:** [M0 — Repository and Communication](docs/milestones/M0-repository-communication.md)
+- **Current build:** [Rocky Brain v0.1](docs/build-guides/brain-v0.1-build.md)
+- **Safety:** [Requirements](docs/requirements/requirements-v0.1.md) and [Risk Register](docs/risk-register/risk-register.md)
+- **Chordic / CSP-1:** [Language overview](language/README.md)
+- **Roadmap:** [Sophomore-Year Roadmap](docs/roadmap/sophomore-year-roadmap.md)
+
 1. Read [`docs/requirements/requirements-v0.1.md`](docs/requirements/requirements-v0.1.md).
 2. Read the [`actuation trade study`](docs/architecture/actuation-trade-study.md).
 3. Build and test [`Rocky Brain v0.1`](docs/build-guides/brain-v0.1-build.md) with an Uno R3, two buttons, a passive buzzer, and a connected computer.
