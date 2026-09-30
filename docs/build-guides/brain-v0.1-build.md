@@ -5,88 +5,242 @@
 **Release:** Pre-release  
 **Last updated:** 2026-09-30
 
-## What counts as the brain
+## Goal
 
-Rocky Brain v0.1 has two cooperating layers:
+Build the first RPA-1 brain with only:
 
-1. **Elegoo Uno R3 — reflex and musical controller.** It reads physical buttons, stores eight deterministic Chordic utterances, drives the passive buzzer, starts silently, and continues working if the computer app closes.
-2. **Computer — English translation layer.** A local browser page receives the exact phrase identity over USB and optionally speaks its English meaning. The computer does not invent a translation from arbitrary notes.
-
-The Uno cannot run useful speech recognition, long-term memory, or conversational AI. Those belong on a later Raspberry Pi or other Linux computer. The serial protocol introduced here is designed to survive that upgrade.
-
-## Language name
-
-The language is **Chordic**. Its versioned machine encoding is the **Chordic Semantic Protocol (`CSP-1`)**.
-
-## Parts from the Elegoo Super Starter Kit
-
-- Elegoo Uno R3 and USB cable
-- breadboard
+- Elegoo Super Starter Kit Uno R3
 - two momentary pushbuttons
-- passive buzzer, not the active buzzer
-- one 220-ohm resistor for the buzzer
-- jumper wires
+- passive buzzer
+- breadboard and jumper wires
+- one 220-ohm resistor
+- USB-connected computer
 
-The official Super Starter Kit is compatible with the Uno/Arduino IDE platform and includes guided component projects. Use Elegoo's kit tutorial to identify unfamiliar components.
+This build has no motors, internet, AI, Raspberry Pi, microphone, battery pack, or autonomous behavior.
 
-## Wiring with USB disconnected
+The communication language is **Chordic**. Its machine encoding is **CSP-1**. This is an original project protocol, not a claim about a movie language.
 
-The firmware uses the Uno's internal button pull-up resistors, so the buttons connect pins to ground when pressed.
+## What the controls do
 
-| Component node | Connect to |
+- **MODE button (D2):** switches between Communication and Translation mode.
+- **SPEAK button (D3):** plays the next stored Chordic message.
+- **Passive buzzer (D9):** plays the CSP-1 notes.
+- **USB Serial Monitor:** shows the CSP-1 token and, only in Translation mode, its fixed English meaning.
+
+Translation mode does not use AI. It is a small lookup table stored in the Arduino sketch.
+
+## Parts
+
+| Qty | Part |
+|---:|---|
+| 1 | Elegoo/Arduino Uno R3 |
+| 1 | USB data cable |
+| 1 | breadboard |
+| 2 | momentary pushbuttons |
+| 1 | passive buzzer |
+| 1 | 220-ohm resistor |
+| several | jumper wires |
+
+**Assumption:** you are using the passive buzzer from the Elegoo kit. If you are unsure which buzzer is passive, identify it before powering the circuit.
+
+## Wiring
+
+Disconnect USB before changing wires.
+
+| Component | Uno connection |
 |---|---|
-| Mode button terminal 1 | Uno D2 |
-| Mode button terminal 2 | Uno GND |
-| Phrase button terminal 1 | Uno D4 |
-| Phrase button terminal 2 | Uno GND |
-| Passive buzzer `+` | Uno D9 through 220-ohm resistor |
-| Passive buzzer `-` | Uno GND |
+| MODE button side A | D2 |
+| MODE button side B | GND |
+| SPEAK button side A | D3 |
+| SPEAK button side B | GND |
+| passive buzzer + | D9 through 220-ohm resistor |
+| passive buzzer - | GND |
 
-Place each pushbutton across the breadboard's center trench. On a four-leg tactile switch, the two legs on one side are normally already connected. D2/D4 and GND must go to opposite sides that connect only while the button is pressed.
+Both buttons use the Uno's internal pull-up resistors. Do not connect either button to 5 V.
 
-Do not connect the kit's 8-ohm speaker directly to an Uno pin. Do not use the breadboard power-supply module or 9 V battery for this prototype; power the circuit from USB only.
+### Pushbutton orientation
 
-## Upload firmware
+Place each four-leg tactile switch across the breadboard center trench. The two legs on one side are normally already connected. D2/D3 and GND must connect to opposite electrical sides.
 
-1. Install **Arduino IDE 2** from Arduino's official site.
-2. Connect the Uno to the computer with USB.
+```text
+MODE:   D2 ---- button ---- GND
+SPEAK:  D3 ---- button ---- GND
+BUZZER: D9 ---- 220 ohm ---- (+ buzzer -) ---- GND
+```
+
+## Arduino IDE setup
+
+1. Install Arduino IDE 2.
+2. Connect the Uno with the USB data cable.
 3. Open `firmware/rocky_brain_v0_1/rocky_brain_v0_1.ino`.
-4. Choose **Tools → Board → Arduino AVR Boards → Arduino Uno**.
-5. Choose **Tools → Port** and select the Uno.
-6. Click **Verify**. It must finish without an error.
-7. Click **Upload**. Wait for `Done uploading`.
-8. Open Serial Monitor, set **115200 baud**, and choose a newline line ending.
-9. Send `STATUS`. Expect a line beginning `EVENT|STATUS|MODE=MUSICAL`.
-10. Close Serial Monitor before opening the browser console.
+4. Select **Tools -> Board -> Arduino AVR Boards -> Arduino Uno**.
+5. Select **Tools -> Port -> [your Uno port]**.
+6. Click **Verify**.
+7. Click **Upload**.
+8. Open **Tools -> Serial Monitor**.
+9. Set **9600 baud** and **Newline**.
 
-## Run the English translation console
+The exact COM number varies by computer.
 
-1. Open `software/brain_web/index.html` in desktop Chrome or Edge.
-2. Click **Connect to Uno** and select the same serial port used by Arduino IDE.
-3. Press the physical D2 button or the webpage mode button. The Uno's built-in LED should turn on and the page should show **Translated English**.
-4. Press the physical D4 button. Rocky plays Chordic through the buzzer; the computer displays the CSP tokens and speaks the exact English phrase.
-5. Press D2 again. The built-in LED turns off. Rocky continues making Chordic sounds, but the computer no longer speaks English.
+## Serial commands
 
-If the page cannot use Web Serial, run `py -m http.server 8000` on Windows or `python3 -m http.server 8000` on macOS/Linux from the `software/brain_web` folder, then open `http://localhost:8000` in Chrome or Edge.
+```text
+HELP
+STATUS
+LIST
+NEXT
+MODE COMM
+MODE TRANSLATE
+SAY HELLO
+SAY YES
+SAY NO
+SAY HELP
+SAY THANK_YOU
+SAY GOODBYE
+```
 
-## Expected behavior
+## Starter vocabulary
 
-- Safe startup: no tone, no movement, translation off.
-- Built-in LED off: Chordic-only mode.
-- Built-in LED on: Chordic plus English translation.
-- D4 cycles through hello, yes, no, thank you, amaze, please repeat, not understood, and warning/stop.
-- Browser phrase buttons play a chosen utterance directly.
-- Unrecognized serial commands return an explicit error rather than being guessed.
+These are already-defined CSP-1 concepts from `language/specification/csp_v0_1.yaml`.
 
-## Common mistakes
+| Command name | CSP-1 token | English translation |
+|---|---|---|
+| HELLO | SOCIAL.hello | Hello |
+| YES | SOCIAL.yes | Yes |
+| NO | SOCIAL.no | No |
+| HELP | ACTION.help | Help |
+| THANK_YOU | SOCIAL.thank_you | Thank you |
+| GOODBYE | SOCIAL.goodbye | Goodbye |
 
-- **One long unchanging buzz:** the active buzzer was used; switch to the passive buzzer.
-- **Button fires constantly:** D2/D4 and GND are connected to legs that are already common; rotate the button 90 degrees.
-- **Upload port is missing:** try a data-capable USB cable and check the selected board and port.
-- **Browser cannot connect:** close Serial Monitor; only one application can use the port.
-- **No English voice:** enable **Speak English**, set translated mode, and verify that the operating system has a speech voice installed.
-- **Sound is unpleasant:** disconnect USB, confirm the 220-ohm series resistor, cover the buzzer opening lightly, and never hold it near an ear.
+The firmware derives its note patterns from the CSP-1 class/code encoding already documented in the repository. Arduino `tone()` uses rounded integer frequencies.
 
-## Demonstration video
+## Test in stages
 
-Record one continuous shot showing startup, both physical buttons, all eight phrases, translation on/off, the visible token display, and recovery after unplugging/reconnecting USB. Keep the wiring visible.
+### Test 1 — Uno and Serial only
+
+Leave the breadboard disconnected.
+
+Upload the firmware and send:
+
+```text
+STATUS
+```
+
+**Pass:** Serial Monitor reports `RPA-1 ROCKY BRAIN v0.1` and `MODE: COMMUNICATION`.
+
+### Test 2 — passive buzzer
+
+Connect only the buzzer circuit and send:
+
+```text
+SAY HELLO
+```
+
+**Pass:** Serial Monitor prints `CSP-1: SOCIAL.hello` and the passive buzzer produces a five-note sequence.
+
+### Test 3 — MODE button
+
+Connect the D2 button and press it once.
+
+**Pass:** the mode changes to `TRANSLATION`. Press it again and it returns to `COMMUNICATION`.
+
+### Test 4 — SPEAK button
+
+Connect the D3 button and press it repeatedly.
+
+**Pass:** messages cycle in this order:
+
+```text
+HELLO -> YES -> NO -> HELP -> THANK_YOU -> GOODBYE -> HELLO
+```
+
+### Test 5 — translation behavior
+
+Send:
+
+```text
+MODE TRANSLATE
+SAY HELLO
+```
+
+**Pass:** Serial Monitor includes:
+
+```text
+CSP-1: SOCIAL.hello
+ENGLISH: Hello
+```
+
+Then send:
+
+```text
+MODE COMM
+SAY HELLO
+```
+
+**Pass:** `CSP-1: SOCIAL.hello` appears, but no `ENGLISH:` line is printed.
+
+## Acceptance criteria
+
+Do not mark these complete until you personally observe them.
+
+```text
+[ ] Sketch verifies in Arduino IDE
+[ ] Sketch uploads to Uno
+[ ] Serial Monitor works at 9600 baud
+[ ] HELP, STATUS, LIST, and NEXT work
+[ ] All six stored messages produce tone sequences
+[ ] D2 switches modes once per deliberate press
+[ ] D3 cycles through all six messages
+[ ] Communication mode omits the English line
+[ ] Translation mode prints the fixed English line
+[ ] Pressing either button does not reset the Uno
+[ ] No component or wire becomes hot
+```
+
+## Safety
+
+- Disconnect USB before rewiring.
+- Never intentionally connect an Uno output pin directly to GND.
+- Use the 220-ohm series resistor with the passive buzzer.
+- Do not use the kit's 8-ohm speaker directly from an Uno GPIO.
+- Do not add motors, external batteries, or the breadboard power module to this test.
+- Keep the buzzer away from your ear.
+
+## Troubleshooting
+
+**No port appears:** unplug the Uno, note the ports, reconnect it, and choose the new port. Try another USB data cable if needed.
+
+**Upload fails:** confirm **Arduino Uno** and the correct port are selected. Close other programs using the port.
+
+**Unreadable Serial Monitor:** set it to **9600 baud**.
+
+**Commands do nothing:** set the line ending to **Newline**, then send `HELP`.
+
+**Button always reads pressed:** rotate the four-leg button 90 degrees or move the wires to opposite electrical sides.
+
+**One press appears to trigger more than once:** first check loose wires and button orientation. The firmware includes basic debounce protection.
+
+**Buzzer only clicks or gives one fixed buzz:** confirm that you used the passive buzzer rather than the active buzzer.
+
+**Uno resets when a button is pressed:** disconnect USB immediately and inspect the wiring. The button must connect D2 or D3 to GND; it must not short 5 V to GND.
+
+## Pre-commit test
+
+After making or downloading this change, run the existing software tests from the repository root:
+
+```bash
+python -m pip install -e .
+python -m unittest discover -s language/tests -v
+```
+
+Then, with the Uno connected, use Arduino IDE **Verify** on:
+
+```text
+firmware/rocky_brain_v0_1/rocky_brain_v0_1.ino
+```
+
+The Python tests check that the existing CSP-1 software still behaves consistently. Arduino IDE Verify checks the actual Uno sketch. Hardware acceptance still requires the staged tests above.
+
+## Short next step
+
+Build only the Uno + passive buzzer first. Verify `SAY HELLO` through `SAY GOODBYE`. Then add D2 and test it. Add D3 last.
