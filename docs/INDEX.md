@@ -18,7 +18,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 | Item | Status | Main file |
 |---|---|---|
-| Brain v0.2 host integration | PLANNED — architecture frozen | [Architecture freeze](architecture/brain-v0.2-architecture.md) |
+| Brain v0.2 host integration | READY TO TEST — minimum offline core | [Brain package](../software/brain/) |
 | Rocky Brain v0.1 | READY TO TEST | [Build guide](build-guides/brain-v0.1-build.md) |
 | Computer-only Simulation v0.1 | READY TO TEST | [Build guide](build-guides/simulation-v0.1-build.md) |
 | Chordic / CSP-1 | IN PROGRESS | [Language overview](../language/README.md) |
@@ -48,6 +48,7 @@ Do not use **VERIFIED** without a linked test result. Do not use **RELEASED** ju
 
 - [Firmware](../firmware/)
 - [Software](../software/)
+- [Brain v0.2 host core](../software/brain/)
 - [Computer-only simulator](../software/simulation/)
 - [Electronics](../electronics/)
 - [Hardware](../hardware/)

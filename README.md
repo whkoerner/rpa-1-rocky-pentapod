@@ -72,7 +72,7 @@ New to RPA-1? Start with the [project index](docs/INDEX.md).
 
 - **Current milestone:** [M0 — Repository and Communication](docs/milestones/M0-repository-communication.md)
 - **Current build:** [Rocky Brain v0.1](docs/build-guides/brain-v0.1-build.md)
-- **Next software stage:** [Brain v0.2 architecture freeze](docs/architecture/brain-v0.2-architecture.md) — Windows-first offline host integration; implementation planned.
+- **Brain v0.2 core:** [software/brain/](software/brain/) — deterministic offline host core implemented for communication-only simulation testing under the frozen architecture.
 - **Safety:** [Requirements](docs/requirements/requirements-v0.1.md) and [Risk Register](docs/risk-register/risk-register.md)
 - **Chordic / CSP-1:** [Language overview](language/README.md)
 - **Roadmap:** [Sophomore-Year Roadmap](docs/roadmap/sophomore-year-roadmap.md)
@@ -88,6 +88,12 @@ Run the current software check with:
 python -m pip install -e .
 python -m unittest discover -s language/tests -v
 python -m csp.cli encode SOCIAL.hello
+```
+
+Run the minimum Brain v0.2 core offline in the existing headless simulator with:
+
+```bash
+python -m brain.cli
 ```
 
 ## Evidence policy
