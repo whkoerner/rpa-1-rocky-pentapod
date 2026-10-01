@@ -53,7 +53,11 @@ The interactive terminal check exposed a shutdown hang caused by a background th
 - Arduino compile/physical test: `arduino-cli` is not installed in the execution environment; the existing GitHub compilation job is retained. Firmware was not changed.
 - Fresh wheel-only installation: not supported by the pre-existing CSP YAML resource path. Use the documented source checkout.
 
-GitHub CI configuration is a future runner check until its result is visible. Local test passes do not mean Windows/Arduino CI has already passed.
+## GitHub CI evidence
+
+[Run 36840140172](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/36840140172), testing commit `4def72b09b767f27df5311f94f9295d1aaaffb78`, passed the Windows and Ubuntu software/protocol checks and the Arduino Uno compilation check. Both Python runners use 3.12. The POSIX pseudoterminal regression is intentionally skipped on Windows; Windows pipe/worker tests passed. CI does not test physical speakers, an actual model, a disconnected network or Uno hardware.
+
+The local `arduino-cli` limitation above remains true; compilation was performed by GitHub's existing workflow. This CI record was added in a documentation-only follow-up commit. The implementation remains exactly the tested `4def72b` source.
 
 ## Manual gate for Wyatt
 
