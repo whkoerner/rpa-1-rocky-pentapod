@@ -25,3 +25,8 @@ media/raw/
 
 # Generated simulation runs
 software/simulation/logs/*.csv
+
+# Recreate environments locally; do not commit conversation audio or metadata.
+.venv-rocky/
+.rocky-output/
+*.egg-info/
