@@ -10,7 +10,8 @@ from typing import Callable, Protocol
 from uuid import uuid4
 
 from csp.core import CspCodec
-from csp.wire import INTENTS, canonical_text, chordic_token, encode
+from csp.wire import INTENTS, WireMessage, canonical_text, chordic_token, encode
+from csp.conversation import Utterance, encode_text
 from rpa_link.messages import Mode, monotonic_us
 
 from .ai import AIProvider
@@ -20,6 +21,7 @@ from .contracts import (
     BrainOutcome,
     BrainResult,
     CommunicationOutput,
+    ConversationOutput,
     ConnectionState,
     HardwareCommand,
     HardwareReceipt,
@@ -33,7 +35,9 @@ from .contracts import (
 )
 from .hardware import HardwareInterface
 from .safety import SafetyValidator
-from .validation import CandidateValidationError, validate_candidate
+from .validation import CandidateValidationError, validate_candidate, validate_utterance
+
+_NOT_SUPPLIED = object()
 
 
 class EventLogger(Protocol):
@@ -73,7 +77,12 @@ class TaskController:
     def __init__(self, codec: CspCodec) -> None:
         self._codec = codec
 
-    def build_communication(self, message) -> CommunicationOutput:
+    def build_communication(self, message) -> CommunicationOutput | ConversationOutput:
+        if isinstance(message, Utterance):
+            for intent, (text, _) in INTENTS.items():
+                if message.text == text:
+                    return self.build_communication(WireMessage(intent))
+            return ConversationOutput(message, message.text, encode_text(message.text))
         csp_line = encode(message)
         text = canonical_text(message)
         token = chordic_token(message)
@@ -140,18 +149,25 @@ class BrainController:
         return self.state
 
     def submit_text(self, text: str) -> BrainResult:
+        return self._submit(text)
+
+    def submit_utterance(self, candidate: object) -> BrainResult:
+        """Accept an untrusted text candidate after supervised inference; validate again."""
+        return self._submit("", candidate)
+
+    def _submit(self, text: str, candidate: object = _NOT_SUPPLIED) -> BrainResult:
         request_id = self._allocate_request_id()
         with self._busy_lock:
             if self._busy:
                 return self._result(request_id, BrainOutcome.REJECTED, ResultCode.BUSY)
             self._busy = True
         try:
-            return self._submit_text(request_id, text)
+            return self._submit_text(request_id, text, candidate)
         finally:
             with self._busy_lock:
                 self._busy = False
 
-    def _submit_text(self, request_id: int, text: str) -> BrainResult:
+    def _submit_text(self, request_id: int, text: str, supplied: object = _NOT_SUPPLIED) -> BrainResult:
         if self.state.pending_command_id is not None:
             return self._result(request_id, BrainOutcome.REJECTED, ResultCode.BUSY)
         if self.state.connection_state != ConnectionState.READY:
@@ -187,7 +203,7 @@ class BrainController:
 
         provider_started = self.clock_us()
         try:
-            candidate = self.provider.propose(text, self._ai_context())
+            candidate = self.provider.propose(text, self._ai_context()) if supplied is _NOT_SUPPLIED else supplied
         except Exception as exc:
             return self._result(
                 request_id,
@@ -220,7 +236,7 @@ class BrainController:
             )
 
         try:
-            message = validate_candidate(candidate)
+            message = validate_candidate(candidate) if supplied is _NOT_SUPPLIED else validate_utterance(candidate)
         except CandidateValidationError as exc:
             detail = exc.detail
             if exc.wire_code:
