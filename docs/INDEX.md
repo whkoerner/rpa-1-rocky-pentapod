@@ -18,6 +18,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 | Item | Status | Main file |
 |---|---|---|
+| Brain v0.2 host integration | PLANNED — architecture frozen | [Architecture freeze](architecture/brain-v0.2-architecture.md) |
 | Rocky Brain v0.1 | READY TO TEST | [Build guide](build-guides/brain-v0.1-build.md) |
 | Computer-only Simulation v0.1 | READY TO TEST | [Build guide](build-guides/simulation-v0.1-build.md) |
 | Chordic / CSP-1 | IN PROGRESS | [Language overview](../language/README.md) |

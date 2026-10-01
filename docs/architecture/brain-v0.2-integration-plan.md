@@ -2,6 +2,7 @@
 
 **Date:** 2026-09-30  
 **Status:** PLAN ONLY — implementation is the next stage  
+**Architecture authority:** [Brain v0.2 architecture freeze](brain-v0.2-architecture.md) refines this plan and governs implementation where details differ. Read its frozen decisions, verified repository conflicts and stable interfaces before writing code.
 **Target:** functional Windows Brain v0.2 today, portable to Raspberry Pi later  
 **Scope of this change:** connect existing project pieces with the smallest new orchestration layer; do not redesign CSP-1, Chordic, RPA-Link, the simulator, or Brain v0.1 firmware.
 
