@@ -7,6 +7,8 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 ## Start here
 
+**For computer conversation and sound:** [Conversational Brain V1 build guide](build-guides/conversational-brain-v1-build.md), [architecture](architecture/conversational-brain-v1.md), and [validation record / V2 roadmap](milestones/conversational-brain-v1.md).
+
 1. [Current milestone](milestones/M0-repository-communication.md)
 2. [Current build guide](build-guides/brain-v0.1-build.md)
 3. [Requirements](requirements/requirements-v0.2.md)
@@ -18,6 +20,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 | Item | Status | Main file |
 |---|---|---|
+| Conversational Brain V1 | READY TO TEST — local AI and desktop audio | [Windows build guide](build-guides/conversational-brain-v1-build.md) |
 | Brain v0.2 host integration | READY TO TEST — minimum offline core | [Brain package](../software/brain/) |
 | Rocky Brain v0.1 | READY TO TEST | [Build guide](build-guides/brain-v0.1-build.md) |
 | Computer-only Simulation v0.1 | READY TO TEST | [Build guide](build-guides/simulation-v0.1-build.md) |

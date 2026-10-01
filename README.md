@@ -66,6 +66,18 @@ media/                original diagrams and selected demo media
 
 ## Start here
 
+**Talk to Rocky on your computer:** [Conversational Brain V1 — Windows setup](docs/build-guides/conversational-brain-v1-build.md). Typed local AI conversation, audible Chordic, English translation, replay and mute. No Arduino required. **Ready for user testing**; real speaker/model/offline acceptance still needs to be recorded. [Architecture](docs/architecture/conversational-brain-v1.md) · [Version and test record / V2 roadmap](docs/milestones/conversational-brain-v1.md).
+
+From a full checkout after `python -m pip install -e .`:
+
+```bash
+python -m rocky audio-test
+python -m rocky --provider dummy
+python -m rocky --provider local --model qwen3:8b
+```
+
+The last command needs Ollama and the downloaded model; follow the guide first. Windows uses built-in audio. Linux playback uses the optional `audio` extra.
+
 ## Project navigation
 
 New to RPA-1? Start with the [project index](docs/INDEX.md).

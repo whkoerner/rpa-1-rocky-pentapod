@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-01 — Conversational Brain V1 (ready for user testing)
+
+- Added a supervised local Ollama conversation provider, editable persona, bounded session memory and a multi-turn terminal client.
+- Added a separately validated desktop text communication capability through the existing brain/safety/task/hardware chain.
+- Preserved the six CSP-1 meanings; added reversible CT1 UTF-8 musical text transport for longer replies.
+- Added bounded PCM synthesis, built-in Windows playback, optional pygame audio, WAV diagnostics, translation/replay/mute and explicit cancellation/stop/reset.
+- Added headless conversation/audio/provider/worker tests, Windows build instructions, architecture decisions and a V2 roadmap.
+- Kept Python >=3.10 and distribution name `rpa1-csp`; bumped the combined distribution to 0.2.0. App version is 1.0.0.
+- Phone interface deferred; microphone interface prepared for V2. See the [validation record](docs/milestones/conversational-brain-v1.md) for executed tests and outstanding real-device/model checks.
+
 ## 2026-09-30 — Rocky Brain v0.1
 
 - Named the constructed musical language Chordic and retained CSP-1 as its deterministic encoding.
