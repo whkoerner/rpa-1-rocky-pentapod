@@ -1,0 +1,4 @@
+PyYAML<7,>=6.0
+
+[simulation]
+pygame<3,>=2.5
