@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any
 
 from csp.wire import WireMessage
+from csp.conversation import Utterance
 from rpa_link.messages import Mode
 
 
@@ -19,6 +20,7 @@ class ConnectionState(str, Enum):
 
 class Capability(str, Enum):
     COMMUNICATION = "COMMUNICATION"
+    TEXT_COMMUNICATION = "TEXT_COMMUNICATION"
     LOCAL_STOP = "LOCAL_STOP"
 
 
@@ -122,12 +124,19 @@ class CommunicationOutput:
 
 
 @dataclass(frozen=True)
+class ConversationOutput:
+    message: Utterance
+    canonical_text: str
+    symbols: tuple[tuple[int, ...], ...]
+
+
+@dataclass(frozen=True)
 class HardwareCommand:
     command_id: int
     session_id: str
     request_id: int
     deadline_us: int
-    communication: CommunicationOutput
+    communication: CommunicationOutput | ConversationOutput
 
 
 @dataclass(frozen=True)
@@ -188,7 +197,7 @@ class RobotState:
     host_motion_mode: Mode = Mode.DISABLED
     estop_latched: bool = False
     latest_fault: str = ""
-    last_communication: CommunicationOutput | None = None
+    last_communication: CommunicationOutput | ConversationOutput | None = None
     last_result_code: str = ""
     pending_command_id: int | None = None
 
@@ -200,6 +209,6 @@ class BrainResult:
     code: ResultCode
     state_revision: int
     detail: str = ""
-    communication: CommunicationOutput | None = None
+    communication: CommunicationOutput | ConversationOutput | None = None
     receipt: HardwareReceipt | None = None
     safety: SafetyDecision | None = None

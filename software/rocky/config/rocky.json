@@ -1,0 +1,8 @@
+{
+  "provider": "local",
+  "model": "qwen3:8b",
+  "port": 11434,
+  "timeout": 120,
+  "audio_backend": "auto",
+  "volume": 0.12
+}

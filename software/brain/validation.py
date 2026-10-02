@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from csp.wire import WireError, WireMessage, decode, encode
+from csp.conversation import Utterance, validate_text
 
 from .contracts import ResultCode
 
@@ -13,6 +14,15 @@ class CandidateValidationError(ValueError):
         self.code = code
         self.detail = detail
         self.wire_code = wire_code
+
+
+def validate_utterance(candidate: object) -> Utterance:
+    if type(candidate) is not dict or set(candidate) != {"text"}:
+        raise CandidateValidationError(ResultCode.INVALID_RESPONSE, "expected exactly text")
+    try:
+        return Utterance(validate_text(candidate["text"]))
+    except (ValueError, UnicodeError) as exc:
+        raise CandidateValidationError(ResultCode.INVALID_RESPONSE, str(exc)) from exc
 
 
 def validate_candidate(candidate: object) -> WireMessage:

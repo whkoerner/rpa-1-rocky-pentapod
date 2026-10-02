@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpa1-csp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic musical-language codec for the RPA-1 pentapod project"
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0,<7"]
 
 [project.optional-dependencies]
 simulation = ["pygame>=2.5,<3"]
+audio = ["pygame>=2.5,<3"]
 
 [tool.setuptools]
 package-dir = {"" = "software"}
@@ -20,3 +21,4 @@ where = ["software"]
 
 [tool.setuptools.package-data]
 simulation = ["config/*.json"]
+rocky = ["config/*.json", "config/*.txt"]

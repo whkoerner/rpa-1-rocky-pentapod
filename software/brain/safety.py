@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from csp.wire import INTENTS, WireMessage
+from csp.conversation import Utterance, validate_text
 
 from .contracts import (
     Capability,
@@ -17,7 +18,7 @@ from .contracts import (
 class SafetyValidator:
     def validate(
         self,
-        message: WireMessage,
+        message: WireMessage | Utterance,
         request: RequestContext,
         state: RobotState,
         now_us: int,
@@ -30,8 +31,15 @@ class SafetyValidator:
             return SafetyDecision(False, ResultCode.ESTOP_LATCHED, revision)
         if state.connection_state != ConnectionState.READY:
             return SafetyDecision(False, ResultCode.BACKEND_UNAVAILABLE, revision)
-        if Capability.COMMUNICATION not in state.capabilities:
+        capability = Capability.TEXT_COMMUNICATION if isinstance(message, Utterance) else Capability.COMMUNICATION
+        if capability not in state.capabilities:
             return SafetyDecision(False, ResultCode.CAPABILITY_UNAVAILABLE, revision)
+        if isinstance(message, Utterance):
+            try:
+                validate_text(message.text)
+            except ValueError:
+                return SafetyDecision(False, ResultCode.INVALID_RESPONSE, revision)
+            return SafetyDecision(True, ResultCode.OK, revision)
         if message.intent not in INTENTS or message.arg:
             return SafetyDecision(False, ResultCode.UNSUPPORTED_INTENT, revision)
 

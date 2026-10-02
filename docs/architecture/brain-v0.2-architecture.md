@@ -1,5 +1,7 @@
 # RPA-1 Brain v0.2 — Architecture Freeze
 
+**V1 extension:** The owner's subsequent conversational/audio request is implemented in the additive [Conversational Brain V1 decision record](conversational-brain-v1.md). This freeze remains the authority for the original six-intent path; the addendum records the separate text payload/capability and supervised model boundary.
+
 **Date:** 2026-09-30 (America/Los_Angeles)
 **Status:** Architecture selected for implementation under the project owner's requested freeze; implementation remains PLANNED. This is not a hardware safety approval.
 **Repository reviewed:** `whkoerner/rpa-1-rocky-pentapod`, `main` at `e297b6dd3dc10830ca05957c8bb6ca672324f588`.
