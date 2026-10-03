@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+software/csp/__init__.py
+software/csp/cli.py
+software/csp/core.py
+software/rpa1_csp.egg-info/PKG-INFO
+software/rpa1_csp.egg-info/SOURCES.txt
+software/rpa1_csp.egg-info/dependency_links.txt
+software/rpa1_csp.egg-info/requires.txt
+software/rpa1_csp.egg-info/top_level.txt
