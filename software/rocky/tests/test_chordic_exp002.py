@@ -4,12 +4,19 @@ import unittest
 from pathlib import Path
 
 from brain.ai import DummyAIProvider
-from brain.contracts import BrainOutcome
+from brain.contracts import (
+    BrainOutcome,
+    Capability,
+    ConnectionState,
+    EvidenceKind,
+    HardwareReceipt,
+    HardwareStatus,
+    ReceiptStatus,
+)
 from brain.controller import BrainController, TaskController
 from csp.conversation import Utterance
 from csp.core import CspCodec
 from rocky.audio import estimated_duration
-from brain.hardware import SimulatorHardware
 from rpa_link.messages import Mode
 
 
@@ -41,6 +48,51 @@ class SequenceClock:
         value = self.value
         self.value += self.step
         return value
+
+
+class CommunicationOnlyHardware:
+    def __init__(self, clock):
+        self.clock = clock
+        self.dispatch_count = 0
+        self.last_command = None
+
+    def open(self):
+        return HardwareStatus(
+            backend_id="chordic-exp002-test",
+            capabilities=frozenset({Capability.COMMUNICATION, Capability.LOCAL_STOP}),
+            connection_state=ConnectionState.READY,
+            native_mode="IDLE",
+        )
+
+    def dispatch(self, command):
+        self.dispatch_count += 1
+        self.last_command = command
+        return HardwareReceipt(
+            command_id=command.command_id,
+            session_id=command.session_id,
+            backend_id="chordic-exp002-test",
+            status=ReceiptStatus.COMPLETED,
+            reason="OK",
+            evidence_kind=EvidenceKind.SIMULATED,
+            received_us=self.clock(),
+        )
+
+    def poll(self):
+        return ()
+
+    def stop(self, reason, *, emergency):
+        return HardwareReceipt(
+            command_id=0,
+            session_id="",
+            backend_id="chordic-exp002-test",
+            status=ReceiptStatus.COMPLETED,
+            reason=reason,
+            evidence_kind=EvidenceKind.SIMULATED,
+            received_us=self.clock(),
+        )
+
+    def close(self):
+        return None
 
 
 class ChordicExp002IntegrationTests(unittest.TestCase):
@@ -101,9 +153,10 @@ class ChordicExp002IntegrationTests(unittest.TestCase):
 
     def test_brain_path_accepts_benchmark_utterance_without_motion_authority(self):
         clock = SequenceClock()
+        hardware = CommunicationOnlyHardware(clock)
         controller = BrainController(
             provider=DummyAIProvider(),
-            hardware=SimulatorHardware(clock_us=clock),
+            hardware=hardware,
             clock_us=clock,
             session_id="chordic-exp002",
         )
@@ -113,6 +166,11 @@ class ChordicExp002IntegrationTests(unittest.TestCase):
             result = controller.submit_utterance({"text": "I will help you."})
             self.assertIn(result.outcome, {BrainOutcome.ACCEPTED, BrainOutcome.COMPLETED})
             self.assertEqual(result.communication.canonical_text, "I will help you.")
+            self.assertEqual(hardware.dispatch_count, 1)
+            self.assertEqual(
+                hardware.last_command.communication.canonical_text,
+                "I will help you.",
+            )
             self.assertEqual(controller.state.host_motion_mode, Mode.DISABLED)
             self.assertFalse(controller.state.estop_latched)
         finally:
