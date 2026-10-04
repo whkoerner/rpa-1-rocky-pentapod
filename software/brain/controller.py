@@ -12,6 +12,7 @@ from uuid import uuid4
 from csp.core import CspCodec
 from csp.wire import INTENTS, WireMessage, canonical_text, chordic_token, encode
 from csp.conversation import Utterance, encode_text
+from csp.learning import encode_phrase
 from rpa_link.messages import Mode, monotonic_us
 
 from .ai import AIProvider
@@ -74,15 +75,18 @@ class JsonlEventLogger:
 class TaskController:
     """Finite allowlisted task selection; v0.2 implements communication only."""
 
-    def __init__(self, codec: CspCodec) -> None:
+    def __init__(self, codec: CspCodec, text_encoding: str = "ct2") -> None:
+        if text_encoding not in {"ct1", "ct2"}:
+            raise ValueError("text_encoding must be ct1 or ct2")
         self._codec = codec
+        self.text_encoding = text_encoding
 
     def build_communication(self, message) -> CommunicationOutput | ConversationOutput:
         if isinstance(message, Utterance):
             for intent, (text, _) in INTENTS.items():
                 if message.text == text:
                     return self.build_communication(WireMessage(intent))
-            return ConversationOutput(message, message.text, encode_text(message.text))
+            return ConversationOutput(message, message.text, encode_text(message.text)) if self.text_encoding == "ct1" else ConversationOutput(message, message.text, (), encode_phrase(message.text))
         csp_line = encode(message)
         text = canonical_text(message)
         token = chordic_token(message)
