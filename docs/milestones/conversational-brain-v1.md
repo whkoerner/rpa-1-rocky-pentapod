@@ -46,7 +46,7 @@ The interactive terminal check exposed a shutdown hang caused by a background th
 
 ## Not executed / still required
 
-- Windows playback through real speakers; no statement that generated audio was heard.
+- Full Windows conversational playback remains required. The standalone Windows audio diagnostic was heard by the user on 2026-10-03; see [CV1-AUDIO-001](../test-plans/2026-10-03-conversational-brain-v1-windows-audio.md).
 - Real Qwen3 inference, response quality, actual model memory/latency, and model-backed color recall.
 - Network-disconnected real-model restart.
 - Raspberry Pi installation, inference or audio.
@@ -59,9 +59,18 @@ The interactive terminal check exposed a shutdown hang caused by a background th
 
 The local `arduino-cli` limitation above remains true; compilation was performed by GitHub's existing workflow. This CI record was added in a documentation-only follow-up commit. The implementation remains exactly the tested `4def72b` source.
 
+
+## Manual user evidence
+
+| Date | Test | Environment | Result | Evidence |
+|---|---|---|---|---|
+| 2026-10-03 | CV1-AUDIO-001 — Windows audio diagnostic | Windows 11 Home `10.0.26300` 64-bit; Python `3.13.16`; local branch `feat/rocky-conversation-v1` at `2f6eae7` with recorded dirty-tree state | **PASS** | [Dated test record](../test-plans/2026-10-03-conversational-brain-v1-windows-audio.md). CLI requested playback and the user separately reported hearing the audio. This verifies only the build-guide `audio-test` audibility criterion. |
+
+The terminal's `PLAYBACK_REQUESTED_NOT_ACOUSTICALLY_VERIFIED` receipt is not treated as acoustic evidence by itself. The PASS above depends on the separately recorded user listening observation. Real-model, translation, offline, Raspberry Pi, and physical-robot checks remain open.
+
 ## Manual gate for Wyatt
 
-Follow the [build guide's acceptance checklist](../build-guides/conversational-brain-v1-build.md#acceptance-checklist). Record commit (`git rev-parse HEAD`), Python version, Windows version, model ID (`ollama list`), RAM/GPU, and pass/fail observations. Change status to VERIFIED only after the relevant manual checks pass. Never copy assumed timing, sound levels or physical behavior into the results.
+Follow the [build guide's acceptance checklist](../build-guides/conversational-brain-v1-build.md#acceptance-checklist). The standalone `audio-test` audibility criterion now has linked user evidence in [CV1-AUDIO-001](../test-plans/2026-10-03-conversational-brain-v1-windows-audio.md); the remaining manual criteria stay open. Record commit (`git rev-parse HEAD`), Python version, Windows version, model ID (`ollama list`), RAM/GPU, and pass/fail observations. Change status to VERIFIED only after the relevant manual checks pass. Never copy assumed timing, sound levels or physical behavior into the results.
 
 ## V2 — five highest-value next improvements
 
