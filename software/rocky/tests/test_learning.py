@@ -68,5 +68,3 @@ class LearningTests(unittest.TestCase):
         pcm = synthesize(output, self.codec, 0, 3)
         self.assertEqual(len(pcm)//2, round(estimated_duration(output,self.codec,3)*SAMPLE_RATE))
         self.assertEqual(set(pcm), {0})
-
-
