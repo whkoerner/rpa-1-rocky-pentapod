@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: check the crash window for Windows Resource-Exhaustion-Detector events before deciding on any Qwen3 8B retest.
+- Next diagnostic step: inspect Ollama runtime logs around the failed run before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -499,3 +499,28 @@ The `Win32_PageFileSetting` values were not supplied, so `InitialSize` and `Maxi
 ### Updated next diagnostic step
 
 Check the crash window for Windows Resource-Exhaustion-Detector events before any real-model retest.
+
+## Diagnostic follow-up: Resource-Exhaustion/Memory event query
+
+The operator ran:
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=[datetime]'10/3/2026 5:30 PM'; EndTime=[datetime]'10/3/2026 5:41 PM'} | Where-Object {$_.ProviderName -match 'Resource-Exhaustion|Memory'} | Select-Object TimeCreated,Id,ProviderName,Message | Format-List
+```
+
+### Observed result
+
+No output was returned.
+
+### Interpretation
+
+- No System-log event whose provider name matched `Resource-Exhaustion` or `Memory` was returned for the queried 5:30–5:41 PM crash window.
+- This is useful negative evidence: Windows did not surface an obvious matching resource-exhaustion event through this query.
+- It does **not** negate WinDbg's decoded `0xC000009A` status: **“Insufficient system resources exist to complete the API.”**
+- It also does not prove that RAM, commit, VRAM, kernel pools, or driver-internal resources were healthy at the instant of the crash.
+- Immediate failure mechanism remains **VIDEO_TDR_FAILURE (0x116) in the NVIDIA display-driver recovery path**.
+- Underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Inspect Ollama's own logs around the failed run before choosing a lower-risk real-model retest.
