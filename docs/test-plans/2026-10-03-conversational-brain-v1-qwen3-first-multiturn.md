@@ -20,7 +20,7 @@
 - Digital volume: no per-run override was prescribed; the most recently observed tracked configuration used `0.12`.
 - Translation mode: automatic English display was expected from the V1 default but was not explicitly recorded in the supplied evidence.
 - Audio speed: no configurable speed value was recorded; user reported the tones were still too fast.
-- Computer RAM/GPU: UNKNOWN.
+- Computer RAM: UNKNOWN. GPU was later identified after reboot as NVIDIA GeForce RTX 5070 Ti Laptop GPU; see diagnostic follow-up.
 - Test-plan source: `docs/build-guides/conversational-brain-v1-build.md`, real-model first conversation and acceptance checklist.
 - Safety controls/exclusion zone: no actuators or physical robot hardware were involved.
 
@@ -85,7 +85,7 @@ This is user-reported observational evidence. No exact first model reply text, s
 - Terminal error text: UNKNOWN; the later Windows System log recorded a bugcheck and saved a minidump.
 - Windows event evidence: collected after reboot; see diagnostic follow-up below.
 - Ollama/runtime log evidence: not yet collected.
-- RAM/GPU utilization at failure: UNKNOWN.
+- RAM/GPU utilization at failure: UNKNOWN. A later post-reboot GPU snapshot is recorded below and must not be substituted for crash-time utilization.
 - Root cause: UNKNOWN. Do not attribute the crash to Rocky, Ollama, Qwen, Python, GPU drivers, thermal limits, or memory exhaustion without diagnostic evidence.
 
 The initial successful turn must be retained even though the later turn failed. Likewise, the failure must remain in history if a later retest passes.
@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: collect GPU identity and display-driver version, then analyze the saved minidump before attempting another heavy real-model retest.
+- Next diagnostic step: inspect the saved Windows minidump before attempting another Qwen3 8B multi-turn retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -174,3 +174,58 @@ The screenshot also showed DistributedCOM, Wi-Fi Direct virtual-adapter, BitLock
 ### Updated next diagnostic step
 
 Collect the installed GPU identity and display-driver version before any further real-model retest. Do not overwrite this failure if a later driver update or smaller-model retest passes.
+
+## Diagnostic follow-up: GPU and display-driver snapshot
+
+After reboot, the operator ran the requested GPU/driver inventory command.
+
+### Exact diagnostic command
+
+```powershell
+Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,DriverDate,AdapterRAM; nvidia-smi
+```
+
+### Observed GPU/driver information
+
+Windows/WMI reported:
+
+```text
+Name                               DriverVersion  DriverDate              AdapterRAM
+Intel(R) Graphics                  32.0.101.8991  8/23/2026 5:00:00 PM   4293918720
+NVIDIA GeForce RTX 5070 Ti Laptop GPU
+                                   32.0.16.1062   6/10/2026 5:00:00 PM   4293918720
+```
+
+`nvidia-smi` reported at `Sat Oct 3 17:45:18 2026`:
+
+```text
+NVIDIA-SMI 610.62
+KMD Version: 610.62
+CUDA UMD Version: 13.3
+GPU: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+Driver model: WDDM
+Bus-Id: 00000000:01:00.0
+Display active: On
+Temperature: 50 C
+Performance state: P5
+Power: 20 W / 70 W
+Memory usage: 2068 MiB / 12227 MiB
+GPU utilization: 5%
+Compute mode: Default
+```
+
+The process table showed many ordinary desktop processes using the GPU through Windows graphics, including ChatGPT, VS Code, Explorer, browser/WebView processes, NVIDIA Overlay, and other applications. Per-process GPU memory was displayed as `N/A` in this WDDM snapshot.
+
+### Interpretation
+
+- The discrete GPU is an **NVIDIA GeForce RTX 5070 Ti Laptop GPU**.
+- The NVIDIA driver was reported as `610.62` by `nvidia-smi` and `32.0.16.1062` by Windows WMI. These are two representations of the installed driver stack, not two separately proven installed drivers.
+- `nvidia-smi` reported approximately 12 GB of addressable GPU memory (`12227 MiB` total) in the post-reboot snapshot.
+- WMI reported `AdapterRAM=4293918720` for both Intel and NVIDIA adapters. Because this conflicts with the NVIDIA-specific `12227 MiB` value, do not use the WMI AdapterRAM field as the authoritative VRAM capacity for this test.
+- At the time of this **post-reboot diagnostic**, the NVIDIA GPU was at 50 C, 20 W of 70 W, 5% utilization, and 2068 MiB / 12227 MiB memory use.
+- Those temperature, power, utilization, and memory values were collected after the crash and **must not be treated as measurements from the crash itself**.
+- Combined with the earlier bugcheck `0x00000116` and the Windows note that `nvlddmkm.sys` was a possibly related driver, the environment evidence is consistent with a Windows/NVIDIA graphics timeout/crash path. It still does not prove whether the trigger was the driver, GPU hardware, model workload, another application, power/thermal behavior, or a software interaction.
+
+### Updated next diagnostic step
+
+Inspect the saved minidump `C:\Windows\Minidump\100326-20515-01.dmp` before another Qwen3 8B multi-turn run. Preserve the original failed session regardless of later retest outcome.
