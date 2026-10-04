@@ -20,7 +20,7 @@
 - Digital volume: no per-run override was prescribed; the most recently observed tracked configuration used `0.12`.
 - Translation mode: automatic English display was expected from the V1 default but was not explicitly recorded in the supplied evidence.
 - Audio speed: no configurable speed value was recorded; user reported the tones were still too fast.
-- Computer RAM: UNKNOWN. GPU was later identified after reboot as NVIDIA GeForce RTX 5070 Ti Laptop GPU; see diagnostic follow-up.
+- Computer RAM: later baseline capture reported approximately 31.43 GB physical RAM. GPU was later identified after reboot as NVIDIA GeForce RTX 5070 Ti Laptop GPU; see diagnostic follow-up.
 - Test-plan source: `docs/build-guides/conversational-brain-v1-build.md`, real-model first conversation and acceptance checklist.
 - Safety controls/exclusion zone: no actuators or physical robot hardware were involved.
 
@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: capture physical-memory and pagefile/virtual-memory configuration before deciding on any Qwen3 8B retest.
+- Next diagnostic step: determine whether the 2 GB Windows pagefile is automatic/system-managed or manually fixed before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -438,3 +438,41 @@ Error code: (NTSTATUS) 0xc000009a (3221225626) - Insufficient system resources e
 ### Updated next diagnostic step
 
 Capture installed physical memory and current pagefile/virtual-memory configuration before any real-model retest. This is environment evidence only; current free memory after reboot must not be treated as crash-time memory availability.
+
+## Diagnostic follow-up: physical RAM and pagefile baseline
+
+The operator reported the physical-memory value from the preceding memory command as:
+
+```text
+TotalPhysicalRAM_GB: 31.43
+```
+
+The operator then ran:
+
+```powershell
+Get-CimInstance Win32_PageFileUsage | Format-List Name,AllocatedBaseSize,CurrentUsage,PeakUsage
+```
+
+### Exact observed pagefile output
+
+```text
+Name              : C:\pagefile.sys
+AllocatedBaseSize : 2048
+CurrentUsage      : 42
+PeakUsage         : 42
+```
+
+### Interpretation
+
+- Installed/visible physical-memory baseline from the user-reported command output is approximately **31.43 GB**.
+- The currently allocated Windows pagefile is **2048 MB (2 GB)** at `C:\pagefile.sys`.
+- At the time of this **post-reboot diagnostic**, pagefile current usage and reported peak usage for the current boot/session were both **42 MB**.
+- This post-reboot pagefile snapshot does **not** show current pagefile pressure.
+- It also does **not** establish pagefile, physical-RAM, committed-memory, or VRAM usage at the time of the Qwen crash because those crash-time counters were not captured.
+- The relatively small 2 GB pagefile is relevant configuration context for a dump whose TDR recovery Arg3 decoded to `STATUS_INSUFFICIENT_RESOURCES`, but this evidence is insufficient to conclude that pagefile sizing caused the crash.
+- Immediate failure mechanism remains **VIDEO_TDR_FAILURE (0x116) in the NVIDIA display-driver recovery path**.
+- Underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Determine whether Windows is automatically managing the pagefile or whether the 2 GB pagefile is a fixed/manual configuration before considering any retest.
