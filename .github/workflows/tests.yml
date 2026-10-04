@@ -12,6 +12,7 @@ permissions:
 jobs:
   software-and-protocol:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         python: ["3.12", "3.13"]
@@ -33,7 +34,18 @@ jobs:
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
       - name: Run Conversational Brain V1 tests (no model or speakers)
-        run: python -m unittest discover -s software/rocky/tests -v
+        shell: python
+        run: |
+          import sys
+          import unittest
+          suite = unittest.defaultTestLoader.discover('software/rocky/tests')
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          # Preserve tracebacks in check annotations as well as authenticated logs.
+          for test, traceback in result.errors + result.failures:
+              message = f'{test}\n{traceback}'
+              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::error::{message}', flush=True)
+          sys.exit(0 if result.wasSuccessful() else 1)
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
