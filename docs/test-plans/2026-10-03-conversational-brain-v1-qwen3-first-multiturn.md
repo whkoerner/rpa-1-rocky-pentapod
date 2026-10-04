@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: inspect Ollama runtime logs around the failed run before deciding on any Qwen3 8B retest.
+- Next diagnostic step: inspect `server-1.log` and `app-1.log` for model, GPU, resource, and error lines before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -524,3 +524,48 @@ No output was returned.
 ### Updated next diagnostic step
 
 Inspect Ollama's own logs around the failed run before choosing a lower-risk real-model retest.
+
+## Diagnostic follow-up: Ollama log inventory
+
+The operator listed files under `$env:LOCALAPPDATA\Ollama` after the crash/reboot.
+
+### Exact command
+
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\Ollama" -File | Sort-Object LastWriteTime -Descending | Select-Object Name,LastWriteTime,Length
+```
+
+### Relevant observed output
+
+```text
+Name            LastWriteTime              Length
+ollama.pid      10/3/2026 5:41:27 PM       4
+server.log      10/3/2026 5:41:26 PM       0
+db.sqlite-shm   10/3/2026 5:41:26 PM       32768
+app.log         10/3/2026 5:41:26 PM       0
+app-1.log       10/3/2026 4:42:04 PM       10484
+server-1.log    10/3/2026 4:42:04 PM       23373
+server-2.log    10/3/2026 4:42:04 PM       0
+db.sqlite-wal   10/3/2026 4:42:04 PM       177192
+server-3.log    10/3/2026 4:42:04 PM       6174
+server-4.log    10/3/2026 3:17:47 PM       3037
+app-3.log       10/3/2026 3:17:46 PM       861
+server-5.log    10/2/2026 3:08:31 PM       2679
+app-4.log       10/2/2026 3:08:18 PM       598
+upgrade.log     10/2/2026 3:08:15 PM       422903
+app-5.log       10/2/2026 3:07:11 PM       1329
+db.sqlite       10/2/2026 1:40:33 AM       4096
+```
+
+### Interpretation
+
+- The current `server.log` and `app.log` were created/updated after reboot at about 5:41 PM and were both **0 bytes** in this inventory.
+- The immediately previous nonempty rotated logs are `server-1.log` (23,373 bytes) and `app-1.log` (10,484 bytes), both with `LastWriteTime` 4:42:04 PM.
+- That timestamp is earlier than the approximately 5:34 PM crash. File modification time alone does not establish whether those files contain the failed request, because logging may be buffered, sparse, rotated, or not emit per-request lines.
+- The existence of a new `ollama.pid` at 5:41:27 PM is consistent with Ollama having restarted after the system reboot, but this inventory does not prove the exact pre-crash Ollama process lifetime.
+- No Ollama error, CUDA error, model unload, allocation failure, or request failure is established by this file listing alone.
+- Immediate Windows failure mechanism remains **VIDEO_TDR_FAILURE (0x116) in the NVIDIA display-driver recovery path**; underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Inspect the nonempty rotated Ollama logs for model/GPU/resource/error lines before any real-model retest.
