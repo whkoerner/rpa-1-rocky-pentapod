@@ -229,3 +229,75 @@ The process table showed many ordinary desktop processes using the GPU through W
 ### Updated next diagnostic step
 
 Inspect the saved minidump `C:\Windows\Minidump\100326-20515-01.dmp` before another Qwen3 8B multi-turn run. Preserve the original failed session regardless of later retest outcome.
+
+## Diagnostic follow-up: targeted crash-window event query
+
+The operator then queried only the crash window for providers matching `Display`, `nvlddmkm`, `WHEA`, or `Kernel-Power`.
+
+### Exact diagnostic command
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=[datetime]'10/3/2026 5:30 PM'; EndTime=[datetime]'10/3/2026 5:41 PM'} | Where-Object {$_.ProviderName -match 'Display|nvlddmkm|WHEA|Kernel-Power'} | Select-Object TimeCreated,Id,LevelDisplayName,ProviderName,Message | Format-List
+```
+
+### Exact visible output
+
+```text
+TimeCreated      : 10/3/2026 5:40:12 PM
+Id               : 521
+LevelDisplayName : Information
+ProviderName     : Microsoft-Windows-Kernel-Power
+Message          : Active battery count change.
+
+TimeCreated      : 10/3/2026 5:40:12 PM
+Id               : 521
+LevelDisplayName : Information
+ProviderName     : Microsoft-Windows-Kernel-Power
+Message          : Active battery count change.
+
+TimeCreated      : 10/3/2026 5:40:06 PM
+Id               : 41
+LevelDisplayName : Critical
+ProviderName     : Microsoft-Windows-Kernel-Power
+Message          : The system has rebooted without cleanly shutting down first. This error could be caused if the system
+                   stopped responding, crashed, or lost power unexpectedly.
+
+TimeCreated      : 10/3/2026 5:40:06 PM
+Id               : 125
+LevelDisplayName : Information
+ProviderName     : Microsoft-Windows-Kernel-Power
+Message          : ACPI thermal zone \\_TZ.TZ01 has been enumerated.
+                   _PSV = 0K
+                   _TC1 = 2
+                   _TC2 = 3
+                   _TSP = 4000ms
+                   _AC0 = 0K
+                   _AC1 = 0K
+                   _AC2 = 0K
+                   _AC3 = 0K
+                   _AC4 = 0K
+                   _AC5 = 0K
+                   _AC6 = 0K
+                   _AC7 = 0K
+                   _AC8 = 0K
+                   _AC9 = 0K
+                   _CRT = 393K
+                   _HOT = 0K
+                   minimum throttle = 0
+                   _CR3 = 0K
+```
+
+The prompt returned after these entries. No visible `Display`, `nvlddmkm`, or `WHEA` provider entry appeared in this targeted result.
+
+### Interpretation
+
+- This filtered query corroborates the unclean restart through Kernel-Power event 41.
+- It did **not** surface a separate Display, `nvlddmkm`, or WHEA event in the specified 5:30–5:41 PM window.
+- Absence from this query does not disprove the earlier Windows Error Reporting record that named `nvlddmkm.sys` as a possibly related driver.
+- The ACPI thermal-zone event is an enumeration record created during/after restart. Its `_CRT = 393K` value is a firmware critical-trip threshold (about 120 C), **not a measured crash-time temperature**. Do not use it as evidence that the machine reached 393 K.
+- No crash-time GPU temperature, GPU utilization, GPU memory use, CPU temperature, or system RAM use has been recovered.
+- Root cause remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Analyze the saved Windows minidump with WinDbg before another Qwen3 8B multi-turn run.
