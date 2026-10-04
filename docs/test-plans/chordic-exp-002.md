@@ -15,7 +15,7 @@ The existing safety path remains:
 
 `AIProvider → validated response/request → BrainController → SafetyValidator → Task/Communication layer`
 
-The new focused Brain test sends a registered benchmark utterance through `BrainController.submit_utterance` into the existing communication-only simulator and confirms host motion remains disabled.
+The new focused Brain test sends a registered benchmark utterance through `BrainController.submit_utterance` into a communication-only test backend and confirms host motion remains disabled.
 
 ## Timing evidence
 
