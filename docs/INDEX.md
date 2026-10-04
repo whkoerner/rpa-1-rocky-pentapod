@@ -7,6 +7,8 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 ## Start here
 
+**Latest desktop upgrade:** [Rocky V1.1 launch/personality/learning guide](build-guides/rocky-desktop-v1-1.md), [architecture decisions](architecture/rocky-desktop-v1-1.md), [observed tests](test-plans/rocky-desktop-v1-1.md), [CT2 dictionary](../language/specification/CT2_LEARNING_V1.md), and [small-computer checklist](build-guides/rocky-small-computer.md).
+
 **For computer conversation and sound:** [Conversational Brain V1 build guide](build-guides/conversational-brain-v1-build.md), [architecture](architecture/conversational-brain-v1.md), and [validation record / V2 roadmap](milestones/conversational-brain-v1.md).
 
 1. [Current milestone](milestones/M0-repository-communication.md)
@@ -20,6 +22,7 @@ This page is the simplest way to navigate the project. It does not replace the r
 
 | Item | Status | Main file |
 |---|---|---|
+| Rocky desktop V1.1 | READY TO TEST — launcher, persona, slow learning | [Build guide](build-guides/rocky-desktop-v1-1.md) |
 | Conversational Brain V1 | READY TO TEST — local AI and desktop audio | [Windows build guide](build-guides/conversational-brain-v1-build.md) |
 | Brain v0.2 host integration | READY TO TEST — minimum offline core | [Brain package](../software/brain/) |
 | Rocky Brain v0.1 | READY TO TEST | [Build guide](build-guides/brain-v0.1-build.md) |

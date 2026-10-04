@@ -66,6 +66,8 @@ media/                original diagrams and selected demo media
 
 ## Start here
 
+**New desktop upgrade — Rocky V1.1:** [double-click setup, desktop shortcut and personality guide](docs/build-guides/rocky-desktop-v1-1.md). Includes a Windows menu, validated JSON persona, default 3× timing, a small stable CT2 dictionary, word/reply replay and cancellable audio. [Observed tests / Windows checklist](docs/test-plans/rocky-desktop-v1-1.md) · [Language reference](language/specification/CT2_LEARNING_V1.md) · [Small-computer preparation](docs/build-guides/rocky-small-computer.md). Ready for user testing; this does not resolve the recorded GPU-driver crash or establish real-model/offline/hardware acceptance.
+
 **Talk to Rocky on your computer:** [Conversational Brain V1 — Windows setup](docs/build-guides/conversational-brain-v1-build.md). Typed local AI conversation, audible Chordic, English translation, replay and mute. No Arduino required. **Ready for user testing**; real speaker/model/offline acceptance still needs to be recorded. [Architecture](docs/architecture/conversational-brain-v1.md) · [Version and test record / V2 roadmap](docs/milestones/conversational-brain-v1.md).
 
 From a full checkout after `python -m pip install -e .`:

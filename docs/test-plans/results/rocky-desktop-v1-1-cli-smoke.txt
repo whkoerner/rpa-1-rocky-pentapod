@@ -1,0 +1,40 @@
+Rocky Conversational Brain V1.1 | provider=dummy | audio=wav
+Local output: /tmp/rocky smoke n_ym2iu5
+Type a message to Rocky. Commands:
+/help       show commands             /status     brain and backend status
+/translate  decode last representation   /auto       toggle automatic translation
+/replay     play last reply again     /mute       stop and mute playback
+/unmute     enable future playback    /clear      forget session history
+/model      show provider/model       /offline    explain local-only operation
+/cancel     cancel pending inference  /stop       cancel, silence and latch stop
+/reset      operator reset (no replay) /quit      exit
+/dictionary show supported words      /word thank you  replay one entry
+/learn      use 3x timing + tokens    /speed 1..6 change duration multiplier
+/tokens     inspect last representation
+Ctrl+C stops and exits. /listen is reserved for V2; typed input always works.
+> Thinking locally... /cancel, /stop and /status remain available.
+
+Decoded English (CT2): Hello! I am Rocky in dummy test mode. What would you like to build together?
+Audio: AUDIO_QUEUED: estimated playback 28.95s; not acoustically verified
+>
+Audio: WAV_WRITTEN_NO_PLAYBACK
+Automatic translation: False
+> Thinking locally... /cancel, /stop and /status remain available.
+
+Decoded English (CT2): [Chordic response; /translate for English]
+Audio: AUDIO_QUEUED: estimated playback 28.95s; not acoustically verified
+> Decoded English (CT2; not microphone decoding): Hello! I am Rocky in dummy test mode. What would you like to build together?
+> 'Hello': SOCIAL.hello
+'! I am Rocky in dummy test mode. What would you like to build together?': UTF-8 fallback (71 bytes)
+> Next playback: notes and gaps x3; pitch/volume unchanged. /replay to hear it.
+> OK: AUDIO_QUEUED: estimated playback 5.17s; not acoustically verified
+> Muted: True
+>
+Audio: CANCELLED
+Muted: False
+> Stopped and latched. Use /reset to recover.
+> ESTOP_LATCHED:
+> Reset to disabled.
+> OK: AUDIO_QUEUED: estimated playback 5.17s; not acoustically verified
+>
+PASS: installed CLI from another working directory; dummy, WAV, auto/request translation, dictionary replay, mute, stop, reset and clean quit. No real model/speakers used.
