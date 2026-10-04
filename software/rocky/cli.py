@@ -250,7 +250,7 @@ def terminal(conversation, settings):
     while True:
         status = conversation.brain.hardware.audio_status
         if status != last_audio_status and status not in {"IDLE", "RENDERING"}:
-            print("\nAudio: " + status)
+            print("\nAudio: " + status, flush=True)
         last_audio_status = status
         result = conversation.poll()
         if result:
