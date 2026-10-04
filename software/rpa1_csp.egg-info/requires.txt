@@ -1,4 +1,7 @@
 PyYAML<7,>=6.0
 
+[audio]
+pygame<3,>=2.5
+
 [simulation]
 pygame<3,>=2.5
