@@ -14,8 +14,8 @@
 - Runtime/provider: Rocky Conversational Brain V1 with local Ollama provider.
 - Requested model tag: `qwen3:8b`.
 - Pre-test Ollama inventory: `qwen3:8b` was listed with ID `500a1f067a9f` and displayed size `5.2 GB`. The ID was not re-read during the inference invocation.
-- Ollama version: UNKNOWN.
-- Model format/quantization: UNKNOWN.
+- Ollama version: later filtered runtime logs identify version `0.35.1`; see diagnostic follow-up.
+- Model format/quantization: later filtered runtime logs identify GGUF V3, `Q4_K - Medium`; see diagnostic follow-up.
 - Audio backend: not captured in the user report for this invocation.
 - Digital volume: no per-run override was prescribed; the most recently observed tracked configuration used `0.12`.
 - Translation mode: automatic English display was expected from the V1 default but was not explicitly recorded in the supplied evidence.
@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: inspect `server-1.log` and `app-1.log` for model, GPU, resource, and error lines before deciding on any Qwen3 8B retest.
+- Next diagnostic step: inspect the unfiltered end of `server-1.log` to determine what occurred after the shown 312-token task began.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -569,3 +569,83 @@ db.sqlite       10/2/2026 1:40:33 AM       4096
 ### Updated next diagnostic step
 
 Inspect the nonempty rotated Ollama logs for model/GPU/resource/error lines before any real-model retest.
+
+## Diagnostic follow-up: filtered Ollama runtime log evidence
+
+The operator supplied filtered output from `server-1.log` and `app-1.log`. User-account path components are redacted below.
+
+### Relevant exact observations
+
+```text
+Ollama server:
+version 0.35.1
+OLLAMA_CONTEXT_LENGTH:8192
+OLLAMA_NO_CLOUD:true
+OLLAMA_NUM_PARALLEL:1
+OLLAMA_VULKAN:true
+
+inference compute:
+NVIDIA GeForce RTX 5070 Ti Laptop GPU
+library=CUDA
+compute=12.0
+driver=13.3
+total="11.9 GiB"
+available="10.8 GiB"
+
+llama-server launch:
+--offline -c 8192 -np 1 ... -b 1024 -ub 1024 --context-shift
+
+system memory before model load:
+total="31.4 GiB" free="16.4 GiB" free_swap="10.4 GiB"
+
+gpu memory before model load:
+available="10.3 GiB" free="10.8 GiB" minimum="457.0 MiB" overhead="0 B"
+
+model metadata:
+general.name = Qwen3 8B
+file format = GGUF V3
+file type = Q4_K - Medium
+file size = 4.86 GiB
+model params = 8.19 B
+
+GPU placement:
+offloaded 37/37 layers to GPU
+CUDA0 model buffer size = 4643.78 MiB
+CUDA0 KV buffer size = 1152.00 MiB
+CUDA0 compute buffer size = 208.02 MiB
+projected device use = 6003 MiB
+free device memory before fit = 11042 MiB
+projected remaining free device memory = 5038 MiB
+fit result = no changes needed / successfully fit params
+
+model load:
+llama-server started in 7.03 seconds
+
+first shown chat task:
+task.n_tokens = 271
+prompt eval time = 17656.37 ms / 271 tokens
+POST /api/chat = 200 in 25.8776936s
+
+later shown chat task:
+task.n_tokens = 312
+cached n_tokens = 258
+```
+
+### Interpretation
+
+- The supplied logs identify the Ollama runtime as **0.35.1**.
+- They identify the loaded model as **Qwen3 8B, GGUF V3, Q4_K Medium**, approximately 4.86 GiB on disk, with 8.19 B parameters.
+- Ollama selected CUDA on the RTX 5070 Ti Laptop GPU and offloaded all 37 model layers to the GPU.
+- Immediately before the shown model load, Ollama reported 16.4 GiB free system memory and about 10.8 GiB free GPU memory. Its fitting calculation projected about 6003 MiB of GPU use and about 5038 MiB remaining free, and reported that no fit changes were needed.
+- This is direct evidence **against simple pre-load VRAM exhaustion at that logged load point**. It does not prove that GPU/driver resources remained healthy later during generation or at the crash.
+- The shown first chat request completed successfully with HTTP 200 in 25.8776936 seconds. This gives a server-side timing measurement broadly consistent with the user's earlier “30+ seconds” end-to-end observation once application/audio overhead is considered, but the two timings are not identical measurements.
+- A later chat task is shown starting with 312 prompt tokens and 258 cached tokens. Because the supplied data came from a filtered `Select-String` command rather than an unfiltered tail/full log, absence of a completion line in this pasted evidence **must not** be treated as proof that the task never completed.
+- Ollama had `OLLAMA_NO_CLOUD:true`, and the llama-server command included `--offline`. This supports that the shown inference runner was configured for local/offline model execution. It does **not** prove that the whole computer was physically disconnected from the internet.
+- Earlier in the same server log, an attempted registry lookup failed with `no such host`. This is evidence of a failed network lookup at that earlier time, not proof that every later test ran with networking disabled.
+- No CUDA out-of-memory line, model-allocation failure, Ollama panic, or explicit runner crash is present in the supplied filtered excerpts.
+- The log timestamps around the shown model load/chat (`17:38:43`–`17:39:19`) are near the Windows bugcheck/reboot records, but the earlier EventLog record also reported an unexpected shutdown time of `17:34:47`. That timeline relationship is unresolved and is preserved as a diagnostic ambiguity rather than silently assigning these Ollama lines to the exact failing second turn.
+- Immediate Windows failure mechanism remains **VIDEO_TDR_FAILURE (0x116)** in the NVIDIA display-driver recovery path. The underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Inspect the **unfiltered end of `server-1.log`** to determine what Ollama recorded after the 312-token task started and whether the log terminates abruptly near the TDR.
