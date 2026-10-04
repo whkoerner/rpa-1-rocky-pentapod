@@ -1,6 +1,6 @@
 # Rocky desktop V1.1 — evidence and Windows acceptance
 
-Status: **READY FOR USER TESTING**. App version `1.1.0`; combined distribution remains `rpa1-csp` `0.2.0` (no release tag created). Date: 2026-10-03 Los Angeles / 2026-10-04 UTC.
+Status: **DESKTOP V1.1 ACCEPTANCE COMPLETE / READY TO MERGE**. App version `1.1.0`; combined distribution remains `rpa1-csp` `0.2.0` (no release tag created). Manual Windows acceptance was completed on 2026-10-04 at branch head `9e48573`; Raspberry Pi, physical robot hardware, microphone/listening translation, and broad GPU stability remain outside this acceptance scope.
 
 ## Provenance
 
@@ -11,7 +11,7 @@ Status: **READY FOR USER TESTING**. App version `1.1.0`; combined distribution r
 - Piped-terminal asynchronous status flush, found by CLI smoke check: `5c33e0f`.
 - Branch: `feat/rocky-desktop-v1-1`. Documentation follows those functional commits; obtain the exact checkout with `git rev-parse HEAD` and preserve it with each user test.
 
-Your earlier “it worked” is recorded only at its stated scope. Existing Windows audio and DummyAI observations remain in their original records. The real Qwen multi-turn crash is unresolved; nothing here upgrades it to a pass.
+Manual Windows acceptance on 2026-10-04 is recorded below only at the scope personally observed by the user. The prior Qwen3 Windows crash was **not reproduced** during this acceptance session, but its root cause remains unknown; this is not evidence that the underlying crash was fixed.
 
 ## Automated results actually observed
 
@@ -70,23 +70,42 @@ These are two names for the same directory, not evidence of a broken launcher/en
 
 The same commit adds `test_every_documented_starter_has_its_golden_five_note_core` in `software/rocky/tests/test_learning.py`: independent literal goldens for all 15 documented meanings/token IDs/five-note cores, agreement with the documentation table, exact decoded English, lowercase/initial/uppercase, isolated/in-sentence placement, and unchanged cores at 1×/3×. The golden expectations are not computed from the vocabulary or CSP YAML.
 
-[Final fix verification: run #36](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209610698), head `e619a6e`: **SUCCESS**. All four Windows/Linux × Python 3.12/3.13 cells completed successfully, including all Python suites and Node protocol tests. Each Windows cell ran all 100 Python tests; each Linux cell passed 97 with the three expected Windows-only skips. The separate Arduino Uno compile job also passed. This report commit only adds evidence; it does not change the verified application, tests or workflow.
+[Final fix verification: run #36](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209610698), head `e619a6e`: **SUCCESS**. All four Windows/Linux × Python 3.12/3.13 cells completed successfully, including all Python suites and Node protocol tests. Each Windows cell ran all 100 Python tests; each Linux cell passed 97 with the three expected Windows-only skips. The separate Arduino Uno compile job also passed. [Final branch verification: run #37](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209721195), head `9e48573`: **SUCCESS**. This evidence update does not change application code, Brain safety boundaries, CSP assignments, tests or workflow behavior.
 
 Local Linux/Python 3.12.14 verification at `e619a6e` passed all five suites: **97 passed, 3 Windows-only skips, 0 failures**; Node protocol tests passed. Command: `.venv-rocky-agent/bin/python scripts/run_tests.py`. [Raw output](results/rocky-desktop-v1-1-ci-fix-host-tests.txt). These automated results do not establish real-model, offline, actual listening, Pi, microphone or physical-hardware acceptance. The Qwen3 Windows crash remains unresolved until retested.
 
-## Not tested / unresolved
+## Completed manual Windows acceptance — 2026-10-04
 
-- Windows double-click/shortcut creation, native winsound playback and **actual listening** on the user's machine.
-- Python 3.13 execution on the user's computer; hosted CI results are separate from user acceptance.
-- Real-model quality, personality adherence, cold/warm latency, GPU stability or disconnected-internet acceptance.
-- Pi/CM5 installation, CPU performance, cooling/power, audio and authenticated PC-assisted tunnel.
-- Arduino upload, sensors, motors or physical safety acceptance. Hosted Arduino compilation passed; compiler unavailable locally. No firmware changed.
-- Microphone input or acoustic translation: **not implemented**.
-- Prior `VIDEO_TDR_FAILURE (0x116)` in NVIDIA recovery: mechanism documented in [existing evidence](2026-10-03-conversational-brain-v1-qwen3-first-multiturn.md), underlying trigger still unknown. This is not a GPU-driver fix.
+The following observations were completed by the user on Windows at/after `9e48573`. These are acceptance observations, not inferred automated-test results:
 
-## Manual Windows checks
+- **PASS — setup/repair:** setup/repair succeeded and created/used `.venv-rocky`.
+- **PASS — launcher:** `Rocky.bat` launched successfully.
+- **PASS — desktop shortcut:** the desktop shortcut launched Rocky without manual virtual-environment activation.
+- **PASS — DummyAI:** DummyAI conversation worked.
+- **PASS — audible CT2:** native Windows `winsound` CT2 playback was audible; the user personally heard the generated tones.
+- **PASS — speed controls:** `/speed 1`, `/speed 3`, and `/speed 6` worked.
+- **PASS — replay:** `/replay` worked.
+- **PASS — mute/unmute:** `/mute` suppressed audible playback and `/unmute` restored playback.
+- **PASS — stop/reset:** `/stop` latched correctly and `/reset` recovered normal operation.
+- **PASS — learning/dictionary controls:** `/word`, `/dictionary`, and `/learn` worked.
+- **PASS — real local model:** the configured local model worked for multiple turns.
+- **PASS — session memory:** multi-turn session memory worked in the tested conversation.
+- **PASS — simple reasoning:** simple reasoning prompts worked in the tested conversation.
+- **PASS — disconnected restart:** the real local model runtime was restarted and used successfully after the PC was disconnected from the internet.
+- **PASS — offline end-to-end conversation:** while disconnected, local conversation, CT2 generation, and audible playback all worked.
 
-Record code SHA, Windows/Python/Ollama/model version, configuration path, audio device, actual output, elapsed observations and any exception. Mark each check PASS/FAIL/NOT RUN; a rendered WAV or playback API request is not a listening pass.
+The prior Qwen3 Windows crash was **not reproduced** in this acceptance session. Its root cause was not identified or fixed by this work, so no broader GPU-stability claim is made.
+
+## Remaining NOT RUN / not implemented
+
+- **NOT RUN — Raspberry Pi acceptance:** Pi/CM5 installation, CPU performance, cooling/power, local audio and PC-assisted deployment remain unvalidated on the target small computer.
+- **NOT RUN — physical robot hardware acceptance:** Arduino upload to the robot, sensors, motors and physical safety behavior were not exercised. Hosted Arduino compilation passed; no firmware changed.
+- **NOT IMPLEMENTED / V2 — microphone/listening translation:** `/listen` remains V2; no microphone input or acoustic decoder was added.
+- **NOT RUN — broad GPU stability:** this successful Windows/Qwen3 acceptance session did not reproduce the prior `VIDEO_TDR_FAILURE (0x116)`, but it is not a soak test and does not establish stability across longer sessions, other models, drivers or GPU loads.
+
+## Manual Windows checklist reference
+
+The detailed checklist below remains useful for future regression sessions. Do not infer PASS for checklist actions that were not explicitly observed above; in particular, this acceptance record only claims the behaviors listed in the completed-evidence section.
 
 | ID | Action | Expected acceptance |
 |---|---|---|
