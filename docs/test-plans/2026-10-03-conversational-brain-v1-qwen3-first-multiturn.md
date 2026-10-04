@@ -300,4 +300,36 @@ The prompt returned after these entries. No visible `Display`, `nvlddmkm`, or `W
 
 ### Updated next diagnostic step
 
-Analyze the saved Windows minidump with WinDbg before another Qwen3 8B multi-turn run.
+WinDbg is now installed; open the saved Windows minidump and run `!analyze -v` before another Qwen3 8B multi-turn run.
+
+## Diagnostic follow-up: WinDbg installation
+
+The operator installed Microsoft WinDbg to prepare for minidump analysis.
+
+### Exact command
+
+```powershell
+winget install --id Microsoft.WinDbg -e
+```
+
+### Relevant observed output
+
+```text
+Found WinDbg [Microsoft.WinDbg] Version 1.2606.22001.0
+Successfully verified installer hash
+Starting package install...
+100%
+Successfully installed
+```
+
+The Microsoft Store source displayed its normal source-agreement prompt and the operator accepted it.
+
+### Interpretation
+
+- Microsoft WinDbg version `1.2606.22001.0` was successfully installed according to winget.
+- Successful debugger installation does **not** analyze the crash and does not change the test result.
+- Bugcheck root cause remains **UNKNOWN** until the saved dump is opened and analyzed.
+
+### Updated next diagnostic step
+
+Open `C:\Windows\Minidump\100326-20515-01.dmp` in WinDbg and run `!analyze -v`. Preserve the full analysis output, especially `BUGCHECK_CODE`, `MODULE_NAME`, `IMAGE_NAME`, `FAILURE_BUCKET_ID`, and stack information.
