@@ -57,13 +57,30 @@ Publication used the connected GitHub app because command-line Git push had no c
 | `e481ca8` | `f8b2e984d1fc28bdac1ccd6975e5374cd5e3130f` |
 | `5c33e0f` | `54c928f10c70a16f880063c86924591728b9fe39` |
 
+## CI follow-up: run #33 failure and CT2 golden coverage
+
+On 2026-10-04 UTC, [run #33](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37180506272) at `c2c3341` failed in Windows/Python 3.13 Rocky tests; Windows 3.12 and Ubuntu 3.12 were cancelled by matrix fail-fast. Ubuntu 3.13 and Arduino compilation passed. The connection could read job status but not authenticated raw logs, so the unchanged application/test suite was reproduced with traceback check annotations and `fail-fast: false` in `.github/workflows/tests.yml`.
+
+The first diagnostic run (#34, `932346d`) additionally exposed a missing multiprocessing main guard in the new diagnostic wrapper. That wrapper error was corrected in `376816b`; it was not an application defect. [Clean reproduction #35](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788) then passed both Linux cells and failed both Windows cells on exactly two assertions in `software/rocky/tests/test_windows_launcher.py`:
+
+- `test_missing_environment_gives_exact_repair_without_creating_it`: expected the temporary path under `C:\Users\RUNNER~1`, but the printed repair command correctly used `C:\Users\runneradmin`.
+- `test_valid_environment_and_broken_explicit_override`: environment verification succeeded, but the returned interpreter path used that same expanded spelling.
+
+These are two names for the same directory, not evidence of a broken launcher/environment. `e619a6e1e8a7774f85dc6de7af04398f872e4a9c` resolves the existing temporary parent before constructing the fixture. Exact path, return-code and environment assertions remain intact; no skips or weaker assertions were added. Application code, launcher behavior, safety validation and CSP assignments are unchanged. [Captured reproduction tracebacks](results/rocky-desktop-v1-1-ci-reproduction.txt) are from #35, not a claimed retrieval of #33's raw log.
+
+The same commit adds `test_every_documented_starter_has_its_golden_five_note_core` in `software/rocky/tests/test_learning.py`: independent literal goldens for all 15 documented meanings/token IDs/five-note cores, agreement with the documentation table, exact decoded English, lowercase/initial/uppercase, isolated/in-sentence placement, and unchanged cores at 1×/3×. The golden expectations are not computed from the vocabulary or CSP YAML.
+
+[Final fix verification: run #36](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209610698), head `e619a6e`: **SUCCESS**. All four Windows/Linux × Python 3.12/3.13 cells completed successfully, including all Python suites and Node protocol tests. Each Windows cell ran all 100 Python tests; each Linux cell passed 97 with the three expected Windows-only skips. The separate Arduino Uno compile job also passed. This report commit only adds evidence; it does not change the verified application, tests or workflow.
+
+Local Linux/Python 3.12.14 verification at `e619a6e` passed all five suites: **97 passed, 3 Windows-only skips, 0 failures**; Node protocol tests passed. Command: `.venv-rocky-agent/bin/python scripts/run_tests.py`. [Raw output](results/rocky-desktop-v1-1-ci-fix-host-tests.txt). These automated results do not establish real-model, offline, actual listening, Pi, microphone or physical-hardware acceptance. The Qwen3 Windows crash remains unresolved until retested.
+
 ## Not tested / unresolved
 
 - Windows double-click/shortcut creation, native winsound playback and **actual listening** on the user's machine.
-- Python 3.13 local execution (CI coverage is configured, not an observed result in this record).
+- Python 3.13 execution on the user's computer; hosted CI results are separate from user acceptance.
 - Real-model quality, personality adherence, cold/warm latency, GPU stability or disconnected-internet acceptance.
 - Pi/CM5 installation, CPU performance, cooling/power, audio and authenticated PC-assisted tunnel.
-- Arduino compilation/upload (compiler unavailable locally), sensors, motors or physical safety acceptance. No firmware changed.
+- Arduino upload, sensors, motors or physical safety acceptance. Hosted Arduino compilation passed; compiler unavailable locally. No firmware changed.
 - Microphone input or acoustic translation: **not implemented**.
 - Prior `VIDEO_TDR_FAILURE (0x116)` in NVIDIA recovery: mechanism documented in [existing evidence](2026-10-03-conversational-brain-v1-qwen3-first-multiturn.md), underlying trigger still unknown. This is not a GPU-driver fix.
 

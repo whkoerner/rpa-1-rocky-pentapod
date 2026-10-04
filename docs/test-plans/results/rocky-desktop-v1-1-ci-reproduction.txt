@@ -1,0 +1,41 @@
+Run #35, head 376816bc04ba5a53a6cb0b605662a4ac0253a458; unchanged application/tests, guarded diagnostic runner.
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507656
+Process completed with exit code 1.
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507656
+test_valid_environment_and_broken_explicit_override (test_windows_launcher.WindowsLauncherTests.test_valid_environment_and_broken_explicit_override)
+Traceback (most recent call last):
+  File "D:\a\rpa-1-rocky-pentapod\rpa-1-rocky-pentapod\software\rocky\tests\test_windows_launcher.py", line 52, in test_valid_environment_and_broken_explicit_override
+    self.assertIn(str(target / 'Scripts' / 'python.exe'), result.stdout)
+AssertionError: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\Rocky launcher with spaces ob12st39\\project with spaces\\.venv-rocky\\Scripts\\python.exe' not found in 'Environment OK: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces ob12st39\\project with spaces\\.venv-rocky\\Scripts\\python.exe\nC:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces ob12st39\\project with spaces\\.venv-rocky\\Scripts\\python.exe\n'
+
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507656
+test_missing_environment_gives_exact_repair_without_creating_it (test_windows_launcher.WindowsLauncherTests.test_missing_environment_gives_exact_repair_without_creating_it)
+Traceback (most recent call last):
+  File "D:\a\rpa-1-rocky-pentapod\rpa-1-rocky-pentapod\software\rocky\tests\test_windows_launcher.py", line 44, in test_missing_environment_gives_exact_repair_without_creating_it
+    self.assertIn(str(self.root / 'Rocky.bat'), result.stdout)
+AssertionError: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\Rocky launcher with spaces k1suymm_\\project with spaces\\Rocky.bat' not found in "No valid project environment was found. Exact repair command in PowerShell:\n& 'C:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces k1suymm_\\project with spaces\\Rocky.bat' -Action setup\nSetup creates a new environment if necessary; it does not delete the old one.\n"
+
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507780
+Process completed with exit code 1.
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507780
+test_valid_environment_and_broken_explicit_override (test_windows_launcher.WindowsLauncherTests.test_valid_environment_and_broken_explicit_override)
+Traceback (most recent call last):
+  File "D:\a\rpa-1-rocky-pentapod\rpa-1-rocky-pentapod\software\rocky\tests\test_windows_launcher.py", line 52, in test_valid_environment_and_broken_explicit_override
+    self.assertIn(str(target / 'Scripts' / 'python.exe'), result.stdout)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\Rocky launcher with spaces 06ca05b6\\project with spaces\\.venv-rocky\\Scripts\\python.exe' not found in 'Environment OK: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces 06ca05b6\\project with spaces\\.venv-rocky\\Scripts\\python.exe\nC:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces 06ca05b6\\project with spaces\\.venv-rocky\\Scripts\\python.exe\n'
+
+
+https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788/job/111457507780
+test_missing_environment_gives_exact_repair_without_creating_it (test_windows_launcher.WindowsLauncherTests.test_missing_environment_gives_exact_repair_without_creating_it)
+Traceback (most recent call last):
+  File "D:\a\rpa-1-rocky-pentapod\rpa-1-rocky-pentapod\software\rocky\tests\test_windows_launcher.py", line 44, in test_missing_environment_gives_exact_repair_without_creating_it
+    self.assertIn(str(self.root / 'Rocky.bat'), result.stdout)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\Rocky launcher with spaces ydlkzvxf\\project with spaces\\Rocky.bat' not found in "No valid project environment was found. Exact repair command in PowerShell:\n& 'C:\\Users\\runneradmin\\AppData\\Local\\Temp\\Rocky launcher with spaces ydlkzvxf\\project with spaces\\Rocky.bat' -Action setup\nSetup creates a new environment if necessary; it does not delete the old one.\n"
+
