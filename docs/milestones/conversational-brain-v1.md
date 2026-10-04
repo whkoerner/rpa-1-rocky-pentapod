@@ -47,7 +47,7 @@ The interactive terminal check exposed a shutdown hang caused by a background th
 ## Not executed / still required
 
 - Windows standalone audio and DummyAI conversation playback have user evidence from 2026-10-03; real-model Windows conversational playback remains required. See [CV1-AUDIO-001](../test-plans/2026-10-03-conversational-brain-v1-windows-audio.md) and [CV1-DUMMY-001](../test-plans/2026-10-03-conversational-brain-v1-windows-dummy.md).
-- Real Qwen3 inference, response quality, actual model memory/latency, and model-backed color recall.
+- Real Qwen3 inference, response quality, actual model memory/latency, and model-backed color recall. The installed `qwen3:8b` model ID has been captured as `500a1f067a9f`; inventory alone is not inference evidence.
 - Network-disconnected real-model restart.
 - Raspberry Pi installation, inference or audio.
 - Arduino compile/physical test: `arduino-cli` is not installed in the execution environment; the existing GitHub compilation job is retained. Firmware was not changed.
@@ -66,6 +66,7 @@ The local `arduino-cli` limitation above remains true; compilation was performed
 |---|---|---|---|---|
 | 2026-10-03 | CV1-AUDIO-001 — Windows audio diagnostic | Windows 11 Home `10.0.26300` 64-bit; Python `3.13.16`; local branch `feat/rocky-conversation-v1` at `2f6eae7` with recorded dirty-tree state | **PASS** | [Dated test record](../test-plans/2026-10-03-conversational-brain-v1-windows-audio.md). CLI requested playback and the user separately reported hearing the audio. This verifies only the build-guide `audio-test` audibility criterion. |
 | 2026-10-03 | CV1-DUMMY-001 — Windows DummyAI conversation | Same Windows/Python test session; exact HEAD not re-queried during this invocation; `--provider dummy`; terminal reported `audio=winsound` | **PASS** for the executed procedure; related acceptance items remain **PARTIAL** | [Dated test record](../test-plans/2026-10-03-conversational-brain-v1-windows-dummy.md). Dummy reply, `/translate`, replay request, audible session, and clean quit were observed. User reported audio was too fast and did not prefer the current sound, but acceptable for beta testing. Ollama process state, `/auto`, mute, and unmute were not tested. |
+| 2026-10-03 | CV1-MODEL-001 — Ollama model inventory | Local Ollama inventory; branch/commit not re-queried in this invocation | **PASS** for inventory capture | [Dated test record](../test-plans/2026-10-03-conversational-brain-v1-ollama-model-inventory.md). `qwen3:8b` ID `500a1f067a9f` (5.2 GB) and `gemma4:26b` ID `001e5dafc3c7` (18 GB) were reported. No inference is claimed. |
 
 The terminal's `PLAYBACK_REQUESTED_NOT_ACOUSTICALLY_VERIFIED` receipt is not treated as acoustic evidence by itself. The PASS results above depend on separately recorded user listening observations where stated. DummyAI manual translation and the replay request path now have evidence, but real-model, automatic translation toggle, mute/unmute, offline, Raspberry Pi, and physical-robot checks remain open.
 
