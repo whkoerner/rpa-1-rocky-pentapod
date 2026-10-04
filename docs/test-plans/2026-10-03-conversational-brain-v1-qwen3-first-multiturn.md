@@ -86,7 +86,7 @@ This is user-reported observational evidence. No exact first model reply text, s
 - Windows event evidence: collected after reboot; see diagnostic follow-up below.
 - Ollama/runtime log evidence: not yet collected.
 - RAM/GPU utilization at failure: UNKNOWN. A later post-reboot GPU snapshot is recorded below and must not be substituted for crash-time utilization.
-- Root cause: UNKNOWN. Do not attribute the crash to Rocky, Ollama, Qwen, Python, GPU drivers, thermal limits, or memory exhaustion without diagnostic evidence.
+- Immediate failure mechanism: later WinDbg analysis establishes a Windows VIDEO_TDR_FAILURE in the NVIDIA display-driver recovery path; see diagnostic follow-up. Underlying/root trigger remains UNKNOWN. Do not attribute that trigger to Rocky, Ollama, Qwen, Python, a specific driver defect, GPU hardware, thermal limits, or memory exhaustion without further evidence.
 
 The initial successful turn must be retained even though the later turn failed. Likewise, the failure must remain in history if a later retest passes.
 
@@ -108,7 +108,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - Favorite-color memory/recall.
   - Exact response latency.
   - Exact first model reply content.
-  - Cause of the system crash.
+  - Underlying trigger of the NVIDIA/Windows TDR failure.
   - Model format/quantization or Ollama version.
   - Acceptable RAM/GPU/thermal behavior.
   - Offline operation.
@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: inspect the saved Windows minidump before attempting another Qwen3 8B multi-turn retest.
+- Next diagnostic step: resolve WinDbg bugcheck Arg3 `0xC000009A` before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -333,3 +333,78 @@ The Microsoft Store source displayed its normal source-agreement prompt and the 
 ### Updated next diagnostic step
 
 Open `C:\Windows\Minidump\100326-20515-01.dmp` in WinDbg and run `!analyze -v`. Preserve the full analysis output, especially `BUGCHECK_CODE`, `MODULE_NAME`, `IMAGE_NAME`, `FAILURE_BUCKET_ID`, and stack information.
+
+## Diagnostic follow-up: WinDbg `!analyze -v`
+
+The operator opened `C:\Windows\Minidump\100326-20515-01.dmp` in WinDbg and ran `!analyze -v`.
+
+### Key exact output
+
+```text
+VIDEO_TDR_FAILURE (116)
+Attempt to reset the display driver and recover from timeout failed.
+
+Arg1: ffffe18ec79701d0, Optional pointer to internal TDR recovery context (TDR_RECOVERY_CONTEXT).
+Arg2: fffff80364198210, The pointer into responsible device driver module (e.g. owner tag).
+Arg3: ffffffffc000009a, Optional error code (NTSTATUS) of the last failed operation.
+Arg4: 0000000000000004, Optional internal context dependent data.
+
+Unable to load image nvlddmkm.sys, Win32 error 0n2
+*** WARNING: Unable to verify timestamp for nvlddmkm.sys
+
+BUGCHECK_CODE:  116
+FILE_IN_CAB:  100326-20515-01.dmp
+DUMP_FILE_ATTRIBUTES: 0x21808
+  Kernel Generated Triage Dump
+
+PROCESS_NAME:  System
+
+IP_IN_PAGED_CODE:
+nvlddmkm+1958210
+
+STACK_TEXT:
+... nt!KeBugCheckEx
+... dxgkrnl!TdrBugcheckOnTimeout+0x101
+... dxgkrnl!ADAPTER_RENDER::Reset+0x12d
+... dxgkrnl!DXGADAPTER::Reset+0x58a
+... dxgkrnl!TdrResetFromTimeout+0x15
+... dxgkrnl!TdrResetFromTimeoutWorkItem+0x22
+... nt!ExpWorkerThread+0x3db
+... nt!PspSystemThreadStartup+0x5a
+... nt!KiStartSystemThread+0x34
+
+SYMBOL_NAME:  nvlddmkm+1958210
+MODULE_NAME:  nvlddmkm
+IMAGE_NAME:  nvlddmkm.sys
+
+FAILURE_BUCKET_ID:  0x116_IMAGE_nvlddmkm.sys
+OSPLATFORM_TYPE:  x64
+OSNAME:  Windows 10
+Followup:  MachineOwner
+```
+
+The debugger also reported that it could not load/verify the `nvlddmkm.sys` image timestamp. That symbol/image limitation is preserved and means the dump should not be used to claim a verified NVIDIA binary timestamp from this analysis.
+
+### Interpretation
+
+- The minidump confirms **VIDEO_TDR_FAILURE (0x116)**.
+- WinDbg's own description is: the attempt to reset the display driver and recover from a timeout failed.
+- The stack shows Windows graphics-kernel TDR recovery functions (`dxgkrnl!TdrBugcheckOnTimeout`, adapter reset, and timeout-reset work item), rather than an application exception stack in Rocky/Python.
+- The failing module/image identified by WinDbg is `nvlddmkm.sys`, with failure bucket `0x116_IMAGE_nvlddmkm.sys`.
+- `PROCESS_NAME: System` means the bugcheck was recorded in the Windows System context; it does **not** identify Rocky, Python, or Ollama as the crashing process.
+- `Arg3` was `0xffffffffc000009a`, which WinDbg labels as the optional NTSTATUS of the last failed operation. Its symbolic meaning has not yet been resolved in this record.
+- The dump is a **Kernel Generated Triage Dump**, so it does not contain every possible crash-time measurement.
+- The debugger displayed `OSNAME: Windows 10`; retain that as raw debugger output only. The separately captured host environment is Windows 11 Home, so this debugger label is not used to revise the recorded operating-system version.
+- This analysis establishes the immediate failure path substantially better than the event logs: Windows graphics TDR recovery failed with `nvlddmkm.sys` identified in the failure bucket.
+- The **underlying trigger remains UNKNOWN**. The dump does not by itself distinguish among an NVIDIA driver defect, GPU hardware instability, resource exhaustion, power/thermal conditions, workload interaction, or another cause that made the driver stop responding.
+
+### Updated diagnostic status
+
+- Immediate failure mechanism: **ESTABLISHED — Windows VIDEO_TDR_FAILURE during NVIDIA display-driver timeout recovery**.
+- Underlying/root trigger: **UNKNOWN**.
+- Rocky V1 multi-turn result: remains **FAIL**.
+- No application code change is authorized or made by this test-history update.
+
+### Updated next diagnostic step
+
+Resolve bugcheck Arg3 `0xC000009A` in WinDbg before deciding whether to retest or change the local model/runtime.
