@@ -59,7 +59,11 @@ class CommunicationOnlyHardware:
     def open(self):
         return HardwareStatus(
             backend_id="chordic-exp002-test",
-            capabilities=frozenset({Capability.COMMUNICATION, Capability.LOCAL_STOP}),
+            capabilities=frozenset({
+                Capability.COMMUNICATION,
+                Capability.TEXT_COMMUNICATION,
+                Capability.LOCAL_STOP,
+            }),
             connection_state=ConnectionState.READY,
             native_mode="IDLE",
         )
