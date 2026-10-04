@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: resolve WinDbg bugcheck Arg3 `0xC000009A` before deciding on any Qwen3 8B retest.
+- Next diagnostic step: capture physical-memory and pagefile/virtual-memory configuration before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -408,3 +408,33 @@ The debugger also reported that it could not load/verify the `nvlddmkm.sys` imag
 ### Updated next diagnostic step
 
 Resolve bugcheck Arg3 `0xC000009A` in WinDbg before deciding whether to retest or change the local model/runtime.
+
+## Diagnostic follow-up: decode bugcheck Arg3
+
+The operator ran WinDbg's error decoder for the `Arg3` NTSTATUS reported by `!analyze -v`.
+
+### Exact command
+
+```text
+!error c000009a
+```
+
+### Exact observed output
+
+```text
+Error code: (NTSTATUS) 0xc000009a (3221225626) - Insufficient system resources exist to complete the API.
+```
+
+### Interpretation
+
+- Bugcheck Arg3 `0xC000009A` resolves to **“Insufficient system resources exist to complete the API.”**
+- In the context of this dump, that status belongs to the last failed operation reported during the Windows/NVIDIA TDR recovery path.
+- This strengthens a **resource-failure hypothesis during display-driver recovery**, but it does **not** identify which resource was insufficient.
+- It does not, by itself, prove exhaustion of system RAM, committed virtual memory/pagefile, GPU VRAM, kernel pools, a driver-internal resource, or any other specific resource.
+- No crash-time resource counters were captured, so ordinary RAM/VRAM exhaustion remains unverified.
+- Immediate failure mechanism remains **ESTABLISHED — VIDEO_TDR_FAILURE (0x116) in the NVIDIA display-driver recovery path**.
+- Underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Capture installed physical memory and current pagefile/virtual-memory configuration before any real-model retest. This is environment evidence only; current free memory after reboot must not be treated as crash-time memory availability.
