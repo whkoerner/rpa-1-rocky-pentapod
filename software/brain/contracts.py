@@ -8,6 +8,7 @@ from typing import Any
 
 from csp.wire import WireMessage
 from csp.conversation import Utterance
+from csp.learning import Phrase
 from rpa_link.messages import Mode
 
 
@@ -128,6 +129,7 @@ class ConversationOutput:
     message: Utterance
     canonical_text: str
     symbols: tuple[tuple[int, ...], ...]
+    phrase: Phrase | None = None
 
 
 @dataclass(frozen=True)

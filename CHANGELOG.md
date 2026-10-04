@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-03 — Rocky desktop V1.1 (ready for user testing)
+
+- Preserved the newer Windows test history from the original V1 branch after confirming PR #8 was merged.
+- Added a Windows launch/repair menu and per-user desktop shortcut creation with quoted paths and environment/model checks.
+- Added one validated JSON personality profile, default/example profiles and explicit legacy text compatibility.
+- Added configurable 3× note/gap duration, stable CT2 word/phrase patterns, exact UTF-8 fallback, decoded English, dictionary/word replay and learning mode.
+- Moved WAV synthesis into cancellable background work; preserved safety checks and stop/reset semantics.
+- Added focused tests and Python 3.12/3.13 Windows/Linux CI coverage; no firmware or hardware-control changes.
+- Added official-source hardware comparison, portable config examples, configuration-transfer instructions and separate standalone/PC-assisted checklists.
+- See [actual validation and unresolved failures](docs/test-plans/rocky-desktop-v1-1.md). No real-model, acoustic-decoding or Pi-performance claim is made.
+
 ## 2026-10-01 — Conversational Brain V1 (ready for user testing)
 
 - Added a supervised local Ollama conversation provider, editable persona, bounded session memory and a multi-turn terminal client.

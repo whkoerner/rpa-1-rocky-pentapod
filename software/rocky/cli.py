@@ -15,20 +15,26 @@ import sys
 
 from brain.ai import DummyAIProvider
 from brain.contracts import BrainConfig, BrainOutcome, ConnectionState
-from brain.controller import BrainController, JsonlEventLogger
+from brain.controller import BrainController, JsonlEventLogger, TaskController
 from .audio import SAMPLE_RATE
 from .conversation import ConversationController
 from .desktop import DesktopHardware
-from .providers import DummyConversationProvider, LocalAIProvider
+from .providers import DummyConversationProvider, LocalAIProvider, strict_json
+from .personality import load_personality
+from .translation import decoded_text, learning_rows
+from csp.learning import WORDS
 
 HELP = """Type a message to Rocky. Commands:
 /help       show commands             /status     brain and backend status
-/translate  show last English reply   /auto       toggle automatic translation
+/translate  decode last representation   /auto       toggle automatic translation
 /replay     play last reply again     /mute       stop and mute playback
 /unmute     enable future playback    /clear      forget session history
 /model      show provider/model       /offline    explain local-only operation
 /cancel     cancel pending inference  /stop       cancel, silence and latch stop
 /reset      operator reset (no replay) /quit      exit
+/dictionary show supported words      /word thank you  replay one entry
+/learn      use 3x timing + tokens    /speed 1..6 change duration multiplier
+/tokens     inspect last representation
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
 NO_INPUT = object()
@@ -129,21 +135,31 @@ class TerminalInput:
 
 def configuration(args):
     root = resources.files("rocky").joinpath("config")
-    defaults = json.loads(root.joinpath("rocky.json").read_text(encoding="utf-8"))
+    defaults = strict_json(root.joinpath("rocky.json").read_text(encoding="utf-8"))
     if args.config:
-        custom = json.loads(args.config.read_text(encoding="utf-8"))
+        custom = strict_json(args.config.read_text(encoding="utf-8-sig"))
         if type(custom) is not dict or set(custom) - set(defaults):
-            raise ValueError("unknown configuration fields")
+            raise ValueError("settings must be an object with known fields: " + ", ".join(sorted(defaults)))
         defaults.update(custom)
+    if type(defaults["personality_profile"]) is not str or not defaults["personality_profile"]:
+        raise ValueError("personality_profile must be a nonempty file path")
+    profile = Path(defaults["personality_profile"])
+    if not profile.is_absolute():
+        # A profile supplied by a custom file is relative to that file, not the CWD.
+        base = args.config.parent if args.config and "personality_profile" in custom else Path(str(root))
+        profile = base / profile
+    defaults["personality_profile"] = str(profile.resolve())
+    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2"}:
+        raise ValueError("text_encoding must be ct1 or ct2")
     for key in defaults:
         value = getattr(args, key, None)
         if value is not None:
             defaults[key] = value
-    if defaults["provider"] not in {"local", "dummy"} or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
+    if type(defaults["provider"]) is not str or defaults["provider"] not in {"local", "dummy"} or type(defaults["audio_backend"]) is not str or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
         raise ValueError("invalid provider/audio backend")
     if type(defaults["port"]) is not int or not 1 <= defaults["port"] <= 65535:
         raise ValueError("port must be an integer from 1 to 65535")
-    for key, low, high in (("volume", 0, 0.3), ("timeout", 1, 600)):
+    for key, low, high in (("volume", 0, 0.3), ("timeout", 1, 600), ("duration_multiplier", 1, 6)):
         value = defaults[key]
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be between {low} and {high}")
@@ -161,12 +177,37 @@ def handle_command(line, conversation, settings, display):
         print(HELP)
     elif line == "/status":
         state = brain.state
-        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}")
+        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; duration_multiplier={hardware.duration_multiplier}")
     elif line == "/translate":
-        print("Rocky: " + (conversation.last_text or "No response yet."))
+        if conversation.last_output is None:
+            print("No response yet.")
+        else:
+            text, version = decoded_text(conversation.last_output)
+            print(f"Decoded English ({version}; not microphone decoding): {text}")
     elif line == "/auto":
         display["automatic"] = not display["automatic"]
         print("Automatic translation: " + str(display["automatic"]))
+    elif line == "/dictionary":
+        for word, token in WORDS.items():
+            print(f"{word}: {token} = {' '.join(hardware.codec.encode_token(token).notes)}")
+    elif line == "/tokens":
+        if conversation.last_output is None:
+            print("No response yet.")
+        else:
+            for text, token in learning_rows(conversation.last_output):
+                print(f"{text!r}: {token}")
+    elif line.startswith("/word "):
+        result = conversation.replay_word(line[6:])
+        print(result.code.value + ": " + result.detail)
+    elif line == "/learn" or line.startswith("/speed "):
+        speed = 3.0 if line == "/learn" else float(line[7:])
+        if not math.isfinite(speed) or not 1 <= speed <= 6:
+            raise ValueError("speed must be a duration multiplier from 1 to 6")
+        hardware.duration_multiplier = speed
+        if line == "/learn":
+            display["learning"] = True
+            display["automatic"] = True
+        print(f"Next playback: notes and gaps x{speed:g}; pitch/volume unchanged. /replay to hear it.")
     elif line == "/replay":
         result = conversation.replay()
         print(result.code.value + ": " + result.detail)
@@ -177,6 +218,7 @@ def handle_command(line, conversation, settings, display):
         print("Muted: " + str(hardware.muted))
     elif line == "/clear":
         conversation.clear()
+        hardware.cancel_audio()
         print("Session history cleared; pending inference cancelled. Local WAV remains until replaced.")
     elif line == "/model":
         print(f"provider={settings['provider']}; model={settings['model'] if settings['provider'] == 'local' else 'none (deterministic diagnostic)'}")
@@ -184,7 +226,8 @@ def handle_command(line, conversation, settings, display):
         print("AI connects only to 127.0.0.1. No downloads or cloud fallback. Disable Ollama cloud, then disconnect internet to verify. This command does not test your network.")
     elif line == "/cancel":
         conversation.cancel()
-        print("Pending inference cancelled.")
+        hardware.cancel_audio()
+        print("Inference and audio cancelled; stop is not latched.")
     elif line == "/stop":
         conversation.stop()
         print("Stopped and latched. Use /reset to recover.")
@@ -203,14 +246,24 @@ def terminal(conversation, settings):
     display = {"automatic": True}
     print(HELP)
     print("> ", end="", flush=True)
+    last_audio_status = None
     while True:
+        status = conversation.brain.hardware.audio_status
+        if status != last_audio_status and status not in {"IDLE", "RENDERING"}:
+            print("\nAudio: " + status, flush=True)
+        last_audio_status = status
         result = conversation.poll()
         if result:
             if "error" in result:
                 print("\n" + result["error"])
             else:
-                print("\nRocky: " + (result["text"] if display["automatic"] else "[Chordic response; /translate for English]"))
+                print(f"\nDecoded English ({result['version']}): " + (result["text"] if display["automatic"] else "[Chordic response; /translate for English]"))
                 print("Audio: " + result["delivery"])
+                if conversation.brain.hardware.duration > 30:
+                    print("Long playback: fallback is exact but not fluent speech. /cancel or /word hello for short practice.")
+                if display.get("learning") and display["automatic"]:
+                    for text, token in learning_rows(conversation.last_output):
+                        print(f"{text!r}: {token}")
             print("> ", end="", flush=True)
         try:
             line = terminal_input.poll()
@@ -236,15 +289,18 @@ def terminal(conversation, settings):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Rocky Conversational Brain V1")
-    parser.add_argument("command", nargs="?", choices=("chat", "audio-test"), default="chat")
+    parser = argparse.ArgumentParser(description="Rocky Conversational Brain V1.1")
+    parser.add_argument("command", nargs="?", choices=("chat", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
     parser.add_argument("--timeout", type=float)
     parser.add_argument("--audio-backend", choices=("auto", "winsound", "pygame", "wav"))
     parser.add_argument("--volume", type=float)
-    parser.add_argument("--config", type=Path)
+    parser.add_argument("--duration-multiplier", type=float)
+    parser.add_argument("--text-encoding", choices=("ct1", "ct2"))
+    user_config = Path.home() / ".rpa1" / "settings" / "rocky.json"
+    parser.add_argument("--config", type=Path, default=user_config if user_config.is_file() else None)
     parser.add_argument("--personality", type=Path)
     parser.add_argument("--data-dir", type=Path, default=Path.home() / ".rpa1" / "conversation-v1")
     args = parser.parse_args(argv)
@@ -252,18 +308,27 @@ def main(argv=None):
     brain = None
     try:
         settings = configuration(args)
-        personality = args.personality.read_text(encoding="utf-8") if args.personality else resources.files("rocky").joinpath("config", "personality.txt").read_text(encoding="utf-8")
-        if len(personality.encode("utf-8")) > 8192:
-            raise ValueError("personality exceeds 8192 bytes")
-        hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"])
+        personality = load_personality(args.personality or Path(settings["personality_profile"]))
+        if args.command == "check":
+            if settings["provider"] == "local":
+                LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()
+            print("Configuration and selected provider checks passed; no inference/audio acceptance implied.")
+            return 0
+        hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"], duration_multiplier=settings["duration_multiplier"])
         brain = BrainController(provider=DummyAIProvider(), hardware=hardware, config=BrainConfig(max_provider_response_bytes=4096, operation_timeout_ms=10000), event_logger=JsonlEventLogger(args.data_dir / "events.jsonl"))
+        brain.task_controller = TaskController(hardware.codec, settings["text_encoding"])
         if brain.boot().connection_state != ConnectionState.READY:
             print('Audio backend could not open. Windows: check output device; Linux: install .[audio]. Use --audio-backend wav to diagnose without speakers.')
             return 2
         if args.command == "audio-test":
             result = brain.submit_text("hello")
             print(result.code.value + ": " + result.detail)
-            print(f"WAV: {hardware.last_wav}")
+            while hardware.rendering:
+                hardware.poll()
+                time.sleep(0.03)
+            hardware.poll()
+            print(hardware.audio_status)
+            print(f"WAV: {hardware.last_wav}; estimated playback {hardware.duration:.2f}s")
             if result.outcome not in {BrainOutcome.ACCEPTED, BrainOutcome.COMPLETED}:
                 return 2
             if hardware.player.backend != "wav":
@@ -274,7 +339,7 @@ def main(argv=None):
             return 0
         provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"])
-        print(f"Rocky Conversational Brain V1 | provider={settings['provider']} | audio={hardware.player.backend}")
+        print(f"Rocky Conversational Brain V1.1 | provider={settings['provider']} | audio={hardware.player.backend}")
         print(f"Local output: {args.data_dir}")
         terminal(conversation, settings)
         return 0

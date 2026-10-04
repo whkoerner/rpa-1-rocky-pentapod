@@ -30,3 +30,5 @@ software/simulation/logs/*.csv
 .venv-rocky/
 .rocky-output/
 *.egg-info/
+.venv-rocky-*/
+.rocky-python-path.txt

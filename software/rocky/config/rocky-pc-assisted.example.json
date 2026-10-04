@@ -1,9 +1,9 @@
 {
   "provider": "local",
   "model": "qwen3:8b",
-  "port": 11434,
+  "port": 11435,
   "timeout": 120,
-  "audio_backend": "auto",
+  "audio_backend": "pygame",
   "volume": 0.12,
   "duration_multiplier": 3,
   "text_encoding": "ct2",

@@ -57,21 +57,29 @@ class LocalAIProvider:
                 raise ValueError("runtime response exceeds 64 KiB")
             if response.status != 200:
                 raise RuntimeError(f"Ollama HTTP {response.status}; check ollama list and the selected model")
-            return strict_json(raw.decode("utf-8"))
+            result = strict_json(raw.decode("utf-8"))
+            if type(result) is not dict:
+                raise ValueError("Ollama response must be a JSON object")
+            return result
         except OSError as exc:
             raise RuntimeError("Local Ollama unavailable; start Ollama and check the port. Internet is not required.") from exc
         finally:
             connection.close()
 
-    def propose(self, text, context):
+    def check_available(self):
         if "cloud" in self.model.lower():
             raise ValueError("cloud models are disabled")
         model_info = self._post("/api/show", {"model": self.model})
-        if model_info.get("remote_host") or model_info.get("remote_model") or model_info.get("details", {}).get("format") != "gguf":
+        if type(model_info) is not dict or type(model_info.get("details")) is not dict:
+            raise ValueError("Ollama model information is missing valid details")
+        if model_info.get("remote_host") or model_info.get("remote_model") or model_info["details"].get("format") != "gguf":
             raise ValueError("select a downloaded local GGUF model")
+
+    def propose(self, text, context):
+        self.check_available()
         schema = {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 384}}, "required": ["text"], "additionalProperties": False}
         system = (
-            context.personality + "\nReturn ONLY a JSON object with exactly one key: text. "
+            "Immutable application rules follow the style preferences.\nStyle preferences:\n" + context.personality + "\nReturn ONLY a JSON object with exactly one key: text. "
             "Use one or two short sentences, at most 320 UTF-8 bytes, no line breaks. "
             "You are a desktop conversation program with NO physical devices, sensors, or action tools. "
             "Never report that you moved, sensed, measured, opened, or operated anything. "

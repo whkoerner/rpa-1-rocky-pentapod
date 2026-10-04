@@ -1,0 +1,128 @@
+# Rocky desktop V1.1 — evidence and Windows acceptance
+
+Status: **DESKTOP V1.1 ACCEPTANCE COMPLETE / READY TO MERGE**. App version `1.1.0`; combined distribution remains `rpa1-csp` `0.2.0` (no release tag created). Manual Windows acceptance was completed on 2026-10-04 at branch head `9e48573`; Raspberry Pi, physical robot hardware, microphone/listening translation, and broad GPU stability remain outside this acceptance scope.
+
+## Provenance
+
+- Inspected `main`/merged PR #8 at `4cc02cbb8e8805adad98dfea64eaedac326aea04`.
+- Preserved newer test history from `feat/rocky-conversation-v1` at `2dd7193022bc95c0afae9d8919639c5ffb751e15` through merge commit `f0431c6` on the new branch.
+- CT2, timing, background audio and translation: `0a3de19`.
+- Launcher, personality, learning controls, environment/provider checks and focused tests: `e481ca8`.
+- Piped-terminal asynchronous status flush, found by CLI smoke check: `5c33e0f`.
+- Branch: `feat/rocky-desktop-v1-1`. Documentation follows those functional commits; obtain the exact checkout with `git rev-parse HEAD` and preserve it with each user test.
+
+Manual Windows acceptance on 2026-10-04 is recorded below only at the scope personally observed by the user. The prior Qwen3 Windows crash was **not reproduced** during this acceptance session, but its root cause remains unknown; this is not evidence that the underlying crash was fixed.
+
+## Automated results actually observed
+
+Environment: Linux, Python **3.12.14**, Node **v24.19.0**, no speaker or real model. Baseline before changes: **77 Python tests passed**, plus Node protocol script passed.
+
+Final full host run at functional revision `e481ca8`:
+
+| Suite | Passed | Skipped | Failed |
+|---|---:|---:|---:|
+| `language/tests` | 16 | 0 | 0 |
+| `software/rpa_link/tests` | 10 | 0 | 0 |
+| `software/simulation/tests` | 9 | 0 | 0 |
+| `software/brain/tests` | 12 | 0 | 0 |
+| `software/rocky/tests` | 49 | 3 | 0 |
+| **Python total** | **96** | **3** | **0** |
+
+The three skips require actual Windows cmd/PowerShell and cover the spaced-path batch entry, missing-environment repair guidance, and valid/broken environment selection. They have **not** passed on Linux; they run in the Windows CI matrix. Existing CI is extended to Python 3.12 and 3.13 on Windows/Linux; remote CI results must be read separately before claiming a pass.
+
+Node `software/brain_web/protocol.test.js`: **passed**. Full raw output: [host-tests.txt](results/rocky-desktop-v1-1-host-tests.txt). Executed command:
+
+```sh
+.venv-rocky-agent/bin/python scripts/run_tests.py
+```
+
+A local verification environment was created with `python -m venv --system-site-packages .venv-rocky-agent`, then `python -m pip install --no-build-isolation -e .`. Installation and `scripts/check_environment.py` passed. This reused available host dependencies; it is **not proof of a clean offline dependency installation**.
+
+Installed CLI smoke run from a separate directory passed after the one-line `5c33e0f` status-flush fix: DummyAI response, generated WAV, auto-off/request translation, token display, learning speed, word replay, mute/unmute, stop rejection, reset and clean quit. No speaker was used. [CLI output capture, trailing spaces removed](results/rocky-desktop-v1-1-cli-smoke.txt). The smoke run initially exposed buffered asynchronous audio status in piped terminals; adding `flush=True` resolved the observed timeout. The full suites above precede that output-only fix; this distinction is preserved.
+
+`audio-test --audio-backend wav` also completed and produced a 3.975-second Hello WAV at multiplier 3. The duration comes from PCM/sample counts, not a listening observation. `git diff --check` passed after whitespace correction.
+
+Focused coverage includes old settings and text profiles, default/custom JSON, invalid/duplicate settings, profile permission boundaries, portable examples, CSP golden notes, CT1 compatibility, CT2 word/phrase boundaries, exact Unicode/case/punctuation round trips, explicit fallback, translation mismatch rejection, identical 1×/3× pitches, scaled note/gap duration, queued-render cancellation, mute, stop/reset, word replay safety, stale results, and existing provider/safety tests.
+
+Development tests found that closing the executor during stop/reset prevented new renders after recovery. The adapter now recreates it on `open`; the regression confirms old audio is discarded and new operator work can play. Existing audio tests were updated to distinguish queued acceptance from later render/player failure.
+
+## Published commit identity mapping
+
+Publication used the connected GitHub app because command-line Git push had no credentials. Commit metadata changed IDs; the complete Git tree hashes of the merge and each functional commit were verified equal to their tested local counterparts. Raw test logs preserve the local IDs above. Use the published IDs below when inspecting GitHub or checking out tested code.
+
+| Local validation commit | Published GitHub commit |
+|---|---|
+| `f0431c6` | `75eed05e3ed3d9450f7f6aafaefc006fc65442a9` |
+| `0a3de19` | `3b4310bc13792c7f739cf1c88e4b71b41ab0a544` |
+| `e481ca8` | `f8b2e984d1fc28bdac1ccd6975e5374cd5e3130f` |
+| `5c33e0f` | `54c928f10c70a16f880063c86924591728b9fe39` |
+
+## CI follow-up: run #33 failure and CT2 golden coverage
+
+On 2026-10-04 UTC, [run #33](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37180506272) at `c2c3341` failed in Windows/Python 3.13 Rocky tests; Windows 3.12 and Ubuntu 3.12 were cancelled by matrix fail-fast. Ubuntu 3.13 and Arduino compilation passed. The connection could read job status but not authenticated raw logs, so the unchanged application/test suite was reproduced with traceback check annotations and `fail-fast: false` in `.github/workflows/tests.yml`.
+
+The first diagnostic run (#34, `932346d`) additionally exposed a missing multiprocessing main guard in the new diagnostic wrapper. That wrapper error was corrected in `376816b`; it was not an application defect. [Clean reproduction #35](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209465788) then passed both Linux cells and failed both Windows cells on exactly two assertions in `software/rocky/tests/test_windows_launcher.py`:
+
+- `test_missing_environment_gives_exact_repair_without_creating_it`: expected the temporary path under `C:\Users\RUNNER~1`, but the printed repair command correctly used `C:\Users\runneradmin`.
+- `test_valid_environment_and_broken_explicit_override`: environment verification succeeded, but the returned interpreter path used that same expanded spelling.
+
+These are two names for the same directory, not evidence of a broken launcher/environment. `e619a6e1e8a7774f85dc6de7af04398f872e4a9c` resolves the existing temporary parent before constructing the fixture. Exact path, return-code and environment assertions remain intact; no skips or weaker assertions were added. Application code, launcher behavior, safety validation and CSP assignments are unchanged. [Captured reproduction tracebacks](results/rocky-desktop-v1-1-ci-reproduction.txt) are from #35, not a claimed retrieval of #33's raw log.
+
+The same commit adds `test_every_documented_starter_has_its_golden_five_note_core` in `software/rocky/tests/test_learning.py`: independent literal goldens for all 15 documented meanings/token IDs/five-note cores, agreement with the documentation table, exact decoded English, lowercase/initial/uppercase, isolated/in-sentence placement, and unchanged cores at 1×/3×. The golden expectations are not computed from the vocabulary or CSP YAML.
+
+[Final fix verification: run #36](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209610698), head `e619a6e`: **SUCCESS**. All four Windows/Linux × Python 3.12/3.13 cells completed successfully, including all Python suites and Node protocol tests. Each Windows cell ran all 100 Python tests; each Linux cell passed 97 with the three expected Windows-only skips. The separate Arduino Uno compile job also passed. [Final branch verification: run #37](https://github.com/whkoerner/rpa-1-rocky-pentapod/actions/runs/37209721195), head `9e48573`: **SUCCESS**. This evidence update does not change application code, Brain safety boundaries, CSP assignments, tests or workflow behavior.
+
+Local Linux/Python 3.12.14 verification at `e619a6e` passed all five suites: **97 passed, 3 Windows-only skips, 0 failures**; Node protocol tests passed. Command: `.venv-rocky-agent/bin/python scripts/run_tests.py`. [Raw output](results/rocky-desktop-v1-1-ci-fix-host-tests.txt). These automated results do not establish real-model, offline, actual listening, Pi, microphone or physical-hardware acceptance. The Qwen3 Windows crash remains unresolved until retested.
+
+## Completed manual Windows acceptance — 2026-10-04
+
+The following observations were completed by the user on Windows at/after `9e48573`. These are acceptance observations, not inferred automated-test results:
+
+- **PASS — setup/repair:** setup/repair succeeded and created/used `.venv-rocky`.
+- **PASS — launcher:** `Rocky.bat` launched successfully.
+- **PASS — desktop shortcut:** the desktop shortcut launched Rocky without manual virtual-environment activation.
+- **PASS — DummyAI:** DummyAI conversation worked.
+- **PASS — audible CT2:** native Windows `winsound` CT2 playback was audible; the user personally heard the generated tones.
+- **PASS — speed controls:** `/speed 1`, `/speed 3`, and `/speed 6` worked.
+- **PASS — replay:** `/replay` worked.
+- **PASS — mute/unmute:** `/mute` suppressed audible playback and `/unmute` restored playback.
+- **PASS — stop/reset:** `/stop` latched correctly and `/reset` recovered normal operation.
+- **PASS — learning/dictionary controls:** `/word`, `/dictionary`, and `/learn` worked.
+- **PASS — real local model:** the configured local model worked for multiple turns.
+- **PASS — session memory:** multi-turn session memory worked in the tested conversation.
+- **PASS — simple reasoning:** simple reasoning prompts worked in the tested conversation.
+- **PASS — disconnected restart:** the real local model runtime was restarted and used successfully after the PC was disconnected from the internet.
+- **PASS — offline end-to-end conversation:** while disconnected, local conversation, CT2 generation, and audible playback all worked.
+
+The prior Qwen3 Windows crash was **not reproduced** in this acceptance session. Its root cause was not identified or fixed by this work, so no broader GPU-stability claim is made.
+
+## Remaining NOT RUN / not implemented
+
+- **NOT RUN — Raspberry Pi acceptance:** Pi/CM5 installation, CPU performance, cooling/power, local audio and PC-assisted deployment remain unvalidated on the target small computer.
+- **NOT RUN — physical robot hardware acceptance:** Arduino upload to the robot, sensors, motors and physical safety behavior were not exercised. Hosted Arduino compilation passed; no firmware changed.
+- **NOT IMPLEMENTED / V2 — microphone/listening translation:** `/listen` remains V2; no microphone input or acoustic decoder was added.
+- **NOT RUN — broad GPU stability:** this successful Windows/Qwen3 acceptance session did not reproduce the prior `VIDEO_TDR_FAILURE (0x116)`, but it is not a soak test and does not establish stability across longer sessions, other models, drivers or GPU loads.
+
+## Manual Windows checklist reference
+
+The detailed checklist below remains useful for future regression sessions. Do not infer PASS for checklist actions that were not explicitly observed above; in particular, this acceptance record only claims the behaviors listed in the completed-evidence section.
+
+| ID | Action | Expected acceptance |
+|---|---|---|
+| WIN-01 | Keep your current installation. Create the separate `Rocky Desktop Test` worktree using the build guide; double-click its `.bat`. Also start it from a different PowerShell directory using a quoted full path. | Same menu; no activation/CWD dependency, no administrator prompt, errors remain visible. |
+| WIN-02 | In the **test worktree only**, run before setup or temporarily set `ROCKY_PYTHON` to a nonexistent path. Select 2. Remove that temporary override afterward. | Exact repair command; no download, Git update or deletion. |
+| WIN-03 | Choose 7; run it again after editing a harmless profile field. | Valid environment; existing profile edit remains. A broken existing environment is retained and a new suffixed one is created when needed. |
+| WIN-04 | Choose 8, then close and double-click the new desktop shortcut. | Same menu. A repeated shortcut creation refuses to overwrite the existing `.lnk`. |
+| WIN-05 | Choose 4, then 6. | Results visible and saved; failures explicit. Node absence is separately marked NOT RUN. |
+| WIN-06 | Choose 3 at default multiplier 3. | Hear a comfortable, slower Hello, approximately 4 seconds. Record actual hearing and quality separately. |
+| WIN-07 | Choose 2, type `hello`, then `/tokens`, `/translate`. | Dummy label, estimated duration, decoded English equal to reply; supported/fallback spans visible. |
+| WIN-08 | `/word hello`, `/word thank you`, `/speed 1`, `/word hello`, `/learn`, `/word hello`. | Repeatable lexical core; learning version 3× longer than 1×, unchanged perceived pitch. |
+| WIN-09 | Start a reply/replay and immediately `/mute`, `/unmute`; then replay and `/cancel`. | Prompt remains responsive; mute/cancel stop sound/rendering; unmute does not resurrect it. Record observed delay; no hard real-time claim. |
+| WIN-10 | `/stop`, `/replay`, `/reset`, `/word hello`. | Replay rejected while latched; reset alone is silent; new word replay works. |
+| WIN-11 | `/auto` off, new reply, then `/translate`. | Automatic English/token text hidden until requested; representation decodes exactly. |
+| WIN-12 | Back up active personality; use malformed JSON or `humor: 9`, restart. Restore the original afterward. | Readable error, no silent repair. Then use example profile; real-model adherence remains a separate qualitative check. |
+| WIN-13 | Stop Ollama or select an unavailable model in a temporary config, run menu 1. | Bounded availability error/instructions; no model download or cloud fallback. Restore chosen model. |
+| WIN-14 | Only after reviewing the existing crash evidence, run a short real-model conversation and multi-turn recall/personality check. | Record each turn/latency/crash honestly. Availability check alone does not pass this. |
+| WIN-15 | With runtime/model provisioned, disconnect internet, restart runtime/Rocky, repeat several turns. | Successful locally executed inference/audio without internet. This establishes only the tested configuration, not all hardware/offline cases. |
+
+See [installation and customization](../build-guides/rocky-desktop-v1-1.md) and [onboard acceptance checklist](../build-guides/rocky-small-computer.md). The safe first user run for this upgrade is setup → shortcut → DummyAI, followed by the audio/manual checks.

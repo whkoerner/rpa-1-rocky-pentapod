@@ -121,6 +121,15 @@ class CodecTests(unittest.TestCase):
         self.assertEqual(pcm, synthesize(output, codec))
 
 
+def wait_audio(hardware, timeout=5):
+    deadline = time.monotonic() + timeout
+    while hardware.rendering and time.monotonic() < deadline:
+        time.sleep(0.01)
+    if hardware.rendering:
+        raise AssertionError("audio rendering did not finish")
+    hardware.poll()
+
+
 class PipelineTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -137,6 +146,7 @@ class PipelineTests(unittest.TestCase):
     def test_typed_response_translation_and_wav(self):
         self.conversation.start("Hello")
         result = self.conversation.poll()
+        wait_audio(self.hardware)
         self.assertEqual(result["text"], "Hello, curious builder!")
         self.assertEqual(self.player.play_count, 1)
         self.assertEqual(self.conversation.last_text, result["text"])
@@ -148,11 +158,14 @@ class PipelineTests(unittest.TestCase):
         settings, display = {"provider": "dummy", "model": "none"}, {"automatic": True}
         self.conversation.start("Hello")
         self.conversation.poll()
+        wait_audio(self.hardware)
         handle_command("/mute", self.conversation, settings, display)
         self.conversation.replay()
+        wait_audio(self.hardware)
         self.assertEqual(self.player.play_count, 1)
         handle_command("/unmute", self.conversation, settings, display)
         self.conversation.replay()
+        wait_audio(self.hardware)
         self.assertEqual(self.player.play_count, 2)
         handle_command("/auto", self.conversation, settings, display)
         self.assertFalse(display["automatic"])
@@ -163,6 +176,7 @@ class PipelineTests(unittest.TestCase):
     def test_stop_rejects_replay_and_reset_never_replays(self):
         self.conversation.start("Hello")
         self.conversation.poll()
+        wait_audio(self.hardware)
         self.conversation.stop()
         result = self.conversation.replay()
         self.assertEqual(result.code, ResultCode.ESTOP_LATCHED)
@@ -224,7 +238,13 @@ class PipelineTests(unittest.TestCase):
     def test_audio_failure_is_not_reported_as_success(self):
         with patch.object(self.player, "play", side_effect=OSError("device lost")):
             result = self.brain.submit_utterance({"text": "Hello."})
-        self.assertEqual(result.code, ResultCode.BACKEND_FAILED)
+            self.assertEqual(result.outcome, BrainOutcome.ACCEPTED)
+            deadline = time.monotonic() + 5
+            while self.hardware.rendering and time.monotonic() < deadline:
+                time.sleep(0.01)
+            error = self.conversation.poll()
+        self.assertIn("BACKEND_FAILED", error["error"])
+        self.assertTrue(self.brain.state.estop_latched)
         self.assertEqual(self.player.play_count, 0)
 
     def test_deadline_blocks_audio(self):

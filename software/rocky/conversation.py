@@ -4,6 +4,8 @@ from brain.contracts import BrainOutcome, ConnectionState
 from brain.validation import validate_utterance
 from .providers import ConversationContext
 from .worker import InferenceWorker
+from .translation import decoded_text
+from csp.learning import WORDS
 
 
 class ConversationController:
@@ -14,6 +16,7 @@ class ConversationController:
         self.history = []
         self.pending = None
         self.last_text = None
+        self.last_output = None
 
     def start(self, text):
         if self.pending is not None:
@@ -34,9 +37,9 @@ class ConversationController:
             events = self.brain.hardware.poll()
             if events:
                 raise RuntimeError("unexpected desktop backend event")
-        except Exception:
+        except Exception as exc:
             self.stop()
-            return {"error": "BACKEND_FAILED: desktop polling failed; stop latched"}
+            return {"error": f"BACKEND_FAILED: {exc}; stop latched"}
         if self.pending is None:
             return None
         text, session, revision = self.pending
@@ -57,12 +60,17 @@ class ConversationController:
         accepted = self.brain.submit_utterance(result["candidate"])
         if accepted.outcome not in {BrainOutcome.ACCEPTED, BrainOutcome.COMPLETED}:
             return {"error": accepted.code.value + ": " + accepted.detail}
-        self.last_text = utterance.text
+        translated, version = decoded_text(accepted.communication)
+        if translated != utterance.text:
+            self.stop()
+            return {"error": "TRANSLATION_MISMATCH; stopped"}
+        self.last_text = translated
+        self.last_output = accepted.communication
         self.history.extend((("user", text), ("assistant", utterance.text)))
         # Bounded, complete turn pairs. No persistent personal memory in V1.
         while len(self.history) > 24 or sum(len(v.encode("utf-8")) for _, v in self.history) > 12000:
             del self.history[:2]
-        return {"text": utterance.text, "delivery": accepted.detail}
+        return {"text": translated, "version": version, "delivery": accepted.detail}
 
     def replay(self):
         if self.pending is not None:
@@ -70,6 +78,13 @@ class ConversationController:
         if self.last_text is None:
             raise ValueError("no response to replay")
         return self.brain.submit_utterance({"text": self.last_text})
+
+    def replay_word(self, text):
+        if self.pending is not None:
+            raise ValueError("BUSY: wait or /cancel before word replay")
+        if text not in WORDS:
+            raise ValueError("unsupported dictionary entry; use /dictionary and its exact lowercase spelling")
+        return self.brain.submit_utterance({"text": text})
 
     def cancel(self):
         self.worker.cancel()
@@ -79,6 +94,7 @@ class ConversationController:
         self.cancel()
         self.history.clear()
         self.last_text = None
+        self.last_output = None
 
     def stop(self):
         self.cancel()
