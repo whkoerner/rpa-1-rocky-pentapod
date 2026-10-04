@@ -82,8 +82,8 @@ This is user-reported observational evidence. No exact first model reply text, s
 - Severity: high for desktop usability/reliability testing.
 - Observed behavior: laptop froze, then the whole computer crashed.
 - Application response: none was observed for the second prompt.
-- Error text: UNKNOWN; no terminal error was available after the system crash.
-- Windows event evidence: not yet collected.
+- Terminal error text: UNKNOWN; the later Windows System log recorded a bugcheck and saved a minidump.
+- Windows event evidence: collected after reboot; see diagnostic follow-up below.
 - Ollama/runtime log evidence: not yet collected.
 - RAM/GPU utilization at failure: UNKNOWN.
 - Root cause: UNKNOWN. Do not attribute the crash to Rocky, Ollama, Qwen, Python, GPU drivers, thermal limits, or memory exhaustion without diagnostic evidence.
@@ -117,4 +117,60 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: after reboot, collect recent Windows System critical/error events before attempting another Qwen conversation.
+- Next diagnostic step: collect GPU identity and display-driver version, then analyze the saved minidump before attempting another heavy real-model retest.
+
+## Diagnostic follow-up: Windows crash events
+
+After reboot, the operator ran the requested Windows System event query. The supplied output provides direct OS-level evidence that the failure was a Windows bugcheck rather than only an application hang.
+
+### Exact diagnostic command
+
+```powershell
+Get-WinEvent -FilterHashtable @{LogName='System'; StartTime=(Get-Date).AddHours(-3); Level=1,2} | Select-Object -First 25 TimeCreated,Id,ProviderName,Message | Format-List
+```
+
+### Relevant observed events
+
+```text
+TimeCreated  : 10/3/2026 5:40:19 PM
+Id           : 1019
+ProviderName : Microsoft-Windows-WER-SystemErrorReporting
+Message      : The computer has rebooted from a bugcheck. Possibly related driver: nvlddmkm.sys.
+
+TimeCreated  : 10/3/2026 5:40:19 PM
+Id           : 1001
+ProviderName : Microsoft-Windows-WER-SystemErrorReporting
+Message      : The computer has rebooted from a bugcheck. The bugcheck was: 0x00000116 (...). A dump was saved in:
+               C:\Windows\Minidump\100326-20515-01.dmp.
+
+TimeCreated  : 10/3/2026 5:40:06 PM
+Id           : 41
+ProviderName : Microsoft-Windows-Kernel-Power
+Message      : The system has rebooted without cleanly shutting down first. This error could be caused if the system stopped
+               responding, crashed, or lost power unexpectedly.
+
+TimeCreated  : 10/3/2026 5:40:02 PM
+Id           : 162
+ProviderName : volmgr
+Message      : Dump file generation succeeded.
+
+TimeCreated  : 10/3/2026 5:40:22 PM
+Id           : 6008
+ProviderName : EventLog
+Message      : The previous system shutdown at 5:34:47 PM on 10/3/2026 was unexpected.
+```
+
+The screenshot also showed DistributedCOM, Wi-Fi Direct virtual-adapter, BitLocker, and Epic Online Services errors at earlier times. They are preserved as observed background events but are not treated as causal for the 5:34:47 PM crash.
+
+### Interpretation
+
+- Windows recorded bugcheck `0x00000116`.
+- Windows Error Reporting explicitly named `nvlddmkm.sys` as a **possibly related driver**.
+- A minidump was successfully written to `C:\Windows\Minidump\100326-20515-01.dmp`.
+- Kernel-Power 41 and EventLog 6008 corroborate an unclean system failure/restart.
+- These events strengthen the evidence that the second Qwen turn coincided with a system-level graphics/driver failure path.
+- They do **not** prove that Rocky, Ollama, Qwen3, the NVIDIA driver, GPU hardware, thermals, or memory pressure was the root cause. Root cause remains **UNKNOWN** until the dump and hardware/driver state are analyzed.
+
+### Updated next diagnostic step
+
+Collect the installed GPU identity and display-driver version before any further real-model retest. Do not overwrite this failure if a later driver update or smaller-model retest passes.
