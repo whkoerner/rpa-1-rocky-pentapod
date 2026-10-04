@@ -117,7 +117,7 @@ The user again reported the tones were too fast. The first reply's content quali
   - “Real local AI gives useful, original, multi-turn replies”: **FAIL** for this session because the second turn caused a full-system crash.
   - “Favorite-color recall succeeds within the session”: **NOT TESTED**.
 - Required changes: none made; application repair is outside this documentation-only authorization.
-- Next diagnostic step: determine whether the 2 GB Windows pagefile is automatic/system-managed or manually fixed before deciding on any Qwen3 8B retest.
+- Next diagnostic step: check the crash window for Windows Resource-Exhaustion-Detector events before deciding on any Qwen3 8B retest.
 
 ## Diagnostic follow-up: Windows crash events
 
@@ -476,3 +476,26 @@ PeakUsage         : 42
 ### Updated next diagnostic step
 
 Determine whether Windows is automatically managing the pagefile or whether the 2 GB pagefile is a fixed/manual configuration before considering any retest.
+
+## Diagnostic follow-up: automatic pagefile management
+
+The operator ran the pagefile-management query and reported:
+
+```text
+AutomaticManagedPagefile: True
+```
+
+The `Win32_PageFileSetting` values were not supplied, so `InitialSize` and `MaximumSize` remain UNKNOWN.
+
+### Interpretation
+
+- Windows automatic pagefile management is enabled.
+- The previously observed `AllocatedBaseSize = 2048 MB` therefore must not be described as a user-fixed 2 GB pagefile cap based on the current evidence.
+- Automatic management does not prove that the pagefile had already expanded, could expand quickly enough, or that committed-memory pressure was absent at crash time.
+- The earlier `STATUS_INSUFFICIENT_RESOURCES (0xC000009A)` remains a resource-failure signal during TDR recovery, but the specific insufficient resource remains UNKNOWN.
+- Immediate failure mechanism remains **VIDEO_TDR_FAILURE (0x116) in the NVIDIA display-driver recovery path**.
+- Underlying trigger remains **UNKNOWN**.
+
+### Updated next diagnostic step
+
+Check the crash window for Windows Resource-Exhaustion-Detector events before any real-model retest.
