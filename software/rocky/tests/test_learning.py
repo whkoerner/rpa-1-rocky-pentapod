@@ -1,12 +1,32 @@
 from dataclasses import replace
+from pathlib import Path
 import unittest
 
 from brain.controller import TaskController
 from csp.conversation import Utterance, encode_text
 from csp.core import CspCodec
 from csp.learning import WORDS, Phrase, Unit, decode_phrase, encode_phrase
-from rocky.audio import SAMPLE_RATE, events, estimated_duration, synthesize
+from rocky.audio import SAMPLE_RATE, events, estimated_duration, frequency, synthesize
 from rocky.translation import decoded_text, learning_rows
+
+# Independent golden data from CT2_LEARNING_V1.md; never derive from WORDS/YAML.
+STARTER_GOLDENS = {
+    'hello': ('SOCIAL.hello', 'E4 A4 D4 D4 Fsharp4'),
+    'goodbye': ('SOCIAL.goodbye', 'E4 A4 D4 E4 A4'),
+    'yes': ('SOCIAL.yes', 'E4 A4 E4 D4 A4'),
+    'no': ('SOCIAL.no', 'E4 A4 E4 E4 B4'),
+    'help': ('ACTION.help', 'D4 A4 A4 Fsharp4 Fsharp4'),
+    'thank you': ('SOCIAL.thank_you', 'E4 A4 D4 A4 D4'),
+    'please': ('SOCIAL.please', 'E4 A4 D4 Fsharp4 B4'),
+    'sorry': ('SOCIAL.sorry', 'E4 A4 D4 B4 E4'),
+    'ready': ('QUALITY.ready', 'A4 Fsharp4 D4 B4 Fsharp4'),
+    'wait': ('ACTION.wait', 'D4 A4 Fsharp4 D4 B4'),
+    'repeat': ('ACTION.repeat', 'D4 A4 Fsharp4 B4 A4'),
+    'robot': ('ENTITY.robot', 'D4 Fsharp4 D4 B4 D4'),
+    'music': ('ENTITY.music', 'D4 Fsharp4 B4 E4 E4'),
+    'computer': ('ENTITY.computer', 'D4 Fsharp4 Fsharp4 A4 E4'),
+    'project': ('ENTITY.project', 'D4 Fsharp4 A4 Fsharp4 E4'),
+}
 
 
 class LearningTests(unittest.TestCase):
@@ -33,6 +53,33 @@ class LearningTests(unittest.TestCase):
             from rocky.audio import frequency
             pattern = [((frequency(n),), 140, 35) for n in expected]
             self.assertTrue(any(rendered[i:i+5] == pattern for i in range(len(rendered)-4)))
+
+    def test_every_documented_starter_has_its_golden_five_note_core(self):
+        self.assertEqual(WORDS, {word: token for word, (token, _) in STARTER_GOLDENS.items()})
+        spec = Path(__file__).resolve().parents[3] / 'language/specification/CT2_LEARNING_V1.md'
+        dictionary = spec.read_text(encoding='utf-8').split('## Starter dictionary', 1)[1].split('## ', 1)[0]
+        rows = [tuple(cell.strip().strip('`') for cell in line.split('|')[1:-1])
+                for line in dictionary.splitlines()
+                if line.startswith('| ') and '`' in line and len(line.split('|')) == 5]
+        self.assertEqual(rows, [(word, token, notes) for word, (token, notes) in STARTER_GOLDENS.items()])
+        for word, (token, notes) in STARTER_GOLDENS.items():
+            with self.subTest(word=word):
+                core = tuple(notes.split())
+                self.assertEqual(len(core), 5)
+                self.assertEqual(self.codec.encode_token(token).notes, core)
+                for surface, case in ((word, 'lower'), (word.capitalize(), 'initial'), (word.upper(), 'upper')):
+                    for text in (surface, f'please {surface}, robot!'):
+                        with self.subTest(text=text):
+                            phrase = encode_phrase(text)
+                            self.assertIn(Unit('token', token, case), phrase.units)
+                            self.assertEqual(decode_phrase(phrase), text)
+                            output = self.tasks.build_communication(Utterance(text))
+                            self.assertEqual(decoded_text(output)[0], text)
+                            for multiplier in (1, 3):
+                                rendered = list(events(output, self.codec, multiplier))
+                                pattern = [((frequency(note),), 140*multiplier, 35*multiplier) for note in core]
+                                self.assertTrue(any(rendered[i:i+5] == pattern for i in range(len(rendered)-4)),
+                                                (text, multiplier, core))
 
     def test_phrases_and_word_boundaries(self):
         self.assertEqual(encode_phrase('thank you').units, (Unit('token', 'SOCIAL.thank_you'),))

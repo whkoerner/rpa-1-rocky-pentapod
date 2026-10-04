@@ -15,7 +15,9 @@ ROOT = Path(__file__).resolve().parents[3]
 class WindowsLauncherTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='Rocky launcher with spaces ')
-        self.root = Path(self.temp.name) / 'project with spaces'
+        # Windows TEMP may use an 8.3 alias (RUNNER~1); PowerShell expands it.
+        # Compare the same canonical path, retaining the exact-path assertions.
+        self.root = Path(self.temp.name).resolve() / 'project with spaces'
         self.root.mkdir()
         for name in ('scripts', 'software', 'language'):
             shutil.copytree(ROOT / name, self.root / name, ignore=shutil.ignore_patterns('__pycache__', '*.egg-info'))
