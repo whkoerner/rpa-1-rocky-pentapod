@@ -9,8 +9,8 @@ from brain.controller import BrainController, TaskController
 from csp.conversation import Utterance
 from csp.core import CspCodec
 from rocky.audio import estimated_duration
-from simulation.model import Mode
 from brain.hardware import SimulatorHardware
+from rpa_link.messages import Mode
 
 
 ROOT = Path(__file__).resolve().parents[3]
