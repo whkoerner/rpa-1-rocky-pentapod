@@ -22,8 +22,8 @@ class DesktopHardware:
         self.duration_multiplier = duration_multiplier
         self.translation_delay_seconds = 0.75
         self.translation_tone_gain = 0.72
-        if tone_style not in {"pure", "resonant"}:
-            raise ValueError("tone_style must be pure or resonant")
+        if tone_style not in {"pure", "resonant", "contour-v1"}:
+            raise ValueError("tone_style must be pure, resonant or contour-v1")
         self.tone_style = tone_style
         self._muted = False
         self.ready = self.stopped = False

@@ -10,7 +10,8 @@ import wave
 from brain.contracts import CommunicationOutput, ConversationOutput
 from csp.core import CspCodec
 from csp.conversation import decode_text
-from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, load_profile as load_exp002_profile, token_patterns as exp002_token_patterns\nfrom csp.exp003 import Exp003Phrase, decode_phrase as decode_exp003_phrase, load_profile as load_exp003_profile, token_patterns as exp003_token_patterns
+from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, load_profile as load_exp002_profile, token_patterns as exp002_token_patterns
+from csp.exp003 import Exp003Phrase, decode_phrase as decode_exp003_phrase, load_profile as load_exp003_profile, token_patterns as exp003_token_patterns
 from csp.learning import decode_phrase, literal_text
 
 SAMPLE_RATE = 22050
