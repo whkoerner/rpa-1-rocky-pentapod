@@ -8,10 +8,11 @@ from csp.conversation import Utterance
 from csp.core import CspCodec
 import csp.exp002 as exp002
 from csp.exp003 import Exp003Phrase, SOURCE_COMMIT, coverage, decode_phrase, encode_phrase, load_profile
-from rocky.audio import estimated_duration, synthesize
+from rocky.audio import base_events, estimated_duration, synthesize
 
 ROOT = Path(__file__).resolve().parents[3]
 BENCHMARK = ROOT / "experiments" / "chordic" / "exp-003-benchmark.json"
+WINDOWS_BENCHMARK = ROOT / "experiments" / "chordic" / "exp-003-windows-feedback-v0.2.json"
 
 
 class Exp003RuntimeTests(unittest.TestCase):
@@ -20,10 +21,11 @@ class Exp003RuntimeTests(unittest.TestCase):
         self.tasks = TaskController(self.codec, "exp003")
         self.profile = load_profile()
         self.benchmark = json.loads(BENCHMARK.read_text(encoding="utf-8"))
+        self.windows_benchmark = json.loads(WINDOWS_BENCHMARK.read_text(encoding="utf-8"))
 
     def test_chordic_export_is_pinned_and_rocky_has_no_exp002_surface_dictionary(self):
-        self.assertEqual(SOURCE_COMMIT, "654deaa0ab7c77efe4d36876936a73ec0890065c")
-        self.assertEqual(self.profile["export_id"], "EXP-003-runtime-v1")
+        self.assertEqual(SOURCE_COMMIT, "e618b39150c7f318b7a0da51408062ca9eb43ad9")
+        self.assertEqual(self.profile["export_id"], "EXP-003-runtime-v2")
         self.assertFalse(hasattr(exp002, "_SURFACES"))
         exported = exp002.surface_registry()
         self.assertEqual(exported["hello"], ("SOCIAL.HELLO",))
@@ -60,6 +62,41 @@ class Exp003RuntimeTests(unittest.TestCase):
         non_seed = [value for kind, value in durations if kind != "seed"]
         self.assertAlmostEqual(statistics.mean(non_seed), self.benchmark["summary"]["non_seed"]["mean_seconds"], places=2)
         self.assertLessEqual(max(non_seed), 10.0)
+
+
+    def test_exact_windows_model_replies_are_now_full_semantic_coverage(self):
+        expected_durations = {"W001": 5.58, "W002": 9.30}
+        for case in self.windows_benchmark["results"]:
+            with self.subTest(case=case["id"]):
+                output = self.tasks.build_communication(Utterance(case["english"]))
+                stats = coverage(output.phrase)
+                self.assertEqual(stats["semantic_percent"], 100.0)
+                self.assertEqual(stats["fallback_spans"], 0)
+                self.assertEqual(stats["fallback_bytes"], 0)
+                duration = estimated_duration(output, self.codec, self.windows_benchmark["playback_multiplier"])
+                self.assertAlmostEqual(duration, expected_durations[case["id"]], places=2)
+                self.assertLessEqual(duration, 10.0)
+
+    def test_spoken_number_words_compose_to_digits(self):
+        phrase = encode_phrase("Eight times eight. Sixty four.")
+        tokens = tuple(token for unit in phrase.units for token in unit.tokens)
+        self.assertEqual(tokens, ("NUM.8", "OP.MUL", "NUM.8", "NUM.6", "NUM.4"))
+        self.assertEqual(coverage(phrase)["fallback_spans"], 0)
+        surfaces = {row["text"].lower() for row in self.profile["surface_forms"]}
+        self.assertNotIn("sixty four", surfaces)
+
+    def test_problem_solve_is_composed_from_primitives(self):
+        phrase = encode_phrase("Rocky problem solve.")
+        tokens = tuple(token for unit in phrase.units for token in unit.tokens)
+        self.assertEqual(tokens, ("ENTITY.ROCKY", "ENTITY.PROBLEM", "ACTION.SOLVE"))
+        self.assertEqual(coverage(phrase)["fallback_spans"], 0)
+
+    def test_exp003_semantic_and_fallback_events_stay_in_low_band(self):
+        output = self.tasks.build_communication(Utterance("Rocky calibrate spectrometer"))
+        frequencies = [hz for tones, _, _ in base_events(output, self.codec) for hz in tones]
+        self.assertTrue(frequencies)
+        self.assertLessEqual(max(frequencies), self.profile["candidate"]["acoustics"]["recommended_output_band_hz"][1])
+        self.assertLess(max(frequencies), 180.0)
 
     def test_unseen_technical_words_stay_visible_as_exact_fallback(self):
         phrase = encode_phrase("Rocky calibrate spectrometer")
