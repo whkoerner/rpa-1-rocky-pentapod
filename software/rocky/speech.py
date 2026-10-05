@@ -4,10 +4,13 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import base64
 import html
+import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+import wave
 from typing import Protocol
 
 
@@ -130,6 +133,9 @@ class SpeechRenderer(Protocol):
     def check_available(self) -> tuple[str, ...]:
         ...
 
+    def estimate_duration_seconds(self, text: str) -> float:
+        ...
+
     def start(self, text: str, *, gate: threading.Event | None = None, delay_seconds: float = 0) -> None:
         ...
 
@@ -220,6 +226,53 @@ class WindowsSystemSpeechRenderer:
                 if type(value) is not int or not -2 <= value <= 2:
                     raise ValueError("voice tuning offsets must be integers from -2 to 2")
                 setattr(self, attr, value)
+
+    def estimate_duration_seconds(self, text: str) -> float:
+        """Render the selected local Windows voice to a temporary WAV and measure it.
+
+        This adds bounded local preparation work but gives the overlap scheduler a
+        real audio duration instead of guessing from word count.
+        """
+        if sys.platform != "win32":
+            raise RuntimeError("spoken English translation requires Windows System.Speech")
+        ssml = build_ssml(text, rate_offset=self.rate_offset, pitch_offset=self.pitch_offset, volume_offset=self.volume_offset)
+        fd, path = tempfile.mkstemp(prefix="rocky-translation-", suffix=".wav")
+        os.close(fd)
+        try:
+            ssml_b64 = base64.b64encode(ssml.encode("utf-8")).decode("ascii")
+            voice_b64 = base64.b64encode(self.voice_name.encode("utf-8")).decode("ascii")
+            path_b64 = base64.b64encode(path.encode("utf-8")).decode("ascii")
+            script = (
+                "Add-Type -AssemblyName System.Speech;"
+                "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer;"
+                f"$x=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{ssml_b64}'));"
+                f"$v=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{voice_b64}'));"
+                f"$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{path_b64}'));"
+                "try {if($v.Length -gt 0){$s.SelectVoice($v)};"
+                "$s.SetOutputToWaveFile($p);$s.SpeakSsml($x)} finally {$s.Dispose()}"
+            )
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", _powershell_encoded(script)],
+                capture_output=True,
+                timeout=30,
+                check=False,
+            )
+            if result.returncode:
+                detail = (result.stderr or result.stdout).decode("utf-8", "replace").strip()
+                raise RuntimeError("Windows speech duration render failed" + (": " + detail[-500:] if detail else ""))
+            with wave.open(path, "rb") as handle:
+                rate = handle.getframerate()
+                frames = handle.getnframes()
+            if rate <= 0 or frames <= 0:
+                raise RuntimeError("Windows speech duration render produced empty audio")
+            return frames / rate
+        except (OSError, subprocess.TimeoutExpired, wave.Error) as exc:
+            raise RuntimeError("Windows speech duration measurement failed") from exc
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
 
     def start(self, text: str, *, gate=None, delay_seconds=0) -> None:
         if type(delay_seconds) not in (int, float) or not 0 <= delay_seconds <= 600:

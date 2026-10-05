@@ -24,6 +24,7 @@ class FakeVoice:
         self.status = "IDLE"
         self.last_profile = ""
         self.last_duration_seconds = 0.0
+        self.estimated_duration_seconds = 5.0
         self.available_checks = 0
         self.starts = []
         self.cancel_count = 0
@@ -42,6 +43,9 @@ class FakeVoice:
             if key.endswith("_offset") and (type(value) is not int or not -2 <= value <= 2):
                 raise ValueError("voice tuning offsets must be integers from -2 to 2")
             setattr(self, key, value)
+
+    def estimate_duration_seconds(self, text):
+        return self.estimated_duration_seconds
 
     def start(self, text, *, gate=None, delay_seconds=0):
         self.starts.append((text, delay_seconds, gate is not None))
@@ -184,17 +188,27 @@ class PersistentTranslationTests(unittest.TestCase):
         wait_audio(self.hardware)
         return result
 
-    def test_translation_waits_for_chordic_then_finishes_after_source(self):
+    def test_translation_actively_overlaps_but_plans_to_finish_after_chordic(self):
         handle_command("/translate on", self.conversation, self.settings, self.display)
+        self.voice.estimated_duration_seconds = 5.0
         self.turn("one", "Rocky ready. Good.")
-        text, delay, gated = self.voice.starts[-1]
+        text, remaining_delay, gated = self.voice.starts[-1]
         self.assertEqual(text, "Rocky ready. Good.")
         self.assertTrue(gated)
-        self.assertAlmostEqual(delay, self.hardware.duration, places=3)
+        planned = max(
+            self.hardware.translation_min_lead_seconds,
+            self.hardware.duration - 5.0 + self.hardware.translation_tail_margin_seconds,
+        )
+        self.assertAlmostEqual(self.hardware.translation_delay_seconds, planned, places=3)
+        self.assertLess(self.hardware.translation_delay_seconds, self.hardware.duration)
+        self.assertLessEqual(remaining_delay, self.hardware.translation_delay_seconds)
         self.voice.last_duration_seconds = 5.0
-        self.assertAlmostEqual(self.hardware.combined_duration, self.hardware.duration + 5.0, places=3)
-        self.assertAlmostEqual(self.hardware.translation_finish_margin, 5.0, places=3)
-        self.assertGreater(self.hardware.translation_finish_margin, 0)
+        self.assertGreaterEqual(self.hardware.translation_finish_margin, self.hardware.translation_tail_margin_seconds)
+        self.assertAlmostEqual(
+            self.hardware.combined_duration,
+            max(self.hardware.duration, self.hardware.translation_delay_seconds + 5.0),
+            places=3,
+        )
 
     def test_explicit_session_name_capture_and_clear(self):
         self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
