@@ -208,7 +208,7 @@ class LocalAIProvider:
                 "tool_calls": [],
             }
         return {
-            "spoken_text": f"Rocky calculate. Answer {result}. Good.",
+            "spoken_text": f"Rocky calculate. {result}. Good.",
             "detail_text": f"Deterministic calculator: {expression} = {result}",
             "tool_calls": [],
         }
