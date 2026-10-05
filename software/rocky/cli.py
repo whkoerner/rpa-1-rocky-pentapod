@@ -38,6 +38,8 @@ HELP = """Type a message to Rocky. Commands:
 /dictionary show CT2 starter words    /word thank you  replay one CT2 entry
 /learn      use 3x timing + token view /speed 1..6 change duration multiplier
 /tokens     inspect last representation /auto      legacy display-only toggle
+/tone [pure|resonant]  A/B Chordic timbre
+/voice status|list|select NAME|rate N|pitch N|volume N   tune local English voice (-2..2)
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
 NO_INPUT = object()
@@ -160,6 +162,13 @@ def configuration(args):
             defaults[key] = value
     if type(defaults["provider"]) is not str or defaults["provider"] not in {"local", "dummy"} or type(defaults["audio_backend"]) is not str or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
         raise ValueError("invalid provider/audio backend")
+    if defaults["tone_style"] not in {"pure", "resonant"}:
+        raise ValueError("tone_style must be pure or resonant")
+    if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
+        raise ValueError("invalid translation_voice")
+    for key in ("voice_rate", "voice_pitch", "voice_volume"):
+        if type(defaults[key]) is not int or not -2 <= defaults[key] <= 2:
+            raise ValueError(f"{key} must be an integer from -2 to 2")
     if type(defaults["port"]) is not int or not 1 <= defaults["port"] <= 65535:
         raise ValueError("port must be an integer from 1 to 65535")
     for key, low, high in (("volume", 0, 0.3), ("timeout", 1, 600), ("duration_multiplier", 1, 6)):
@@ -180,7 +189,7 @@ def handle_command(line, conversation, settings, display):
         print(HELP)
     elif line == "/status":
         state = brain.state
-        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; duration_multiplier={hardware.duration_multiplier}")
+        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; name={conversation.user_name or 'unknown'}; tone={hardware.tone_style}; duration_multiplier={hardware.duration_multiplier}")
     elif line in {"/translate on", "/translate off", "/translate status"}:
         if line == "/translate status":
             print("Persistent translation: " + ("ON" if conversation.translation_enabled else "OFF") + f"; voice={hardware.voice_status}")
@@ -209,6 +218,34 @@ def handle_command(line, conversation, settings, display):
             brain.task_controller.text_encoding = profile
             settings["text_encoding"] = profile
             print("Language profile: " + profile + " (applies to future replies; CT2 remains available for compatibility/fallback).")
+    elif line == "/tone" or line.startswith("/tone "):
+        if line == "/tone":
+            print("Chordic tone style: " + hardware.tone_style)
+        else:
+            style = line[6:].strip().lower()
+            if style not in {"pure", "resonant"}:
+                raise ValueError("tone style must be pure or resonant")
+            hardware.tone_style = style
+            settings["tone_style"] = style
+            print("Chordic tone style: " + style + ". Applies to future playback/replay.")
+    elif line in {"/voice", "/voice status"}:
+        voice = hardware.voice
+        print(f"Voice: {voice.voice_name or '[Windows default]'}; rate={voice.rate_offset}; pitch={voice.pitch_offset}; volume={voice.volume_offset}")
+    elif line == "/voice list":
+        print("\n".join(hardware.voice.check_available()))
+    elif line.startswith("/voice select "):
+        name = line[len("/voice select "):].strip()
+        if not name:
+            raise ValueError("voice name required")
+        hardware.voice.configure(voice_name=name)
+        settings["translation_voice"] = name
+        print("Voice selected: " + name)
+    elif line.startswith("/voice rate ") or line.startswith("/voice pitch ") or line.startswith("/voice volume "):
+        _, field, raw = line.split(maxsplit=2)
+        value = int(raw)
+        hardware.voice.configure(**{field + "_offset": value})
+        settings["voice_" + field] = value
+        print(f"Voice {field}: {value}")
     elif line == "/dictionary":
         for word, token in WORDS.items():
             print(f"{word}: {token} = {' '.join(hardware.codec.encode_token(token).notes)}")
@@ -280,7 +317,7 @@ def terminal(conversation, settings):
             print("\nEnglish voice: " + voice_status, flush=True)
             if voice_status == "COMPLETED":
                 hardware = conversation.brain.hardware
-                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; combined={hardware.combined_duration:.2f}s", flush=True)
+                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; overlap wall estimate={hardware.combined_duration:.2f}s", flush=True)
         last_voice_status = voice_status
         result = conversation.poll()
         if result:
@@ -291,7 +328,7 @@ def terminal(conversation, settings):
                 print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
                 print("Audio: " + result["delivery"])
                 if conversation.translation_enabled:
-                    print("English voice: " + ("queued after Chordic playback" if result.get("spoken") else "suppressed by mute"))
+                    print("English voice: " + ("queued to overlap Chordic playback" if result.get("spoken") else "suppressed by mute"))
                 if conversation.brain.hardware.duration > 30:
                     print("Long playback: fallback is exact but not fluent speech. /cancel or /word hello for short practice.")
                 if display.get("learning") and (conversation.translation_enabled or display.get("automatic", False)):
@@ -332,6 +369,11 @@ def main(argv=None):
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
     parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002"))
+    parser.add_argument("--tone-style", choices=("pure", "resonant"))
+    parser.add_argument("--translation-voice")
+    parser.add_argument("--voice-rate", type=int)
+    parser.add_argument("--voice-pitch", type=int)
+    parser.add_argument("--voice-volume", type=int)
     user_config = Path.home() / ".rpa1" / "settings" / "rocky.json"
     parser.add_argument("--config", type=Path, default=user_config if user_config.is_file() else None)
     parser.add_argument("--personality", type=Path)
@@ -347,7 +389,7 @@ def main(argv=None):
                 LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()
             print("Configuration and selected provider checks passed; no inference/audio acceptance implied.")
             return 0
-        hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"], duration_multiplier=settings["duration_multiplier"])
+        hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"], duration_multiplier=settings["duration_multiplier"], tone_style=settings["tone_style"], translation_voice=settings["translation_voice"], voice_rate=settings["voice_rate"], voice_pitch=settings["voice_pitch"], voice_volume=settings["voice_volume"])
         brain = BrainController(provider=DummyAIProvider(), hardware=hardware, config=BrainConfig(max_provider_response_bytes=4096, operation_timeout_ms=10000), event_logger=JsonlEventLogger(args.data_dir / "events.jsonl"))
         brain.task_controller = TaskController(hardware.codec, settings["text_encoding"])
         if brain.boot().connection_state != ConnectionState.READY:

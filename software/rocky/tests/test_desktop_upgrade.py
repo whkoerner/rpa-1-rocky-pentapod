@@ -39,6 +39,8 @@ class SettingsTests(unittest.TestCase):
         settings = self.config(dict(provider='dummy', model='qwen3:8b', port=11434, timeout=120, audio_backend='wav', volume=0.12))
         self.assertEqual(settings['duration_multiplier'], 3)
         self.assertEqual(settings['text_encoding'], 'exp002')
+        self.assertEqual(settings['tone_style'], 'resonant')
+        self.assertEqual((settings['voice_rate'], settings['voice_pitch'], settings['voice_volume']), (0, 0, 0))
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
     def test_relative_personality_resolves_against_settings_not_cwd(self):
@@ -47,7 +49,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings['personality_profile'].endswith('my profile.json'))
 
     def test_settings_fail_readably(self):
-        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}):
+        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.config(values)
 
@@ -106,7 +108,7 @@ class ResponsiveAudioTests(unittest.TestCase):
 
     def test_cancel_during_render_is_prompt_and_never_plays_later(self):
         entered = threading.Event()
-        def blocked(path, output, codec, volume, multiplier, cancelled):
+        def blocked(path, output, codec, volume, multiplier, cancelled, tone_style="pure"):
             entered.set()
             deadline = time.monotonic() + 3
             while not cancelled() and time.monotonic() < deadline:
