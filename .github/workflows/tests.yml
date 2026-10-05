@@ -33,6 +33,29 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
+      - name: Diagnose memory module compilation
+        run: python -m py_compile software/rocky/memory.py software/rocky/providers.py software/rocky/conversation.py software/rocky/cli.py software/rocky/webui.py
+      - name: Diagnose memory store tests
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          suite = unittest.defaultTestLoader.loadTestsFromName('test_memory.MemoryStoreTests')
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+      - name: Diagnose memory settings migration
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          suite = unittest.defaultTestLoader.loadTestsFromName('test_desktop_upgrade.SettingsTests')
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+      - name: Diagnose browser memory path
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_memory_requires_opt_in_and_is_manageable')
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
       - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
