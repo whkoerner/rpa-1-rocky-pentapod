@@ -236,6 +236,14 @@ def configuration(args):
         raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
         raise ValueError("invalid translation_voice")
+    if defaults["translation_voice_backend"] not in {"system-speech", "piper-sidecar"}:
+        raise ValueError("translation_voice_backend must be system-speech or piper-sidecar")
+    if type(defaults["piper_sidecar_port"]) is not int or not 1 <= defaults["piper_sidecar_port"] <= 65535:
+        raise ValueError("piper_sidecar_port must be 1-65535")
+    if type(defaults["piper_sidecar_token_path"]) is not str or len(defaults["piper_sidecar_token_path"]) > 1000 or any(ord(char) < 32 for char in defaults["piper_sidecar_token_path"]):
+        raise ValueError("piper_sidecar_token_path must be a printable path string")
+    if type(defaults["piper_sidecar_timeout_seconds"]) not in (int, float) or not math.isfinite(defaults["piper_sidecar_timeout_seconds"]) or not 1 <= defaults["piper_sidecar_timeout_seconds"] <= 60:
+        raise ValueError("piper_sidecar_timeout_seconds must be between 1 and 60")
     for key in ("voice_rate", "voice_pitch", "voice_volume"):
         if type(defaults[key]) is not int or not -2 <= defaults[key] <= 2:
             raise ValueError(f"{key} must be an integer from -2 to 2")
@@ -369,7 +377,7 @@ def handle_command(line, conversation, settings, display):
             print("Chordic tone style: " + style + ". Applies to future playback/replay.")
     elif line in {"/voice", "/voice status"}:
         voice = hardware.voice
-        print(f"Voice: {voice.voice_name or '[Windows default]'}; rate={voice.rate_offset}; pitch={voice.pitch_offset}; volume={voice.volume_offset}")
+        print(f"Voice backend: {settings.get('translation_voice_backend', 'system-speech')}; voice={voice.voice_name or '[default]'}; rate={voice.rate_offset}; pitch={voice.pitch_offset}; volume={voice.volume_offset}")
     elif line == "/voice list":
         print("\n".join(hardware.voice.check_available()))
     elif line.startswith("/voice select "):
@@ -534,6 +542,10 @@ def main(argv=None):
     parser.add_argument("--lecture-chunk-seconds", type=float)
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
+    parser.add_argument("--translation-voice-backend", choices=("system-speech", "piper-sidecar"))
+    parser.add_argument("--piper-sidecar-port", type=int)
+    parser.add_argument("--piper-sidecar-token-path")
+    parser.add_argument("--piper-sidecar-timeout-seconds", type=float)
     parser.add_argument("--voice-rate", type=int)
     parser.add_argument("--voice-pitch", type=int)
     parser.add_argument("--voice-volume", type=int)
@@ -693,7 +705,30 @@ def main(argv=None):
                 "personality and listening quality."
             )
             return 2 if summary["failed"] else 0
-        hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"], duration_multiplier=settings["duration_multiplier"], tone_style=settings["tone_style"], translation_voice=settings["translation_voice"], voice_rate=settings["voice_rate"], voice_pitch=settings["voice_pitch"], voice_volume=settings["voice_volume"])
+        speech_renderer = None
+        if settings["translation_voice_backend"] == "piper-sidecar":
+            from .piper_voice import PiperSidecarSpeechRenderer
+            speech_renderer = PiperSidecarSpeechRenderer(
+                settings["piper_sidecar_port"],
+                Path(settings["piper_sidecar_token_path"]).expanduser(),
+                voice_name=settings["translation_voice"],
+                rate_offset=settings["voice_rate"],
+                pitch_offset=settings["voice_pitch"],
+                volume_offset=settings["voice_volume"],
+                timeout_seconds=settings["piper_sidecar_timeout_seconds"],
+            )
+        hardware = DesktopHardware(
+            args.data_dir,
+            backend=settings["audio_backend"],
+            volume=settings["volume"],
+            duration_multiplier=settings["duration_multiplier"],
+            tone_style=settings["tone_style"],
+            translation_voice=settings["translation_voice"],
+            voice_rate=settings["voice_rate"],
+            voice_pitch=settings["voice_pitch"],
+            voice_volume=settings["voice_volume"],
+            speech_renderer=speech_renderer,
+        )
         brain = BrainController(provider=DummyAIProvider(), hardware=hardware, config=BrainConfig(max_provider_response_bytes=4096, operation_timeout_ms=10000), event_logger=JsonlEventLogger(args.data_dir / "events.jsonl"))
         brain.task_controller = TaskController(hardware.codec, settings["text_encoding"])
         if brain.boot().connection_state != ConnectionState.READY:
@@ -742,11 +777,15 @@ def main(argv=None):
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"], memory_store=memory_store)
         conversation.set_mode(settings["assistant_mode"])
         if settings["translation_enabled"]:
-            if sys.platform == "win32" and hardware.player.backend != "wav":
+            if hardware.player.backend == "wav":
+                print("Persistent spoken translation is configured ON but diagnostic wav-only mode cannot play English voice; translation remains OFF.")
+            elif settings["translation_voice_backend"] == "piper-sidecar":
                 conversation.set_translation(True)
-            elif sys.platform != "win32":
-                print("Persistent spoken translation default is ON for Windows; this platform has no supported local speech backend, so translation remains OFF.")
-        print(f"Rocky Assistant V2 | provider={settings['provider']} | audio={hardware.player.backend}")
+            elif sys.platform == "win32":
+                conversation.set_translation(True)
+            else:
+                print("System.Speech translation is Windows-only; translation remains OFF on this platform.")
+        print(f"Rocky Assistant V2 | provider={settings['provider']} | audio={hardware.player.backend} | english_voice={settings['translation_voice_backend']}")
         print(f"Local output: {args.data_dir}")
         if args.command == "web":
             from .stt import WhisperCppTranscriber

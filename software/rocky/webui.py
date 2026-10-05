@@ -114,6 +114,7 @@ class LocalWebUI:
                 "voice_status": hardware.voice_status,
                 "provider": self.settings.get("provider", ""),
                 "model": self.settings.get("model", ""),
+                "voice_backend": self.settings.get("translation_voice_backend", "system-speech"),
                 "language": self.conversation.brain.task_controller.text_encoding,
                 "memory": self.conversation.memory_status(),
                 "connected": self.conversation.connected_status(),

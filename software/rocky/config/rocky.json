@@ -13,7 +13,7 @@
   "voice_rate": 0,
   "voice_pitch": 0,
   "voice_volume": 0,
-  "defaults_profile_version": 7,
+  "defaults_profile_version": 8,
   "translation_enabled": true,
   "assistant_mode": "normal",
   "memory_enabled": false,
@@ -27,5 +27,9 @@
   "connected_audit_path": "~/.rpa1/connected/audit.jsonl",
   "connected_timeout_seconds": 15,
   "lecture_max_seconds": 10800,
-  "lecture_chunk_seconds": 30
+  "lecture_chunk_seconds": 30,
+  "translation_voice_backend": "system-speech",
+  "piper_sidecar_port": 5055,
+  "piper_sidecar_token_path": "",
+  "piper_sidecar_timeout_seconds": 30
 }
