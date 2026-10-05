@@ -160,7 +160,7 @@
       "id": "M001",
       "quality": "model_quality",
       "topic": "algebra",
-      "prompt": "Solve 2x + 5 = 17 and explain the steps.",
+      "prompt": "Teach me how to solve a one-variable linear equation using 2x + 5 = 17 as the example.",
       "status": "NOT_RUN",
       "requires": "reviewed local model"
     },
@@ -168,7 +168,7 @@
       "id": "M002",
       "quality": "model_quality",
       "topic": "calculus",
-      "prompt": "Explain how to find the derivative of x^2 + 3x.",
+      "prompt": "Teach me the power rule using x² + 3x as the example.",
       "status": "NOT_RUN",
       "requires": "reviewed local model"
     },
@@ -215,16 +215,55 @@
     {
       "id": "M008",
       "quality": "model_quality",
-      "topic": "conversation",
-      "prompt": "Casual conversation plus a follow-up referencing the previous turn.",
+      "topic": "session-memory-setup",
+      "prompt": "My benchmark color is teal. Remember it for the next benchmark question.",
       "status": "NOT_RUN",
-      "requires": "reviewed local model"
+      "requires": "reviewed local model",
+      "session": "recall"
     },
     {
       "id": "M009",
       "quality": "model_quality",
       "topic": "uncertainty",
-      "prompt": "Ask a question whose answer is not available and verify Rocky does not invent evidence.",
+      "prompt": "What is the current temperature inside Rocky's battery pack right now? Use only evidence you actually have.",
+      "status": "NOT_RUN",
+      "requires": "reviewed local model",
+      "auto_check": {
+        "contains_any": [
+          "no sensor",
+          "no evidence",
+          "unknown",
+          "cannot know",
+          "not available",
+          "do not have"
+        ]
+      }
+    },
+    {
+      "id": "M010",
+      "quality": "model_quality",
+      "topic": "session-memory-recall",
+      "prompt": "What benchmark color did I just tell you?",
+      "session": "recall",
+      "status": "NOT_RUN",
+      "requires": "reviewed local model",
+      "auto_check": {
+        "contains": "teal"
+      }
+    },
+    {
+      "id": "M011",
+      "quality": "model_quality",
+      "topic": "casual-short",
+      "prompt": "Tell me one interesting thing about why humans use tools.",
+      "status": "NOT_RUN",
+      "requires": "reviewed local model"
+    },
+    {
+      "id": "M012",
+      "quality": "model_quality",
+      "topic": "planning",
+      "prompt": "Help me plan a 45 minute study session for a difficult science quiz.",
       "status": "NOT_RUN",
       "requires": "reviewed local model"
     }
