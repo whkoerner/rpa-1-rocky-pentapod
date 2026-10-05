@@ -20,6 +20,8 @@ class DesktopHardware:
         self.translation_enabled = False
         self.volume = volume
         self.duration_multiplier = duration_multiplier
+        self.translation_delay_seconds = 0.75
+        self.translation_tone_gain = 0.72
         if tone_style not in {"pure", "resonant"}:
             raise ValueError("tone_style must be pure or resonant")
         self.tone_style = tone_style
@@ -62,8 +64,8 @@ class DesktopHardware:
 
     @property
     def combined_duration(self):
-        """Approximate wall time when Chordic and English start together."""
-        return max(self.duration, self.speech_duration)
+        """Approximate wall time with English starting after the Chordic lead-in."""
+        return max(self.duration, self.translation_delay_seconds + self.speech_duration)
 
     def open(self):
         self.player.open()
@@ -96,7 +98,7 @@ class DesktopHardware:
                 return False
             if self.player.backend == "wav":
                 return False
-            self.voice.start(text, gate=self._playback_started, delay_seconds=0)
+            self.voice.start(text, gate=self._playback_started, delay_seconds=self.translation_delay_seconds)
             return True
 
     def dispatch(self, command):
@@ -116,7 +118,8 @@ class DesktopHardware:
             self.duration = duration
             self.error = None
             self.audio_status = "RENDERING"
-            self._future = self._executor.submit(self._render, command, cancelled, self._generation, self.volume, self.duration_multiplier)
+            render_volume = self.volume * (self.translation_tone_gain if self.translation_enabled else 1.0)
+            self._future = self._executor.submit(self._render, command, cancelled, self._generation, render_volume, self.duration_multiplier)
             return receipt(ReceiptStatus.ACCEPTED, f"AUDIO_QUEUED: estimated playback {duration:.2f}s; not acoustically verified")
 
     def _render(self, command, cancelled, generation, volume, multiplier):

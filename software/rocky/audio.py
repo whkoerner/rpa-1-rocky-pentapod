@@ -115,8 +115,8 @@ def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lamb
         raise ValueError("tone_style must be pure or resonant")
     for frequencies, duration_ms, gap_ms in events(output, codec, duration_multiplier):
         count = round(SAMPLE_RATE * duration_ms / 1000)
-        attack_seconds = 0.030 if tone_style == "resonant" else 0.012
-        release_seconds = 0.090 if tone_style == "resonant" else 0.060
+        attack_seconds = 0.085 if tone_style == "resonant" else 0.012
+        release_seconds = 0.150 if tone_style == "resonant" else 0.060
         attack = max(1, round(SAMPLE_RATE * attack_seconds))
         release = max(1, min(round(SAMPLE_RATE * release_seconds), count // 2))
         for start in range(0, count, 1024):
@@ -130,12 +130,13 @@ def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lamb
                         value = sum(math.sin(2 * math.pi * hz * i / SAMPLE_RATE) for hz in frequencies) / len(frequencies)
                     else:
                         t = i / SAMPLE_RATE
-                        vibration = 0.16 * math.sin(2 * math.pi * 4.2 * t)
-                        pulse = 0.88 + 0.12 * math.sin(2 * math.pi * 2.1 * t)
+                        vibration = 0.10 * math.sin(2 * math.pi * 3.2 * t)
+                        pulse = 0.94 + 0.06 * math.sin(2 * math.pi * 1.35 * t)
                         voices = []
                         for hz in frequencies:
                             phase = 2 * math.pi * hz * t + vibration
-                            voices.append((math.sin(phase) + 0.28 * math.sin(2 * phase) + 0.10 * math.sin(3 * phase)) / 1.38)
+                            body = 0.22 * math.sin(0.5 * phase)
+                            voices.append((0.72 * math.sin(phase) + body + 0.20 * math.sin(2 * phase) + 0.06 * math.sin(3 * phase)) / 1.20)
                         value = pulse * sum(voices) / len(voices)
                 else:
                     value = 0.0

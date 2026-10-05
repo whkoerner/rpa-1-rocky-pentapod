@@ -73,15 +73,51 @@ def tuned_profile(profile: ProsodyProfile, rate_offset=0, pitch_offset=0, volume
     )
 
 
-def build_ssml(text: str, profile: ProsodyProfile | None = None) -> str:
-    """Escape model text; only fixed application-owned values become SSML controls."""
-    profile = profile or classify_prosody(text)
-    if profile not in PROSODY.values():
+def _validate_profile(profile: ProsodyProfile) -> ProsodyProfile:
+    if type(profile) is not ProsodyProfile:
         raise ValueError("untrusted prosody profile")
-    escaped = html.escape(text, quote=False)
+    if profile.name not in PROSODY:
+        raise ValueError("untrusted prosody profile")
+    if profile.rate not in RATE_LEVELS or profile.pitch not in PITCH_LEVELS or profile.volume not in VOLUME_LEVELS:
+        raise ValueError("untrusted prosody profile")
+    return profile
+
+
+def _sentence_parts(text: str):
+    parts = []
+    start = 0
+    for index, char in enumerate(text):
+        if char in ".!?":
+            segment = text[start:index + 1].strip()
+            if segment:
+                parts.append(segment)
+            start = index + 1
+    tail = text[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts or [text.strip()]
+
+
+def build_ssml(text: str, profile: ProsodyProfile | None = None, *, rate_offset=0, pitch_offset=0, volume_offset=0) -> str:
+    """Build bounded contextual SSML from validated text.
+
+    Each sentence gets its own application-owned delivery profile so questions,
+    reassurance, excitement and technical statements can differ inside one reply.
+    """
+    if type(text) is not str or not text.strip():
+        raise ValueError("speech text must be nonempty")
+    chunks = []
+    for sentence in _sentence_parts(text):
+        base = profile or classify_prosody(sentence)
+        current = tuned_profile(base, rate_offset, pitch_offset, volume_offset)
+        _validate_profile(current)
+        escaped = html.escape(sentence, quote=False)
+        chunks.append(f'<prosody rate="{current.rate}" pitch="{current.pitch}" volume="{current.volume}">{escaped}</prosody>')
+        pause = "420ms" if sentence.endswith("?") else "320ms" if sentence.endswith("!") else "230ms"
+        chunks.append(f'<break time="{pause}"/>')
     return (
         '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
-        f'<prosody rate="{profile.rate}" pitch="{profile.pitch}" volume="{profile.volume}">{escaped}</prosody>'
+        + "".join(chunks) +
         '</speak>'
     )
 
@@ -189,7 +225,7 @@ class WindowsSystemSpeechRenderer:
         if type(delay_seconds) not in (int, float) or not 0 <= delay_seconds <= 600:
             raise ValueError("invalid speech delay")
         profile = tuned_profile(classify_prosody(text), self.rate_offset, self.pitch_offset, self.volume_offset)
-        ssml = build_ssml(text, profile)
+        ssml = build_ssml(text, rate_offset=self.rate_offset, pitch_offset=self.pitch_offset, volume_offset=self.volume_offset)
         with self._lock:
             self.cancel()
             if self._executor is None:

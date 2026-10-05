@@ -138,6 +138,13 @@ class ProsodyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             tuned_profile(PROSODY["neutral"], 3, 0, 0)
 
+    def test_tuned_profile_is_valid_ssml_and_sentence_delivery_has_pauses(self):
+        tuned = tuned_profile(PROSODY["question"], 2, -1, 0)
+        ssml = build_ssml("Rocky think. Question difficult?", tuned)
+        self.assertIn('rate="x-fast"', ssml)
+        self.assertIn('pitch="medium"', ssml)
+        self.assertIn('<break time="420ms"/>', ssml)
+
     def test_model_text_cannot_inject_ssml_controls(self):
         raw = "Rocky says </prosody><audio src='https://example.invalid/x'/> amaze!"
         ssml = build_ssml(raw, PROSODY["excitement"])
@@ -182,11 +189,13 @@ class PersistentTranslationTests(unittest.TestCase):
         self.turn("one", "Rocky ready. Good.")
         text, delay, gated = self.voice.starts[-1]
         self.assertEqual(text, "Rocky ready. Good.")
-        self.assertEqual(delay, 0)
+        self.assertEqual(delay, 0.75)
         self.assertTrue(gated)
         self.voice.last_duration_seconds = 5.0
         self.hardware.duration = 8.0
         self.assertEqual(self.hardware.combined_duration, 8.0)
+        self.voice.last_duration_seconds = 9.0
+        self.assertEqual(self.hardware.combined_duration, 9.75)
 
     def test_explicit_session_name_capture_and_clear(self):
         self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
