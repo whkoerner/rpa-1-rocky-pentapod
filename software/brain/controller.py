@@ -13,6 +13,7 @@ from csp.core import CspCodec
 from csp.wire import INTENTS, WireMessage, canonical_text, chordic_token, encode
 from csp.conversation import Utterance, encode_text
 from csp.exp002 import encode_phrase as encode_exp002_phrase
+from csp.exp003 import encode_phrase as encode_exp003_phrase
 from csp.learning import encode_phrase
 from rpa_link.messages import Mode, monotonic_us
 
@@ -77,14 +78,14 @@ class TaskController:
     """Finite allowlisted task selection; v0.2 implements communication only."""
 
     def __init__(self, codec: CspCodec, text_encoding: str = "ct2") -> None:
-        if text_encoding not in {"ct1", "ct2", "exp002"}:
-            raise ValueError("text_encoding must be ct1, ct2 or exp002")
+        if text_encoding not in {"ct1", "ct2", "exp002", "exp003"}:
+            raise ValueError("text_encoding must be ct1, ct2, exp002 or exp003")
         self._codec = codec
         self.text_encoding = text_encoding
 
     def build_communication(self, message) -> CommunicationOutput | ConversationOutput:
         if isinstance(message, Utterance):
-            if self.text_encoding != "exp002":
+            if self.text_encoding not in {"exp002", "exp003"}:
                 for intent, (text, _) in INTENTS.items():
                     if message.text == text:
                         return self.build_communication(WireMessage(intent))
@@ -92,6 +93,8 @@ class TaskController:
                 return ConversationOutput(message, message.text, encode_text(message.text))
             if self.text_encoding == "exp002":
                 return ConversationOutput(message, message.text, (), encode_exp002_phrase(message.text))
+            if self.text_encoding == "exp003":
+                return ConversationOutput(message, message.text, (), encode_exp003_phrase(message.text))
             return ConversationOutput(message, message.text, (), encode_phrase(message.text))
         csp_line = encode(message)
         text = canonical_text(message)

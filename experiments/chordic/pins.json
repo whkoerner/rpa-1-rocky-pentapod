@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "source_repository": "whkoerner/Chordic-Language",
+  "source_commit": "1f564424609983147bcf9fa4ef40c4b28a4c35a1",
+  "source_draft_pr": 4,
+  "pinned_files": [
+    {
+      "source": "language/runtime/exp-003-runtime-export-v3.json",
+      "destination": "experiments/chordic/exp-003-runtime-v3.json",
+      "export_id": "EXP-003-runtime-v3",
+      "candidate_revision": "vocal-v0.3-organic",
+      "status": "active EXP-003 runtime"
+    },
+    {
+      "source": "benchmarks/exp-003-windows-feedback-v0.2.json",
+      "destination": "experiments/chordic/exp-003-windows-feedback-v0.2.json",
+      "candidate_id": "EXP-003",
+      "status": "retained real Windows regression corpus"
+    },
+    {
+      "source": "language/runtime/exp-002-runtime-export.json",
+      "destination": "experiments/chordic/exp-002-surfaces.json",
+      "export_id": "EXP-002-surface-runtime-v1"
+    },
+    {
+      "source": "language/runtime/exp-003-runtime-export-v2.json",
+      "destination": "experiments/chordic/exp-003-runtime-v2.json",
+      "export_id": "EXP-003-runtime-v2",
+      "status": "retained historical runtime"
+    },
+    {
+      "source": "language/runtime/exp-003-runtime-export.json",
+      "destination": "experiments/chordic/exp-003-runtime.json",
+      "export_id": "EXP-003-runtime-v1",
+      "status": "retained historical runtime"
+    }
+  ],
+  "policy": "Chordic-Language owns semantic lexicon, surface mappings, grammar, acoustic candidate data and versioned runtime exports. Rocky may adapt/render pinned exports but must not independently redefine them."
+}

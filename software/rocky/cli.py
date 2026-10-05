@@ -21,14 +21,14 @@ from .conversation import ConversationController
 from .desktop import DesktopHardware
 from .providers import DummyConversationProvider, LocalAIProvider, strict_json
 from .personality import load_personality
-from .translation import decoded_text, learning_rows
+from .translation import decoded_text, learning_rows, representation_summary
 from csp.learning import WORDS
 
 HELP = """Type a message to Rocky. Commands:
 /help       show commands             /status     brain/backend/language status
 /translate on|off|status  persistent English display + local spoken translation
 /translate  decode the last reply once (backward compatible)
-/language [exp002|ct2|ct1]  show/change future Chordic conversation profile
+/language [exp003|exp002|ct2|ct1]  show/change future Chordic conversation profile
 /replay     replay last tones; also voice when persistent translation is on
 /mute       stop/silence tones + voice /unmute    enable future playback
 /clear      forget history; translation mode persists
@@ -38,7 +38,7 @@ HELP = """Type a message to Rocky. Commands:
 /dictionary show CT2 starter words    /word thank you  replay one CT2 entry
 /learn      use 3x timing + token view /speed 1..6 change duration multiplier
 /tokens     inspect last representation /auto      legacy display-only toggle
-/tone [pure|resonant]  A/B Chordic timbre
+/tone [pure|resonant|contour-v1|vocal-v1]  A/B Chordic timbre
 /voice status|list|select NAME|rate N|pitch N|volume N   tune local English voice (-2..2)
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
@@ -145,6 +145,18 @@ def configuration(args):
         custom = strict_json(args.config.read_text(encoding="utf-8-sig"))
         if type(custom) is not dict or set(custom) - set(defaults):
             raise ValueError("settings must be an object with known fields: " + ", ".join(sorted(defaults)))
+        legacy_generated = (
+            "defaults_profile_version" not in custom
+            and custom.get("duration_multiplier") == 3
+            and custom.get("text_encoding") == "exp002"
+            and custom.get("tone_style") == "resonant"
+        )
+        if legacy_generated:
+            custom = dict(custom)
+            custom.pop("duration_multiplier", None)
+            custom.pop("text_encoding", None)
+            custom.pop("tone_style", None)
+            custom["defaults_profile_version"] = defaults["defaults_profile_version"]
         defaults.update(custom)
     if type(defaults["personality_profile"]) is not str or not defaults["personality_profile"]:
         raise ValueError("personality_profile must be a nonempty file path")
@@ -154,16 +166,20 @@ def configuration(args):
         base = args.config.parent if args.config and "personality_profile" in custom else Path(str(root))
         profile = base / profile
     defaults["personality_profile"] = str(profile.resolve())
-    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002"}:
-        raise ValueError("text_encoding must be ct1, ct2 or exp002")
+    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002", "exp003"}:
+        raise ValueError("text_encoding must be ct1, ct2, exp002 or exp003")
     for key in defaults:
         value = getattr(args, key, None)
         if value is not None:
             defaults[key] = value
     if type(defaults["provider"]) is not str or defaults["provider"] not in {"local", "dummy"} or type(defaults["audio_backend"]) is not str or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
         raise ValueError("invalid provider/audio backend")
-    if defaults["tone_style"] not in {"pure", "resonant"}:
-        raise ValueError("tone_style must be pure or resonant")
+    if defaults["tone_style"] not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+        raise ValueError("tone_style must be pure, resonant, contour-v1 or vocal-v1")
+    if type(defaults["translation_enabled"]) is not bool:
+        raise ValueError("translation_enabled must be true or false")
+    if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
+        raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
         raise ValueError("invalid translation_voice")
     for key in ("voice_rate", "voice_pitch", "voice_volume"):
@@ -196,7 +212,7 @@ def handle_command(line, conversation, settings, display):
         else:
             enabled = line.endswith(" on")
             conversation.set_translation(enabled)
-            print("Persistent translation: " + ("ON; English will display and speak after each Chordic reply until /translate off." if enabled else "OFF; current/pending English voice cancelled."))
+            print("Persistent translation: " + ("ON; English will display and actively overlap Chordic while finishing after it, until /translate off." if enabled else "OFF; current/pending English voice cancelled."))
     elif line == "/translate":
         if conversation.last_output is None:
             print("No response yet.")
@@ -213,8 +229,8 @@ def handle_command(line, conversation, settings, display):
             print("Language profile: " + brain.task_controller.text_encoding)
         else:
             profile = line[10:].strip().lower()
-            if profile not in {"exp002", "ct2", "ct1"}:
-                raise ValueError("language must be exp002, ct2 or ct1")
+            if profile not in {"exp003", "exp002", "ct2", "ct1"}:
+                raise ValueError("language must be exp003, exp002, ct2 or ct1")
             brain.task_controller.text_encoding = profile
             settings["text_encoding"] = profile
             print("Language profile: " + profile + " (applies to future replies; CT2 remains available for compatibility/fallback).")
@@ -223,8 +239,8 @@ def handle_command(line, conversation, settings, display):
             print("Chordic tone style: " + hardware.tone_style)
         else:
             style = line[6:].strip().lower()
-            if style not in {"pure", "resonant"}:
-                raise ValueError("tone style must be pure or resonant")
+            if style not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+                raise ValueError("tone style must be pure, resonant, contour-v1 or vocal-v1")
             hardware.tone_style = style
             settings["tone_style"] = style
             print("Chordic tone style: " + style + ". Applies to future playback/replay.")
@@ -319,7 +335,7 @@ def terminal(conversation, settings):
                 hardware = conversation.brain.hardware
                 margin = hardware.translation_finish_margin
                 relation = "target met" if margin >= 0 else f"Chordic outlasted English by {-margin:.2f}s"
-                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; lead-in={hardware.translation_delay_seconds:.2f}s; overlap wall estimate={hardware.combined_duration:.2f}s; {relation}", flush=True)
+                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; translation start={hardware.translation_delay_seconds:.2f}s after Chordic begins; overlap wall estimate={hardware.combined_duration:.2f}s; {relation}", flush=True)
         last_voice_status = voice_status
         result = conversation.poll()
         if result:
@@ -328,9 +344,10 @@ def terminal(conversation, settings):
             else:
                 show_english = conversation.translation_enabled or display.get("automatic", False)
                 print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
+                print("Representation: " + representation_summary(conversation.last_output))
                 print("Audio: " + result["delivery"])
                 if conversation.translation_enabled:
-                    print("English voice: " + ("queued about 0.75s after Chordic starts" if result.get("spoken") else "suppressed by mute"))
+                    print("English voice: " + (f"active overlap queued; target start {conversation.brain.hardware.translation_delay_seconds:.2f}s after Chordic begins; measured local TTS audio {conversation.brain.hardware.translation_estimated_speech_seconds:.2f}s" if result.get("spoken") else "suppressed by mute"))
                 if conversation.brain.hardware.duration > 30:
                     print("Long playback: fallback is exact but not fluent speech. /cancel or /word hello for short practice.")
                 if display.get("learning") and (conversation.translation_enabled or display.get("automatic", False)):
@@ -370,8 +387,8 @@ def main(argv=None):
     parser.add_argument("--audio-backend", choices=("auto", "winsound", "pygame", "wav"))
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
-    parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002"))
-    parser.add_argument("--tone-style", choices=("pure", "resonant"))
+    parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002", "exp003"))
+    parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
     parser.add_argument("--voice-pitch", type=int)
@@ -416,6 +433,11 @@ def main(argv=None):
             return 0
         provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"])
+        if settings["translation_enabled"]:
+            if sys.platform == "win32" and hardware.player.backend != "wav":
+                conversation.set_translation(True)
+            elif sys.platform != "win32":
+                print("Persistent spoken translation default is ON for Windows; this platform has no supported local speech backend, so translation remains OFF.")
         print(f"Rocky Conversational Brain V1.1 | provider={settings['provider']} | audio={hardware.player.backend}")
         print(f"Local output: {args.data_dir}")
         terminal(conversation, settings)

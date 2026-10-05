@@ -37,9 +37,11 @@ class SettingsTests(unittest.TestCase):
 
     def test_old_config_and_default_profile(self):
         settings = self.config(dict(provider='dummy', model='qwen3:8b', port=11434, timeout=120, audio_backend='wav', volume=0.12))
-        self.assertEqual(settings['duration_multiplier'], 3)
-        self.assertEqual(settings['text_encoding'], 'exp002')
-        self.assertEqual(settings['tone_style'], 'resonant')
+        self.assertEqual(settings['duration_multiplier'], 2)
+        self.assertEqual(settings['text_encoding'], 'exp003')
+        self.assertEqual(settings['tone_style'], 'vocal-v1')
+        self.assertTrue(settings['translation_enabled'])
+        self.assertEqual(settings['defaults_profile_version'], 2)
         self.assertEqual((settings['voice_rate'], settings['voice_pitch'], settings['voice_volume']), (0, 0, 0))
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
@@ -49,7 +51,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings['personality_profile'].endswith('my profile.json'))
 
     def test_settings_fail_readably(self):
-        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}):
+        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'defaults_profile_version': 0}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.config(values)
 

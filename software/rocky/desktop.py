@@ -2,6 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import threading
+import time
 
 from brain.contracts import Capability, ConnectionState, EvidenceKind, HardwareReceipt, HardwareStatus, ReceiptStatus
 from csp.core import CspCodec
@@ -21,9 +22,12 @@ class DesktopHardware:
         self.volume = volume
         self.duration_multiplier = duration_multiplier
         self.translation_delay_seconds = 0.75
+        self.translation_estimated_speech_seconds = 0.0
+        self.translation_min_lead_seconds = 0.75
+        self.translation_tail_margin_seconds = 0.75
         self.translation_tone_gain = 0.72
-        if tone_style not in {"pure", "resonant"}:
-            raise ValueError("tone_style must be pure or resonant")
+        if tone_style not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+            raise ValueError("tone_style must be pure, resonant, contour-v1 or vocal-v1")
         self.tone_style = tone_style
         self._muted = False
         self.ready = self.stopped = False
@@ -35,6 +39,7 @@ class DesktopHardware:
         self._future = None
         self._generation = 0
         self._playback_started = threading.Event()
+        self._playback_started_at = None
         self.error = None
         self.audio_status = "IDLE"
         self.duration = 0
@@ -64,7 +69,7 @@ class DesktopHardware:
 
     @property
     def combined_duration(self):
-        """Approximate wall time with English starting after the Chordic lead-in."""
+        """Approximate wall time with strict source-first English translation."""
         return max(self.duration, self.translation_delay_seconds + self.speech_duration)
 
     @property
@@ -97,13 +102,31 @@ class DesktopHardware:
         return self.voice.check_available()
 
     def speak_translation(self, text):
-        """Queue validated English to begin with the current Chordic playback."""
+        """Queue active translation while guaranteeing the planned English finish follows Chordic."""
         with self._lock:
             if not self.translation_enabled or self.muted or self.stopped or not self.ready:
                 return False
             if self.player.backend == "wav":
                 return False
-            self.voice.start(text, gate=self._playback_started, delay_seconds=self.translation_delay_seconds)
+            gate = self._playback_started
+            chordic_duration = self.duration
+        # Measure the exact local TTS WAV length outside the hardware lock so Chordic
+        # rendering/playback is free to proceed in parallel.
+        speech_seconds = float(self.voice.estimate_duration_seconds(text))
+        planned_delay = max(
+            self.translation_min_lead_seconds,
+            chordic_duration - speech_seconds + self.translation_tail_margin_seconds,
+        )
+        with self._lock:
+            if not self.translation_enabled or self.muted or self.stopped or not self.ready:
+                return False
+            self.translation_estimated_speech_seconds = speech_seconds
+            self.translation_delay_seconds = planned_delay
+            elapsed = 0.0
+            if self._playback_started_at is not None:
+                elapsed = max(0.0, time.monotonic() - self._playback_started_at)
+            remaining_delay = max(0.0, planned_delay - elapsed)
+            self.voice.start(text, gate=gate, delay_seconds=remaining_delay)
             return True
 
     def dispatch(self, command):
@@ -120,7 +143,10 @@ class DesktopHardware:
             self._generation += 1
             cancelled = self._cancel = threading.Event()
             self._playback_started = threading.Event()
+            self._playback_started_at = None
             self.duration = duration
+            self.translation_delay_seconds = self.translation_min_lead_seconds
+            self.translation_estimated_speech_seconds = 0.0
             self.error = None
             self.audio_status = "RENDERING"
             render_volume = self.volume * (self.translation_tone_gain if self.translation_enabled else 1.0)
@@ -143,6 +169,7 @@ class DesktopHardware:
                     self.audio_status = "WAV_WRITTEN_MUTED" if self.muted else "WAV_WRITTEN_NO_PLAYBACK"
                 else:
                     self.player.play(path)
+                    self._playback_started_at = time.monotonic()
                     self._playback_started.set()
                     self.audio_status = "PLAYBACK_REQUESTED_NOT_ACOUSTICALLY_VERIFIED"
         except Exception as exc:
