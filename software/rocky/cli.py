@@ -317,7 +317,9 @@ def terminal(conversation, settings):
             print("\nEnglish voice: " + voice_status, flush=True)
             if voice_status == "COMPLETED":
                 hardware = conversation.brain.hardware
-                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; overlap wall estimate={hardware.combined_duration:.2f}s", flush=True)
+                margin = hardware.translation_finish_margin
+                relation = "target met" if margin >= 0 else f"Chordic outlasted English by {-margin:.2f}s"
+                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; lead-in={hardware.translation_delay_seconds:.2f}s; overlap wall estimate={hardware.combined_duration:.2f}s; {relation}", flush=True)
         last_voice_status = voice_status
         result = conversation.poll()
         if result:
@@ -328,7 +330,7 @@ def terminal(conversation, settings):
                 print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
                 print("Audio: " + result["delivery"])
                 if conversation.translation_enabled:
-                    print("English voice: " + ("queued to overlap Chordic playback" if result.get("spoken") else "suppressed by mute"))
+                    print("English voice: " + ("queued about 0.75s after Chordic starts" if result.get("spoken") else "suppressed by mute"))
                 if conversation.brain.hardware.duration > 30:
                     print("Long playback: fallback is exact but not fluent speech. /cancel or /word hello for short practice.")
                 if display.get("learning") and (conversation.translation_enabled or display.get("automatic", False)):

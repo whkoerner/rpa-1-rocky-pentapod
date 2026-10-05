@@ -67,6 +67,11 @@ class DesktopHardware:
         """Approximate wall time with English starting after the Chordic lead-in."""
         return max(self.duration, self.translation_delay_seconds + self.speech_duration)
 
+    @property
+    def translation_finish_margin(self):
+        """Positive means English speech finished after Chordic, as intended."""
+        return self.translation_delay_seconds + self.speech_duration - self.duration
+
     def open(self):
         self.player.open()
         if self._executor is None:

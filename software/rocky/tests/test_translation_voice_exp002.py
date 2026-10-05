@@ -196,6 +196,9 @@ class PersistentTranslationTests(unittest.TestCase):
         self.assertEqual(self.hardware.combined_duration, 8.0)
         self.voice.last_duration_seconds = 9.0
         self.assertEqual(self.hardware.combined_duration, 9.75)
+        self.assertEqual(self.hardware.translation_finish_margin, 1.75)
+        self.voice.last_duration_seconds = 5.0
+        self.assertEqual(self.hardware.translation_finish_margin, -2.25)
 
     def test_explicit_session_name_capture_and_clear(self):
         self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
