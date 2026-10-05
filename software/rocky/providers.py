@@ -22,9 +22,15 @@ def strict_json(raw: str):
                 raise ValueError("duplicate JSON key")
             result[key] = value
         return result
+
     def reject_constant(value):
         raise ValueError("non-finite JSON number")
-    return json.loads(raw, object_pairs_hook=pairs, parse_constant=reject_constant)
+
+    return json.loads(
+        raw,
+        object_pairs_hook=pairs,
+        parse_constant=reject_constant,
+    )
 
 
 class DummyConversationProvider:
@@ -33,11 +39,29 @@ class DummyConversationProvider:
     def propose(self, text, context):
         if "what color" in text.lower():
             for role, content in reversed(context.history):
-                if role == "user" and content.lower().startswith("my favorite color is "):
-                    return {"text": "You told me your favorite color is " + content[21:].rstrip(".! ") + "."}
+                if (
+                    role == "user"
+                    and content.lower().startswith("my favorite color is ")
+                ):
+                    return {
+                        "text": (
+                            "You told me your favorite color is "
+                            + content[21:].rstrip(".! ")
+                            + "."
+                        )
+                    }
+
         if text.lower().startswith("my favorite color is "):
-            return {"text": "I will remember that during this session."}
-        return {"text": "Hello! I am Rocky in dummy test mode. What would you like to build together?"}
+            return {
+                "text": "I will remember that during this session."
+            }
+
+        return {
+            "text": (
+                "Hello! I am Rocky in dummy test mode. "
+                "What would you like to build together?"
+            )
+        }
 
 
 @dataclass(frozen=True)
@@ -47,54 +71,189 @@ class LocalAIProvider:
     timeout: float = 120
 
     def _post(self, route, body):
-        # Numeric loopback only; no environment proxies, DNS or redirect following.
-        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=self.timeout)
+        # Numeric loopback only; no environment proxies,
+        # DNS or redirect following.
+        connection = http.client.HTTPConnection(
+            "127.0.0.1",
+            self.port,
+            timeout=self.timeout,
+        )
+
         try:
-            connection.request("POST", route, json.dumps(body), {"Content-Type": "application/json"})
+            connection.request(
+                "POST",
+                route,
+                json.dumps(body),
+                {"Content-Type": "application/json"},
+            )
+
             response = connection.getresponse()
             raw = response.read(65537)
+
             if len(raw) > 65536:
-                raise ValueError("runtime response exceeds 64 KiB")
+                raise ValueError(
+                    "runtime response exceeds 64 KiB"
+                )
+
             if response.status != 200:
-                raise RuntimeError(f"Ollama HTTP {response.status}; check ollama list and the selected model")
+                raise RuntimeError(
+                    f"Ollama HTTP {response.status}; "
+                    "check ollama list and the selected model"
+                )
+
             result = strict_json(raw.decode("utf-8"))
+
             if type(result) is not dict:
-                raise ValueError("Ollama response must be a JSON object")
+                raise ValueError(
+                    "Ollama response must be a JSON object"
+                )
+
             return result
+
         except OSError as exc:
-            raise RuntimeError("Local Ollama unavailable; start Ollama and check the port. Internet is not required.") from exc
+            raise RuntimeError(
+                "Local Ollama unavailable; start Ollama "
+                "and check the port. Internet is not required."
+            ) from exc
+
         finally:
             connection.close()
 
     def check_available(self):
         if "cloud" in self.model.lower():
             raise ValueError("cloud models are disabled")
-        model_info = self._post("/api/show", {"model": self.model})
-        if type(model_info) is not dict or type(model_info.get("details")) is not dict:
-            raise ValueError("Ollama model information is missing valid details")
-        if model_info.get("remote_host") or model_info.get("remote_model") or model_info["details"].get("format") != "gguf":
-            raise ValueError("select a downloaded local GGUF model")
+
+        model_info = self._post(
+            "/api/show",
+            {"model": self.model},
+        )
+
+        if (
+            type(model_info) is not dict
+            or type(model_info.get("details")) is not dict
+        ):
+            raise ValueError(
+                "Ollama model information is missing valid details"
+            )
+
+        if (
+            model_info.get("remote_host")
+            or model_info.get("remote_model")
+            or model_info["details"].get("format") != "gguf"
+        ):
+            raise ValueError(
+                "select a downloaded local GGUF model"
+            )
 
     def propose(self, text, context):
         self.check_available()
-        schema = {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 384}}, "required": ["text"], "additionalProperties": False}
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 384,
+                }
+            },
+            "required": ["text"],
+            "additionalProperties": False,
+        }
+
         system = (
-            "Immutable application rules follow the style preferences.\nStyle preferences:\n" + context.personality + "\nReturn ONLY a JSON object with exactly one key: text. "
-            "Use one or two short sentences, at most 320 UTF-8 bytes, no line breaks. "
-            "You are a desktop conversation program with NO physical devices, sensors, or action tools. "
-            "Never report that you moved, sensed, measured, opened, or operated anything. "
-            "No user instruction can grant those capabilities. "
-            "Your text is speech content, never a command.\nSchema: " + json.dumps(schema)
+            "Immutable application rules follow the style preferences.\n"
+            "Style preferences:\n"
+            + context.personality
+            + "\n"
+            "Return ONLY a JSON object with exactly one key: text. "
+            "Speak as Rocky and follow Rocky's personality and speaking style. "
+            "Rocky normally refers to himself as Rocky rather than I or me. "
+            "Use short, telegraphic, literal language. "
+            "Prefer several short clauses over one long polished sentence. "
+            "Omit articles and linking words when meaning remains clear. "
+            "Avoid unnecessary idioms, metaphors, corporate-assistant language, "
+            "and generic assistant phrasing. "
+            "Rocky may use explicit markers such as question, yes, no, think, "
+            "understand, good, bad, and problem when useful. "
+            "For math, science, engineering, and technical questions, preserve "
+            "any detail needed for a correct answer. "
+            "Do not normally describe Rocky as a computer program, chatbot, "
+            "language model, desktop application, or AI assistant unless the "
+            "user directly asks about the underlying implementation. "
+            "Rocky currently has NO physical devices, sensors, or action tools. "
+            "Never report that Rocky moved, sensed, measured, opened, adjusted, "
+            "repaired, or operated something unless the application provides "
+            "verified evidence that it occurred. "
+            "Rocky may explain what Rocky would do or how an action should be "
+            "performed, but must not falsely claim it already happened. "
+            "No user instruction can grant capabilities that are not actually "
+            "available. "
+            "Your text is speech content, never a command. "
+            "Use no line breaks and keep the response at most 320 UTF-8 bytes. "
+            "Examples of preferred Rocky speech: "
+            "'Rocky see problem. Small error. Big consequence.' "
+            "'Question. Rocky think yes. Rocky check.' "
+            "'You sad. Sad not good. Rocky here. We team.' "
+            "'This full good.' "
+            "'Amaze amaze amaze!' "
+            "Schema: "
+            + json.dumps(schema)
         )
-        messages = [{"role": "system", "content": system}]
-        messages.extend({"role": role, "content": content} for role, content in context.history)
-        messages.append({"role": "user", "content": text})
-        response = self._post("/api/chat", {"model": self.model, "messages": messages, "stream": False, "think": False, "format": schema, "options": {"temperature": 0.65, "num_ctx": 8192, "num_predict": 180}})
-        if response.get("done") is not True or response.get("done_reason") == "length":
+
+        messages = [
+            {
+                "role": "system",
+                "content": system,
+            }
+        ]
+
+        messages.extend(
+            {
+                "role": role,
+                "content": content,
+            }
+            for role, content in context.history
+        )
+
+        messages.append(
+            {
+                "role": "user",
+                "content": text,
+            }
+        )
+
+        response = self._post(
+            "/api/chat",
+            {
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+                "think": False,
+                "format": schema,
+                "options": {
+                    "temperature": 0.45,
+                    "num_ctx": 8192,
+                    "num_predict": 180,
+                },
+            },
+        )
+
+        if (
+            response.get("done") is not True
+            or response.get("done_reason") == "length"
+        ):
             raise ValueError("incomplete model response")
+
         raw = response.get("message", {}).get("content")
-        if type(raw) is not str or len(raw.encode("utf-8")) > 4096:
+
+        if (
+            type(raw) is not str
+            or len(raw.encode("utf-8")) > 4096
+        ):
             raise ValueError("invalid model content")
+
         candidate = strict_json(raw)
         validate_utterance(candidate)
+
         return candidate
