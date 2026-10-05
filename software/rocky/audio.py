@@ -225,8 +225,11 @@ def _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled
 def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lambda: False, tone_style="pure"):
     if type(volume) not in (int, float) or not math.isfinite(volume) or not 0 <= volume <= 0.3:
         raise ValueError("volume must be between 0 and 0.3")
-    if tone_style not in {"pure", "resonant"}:
-        raise ValueError("tone_style must be pure or resonant")
+    if tone_style not in {"pure", "resonant", "contour-v1"}:
+        raise ValueError("tone_style must be pure, resonant or contour-v1")
+    if isinstance(output, ConversationOutput) and isinstance(output.phrase, Exp003Phrase) and tone_style == "contour-v1":
+        yield from _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled)
+        return
     for frequencies, duration_ms, gap_ms in events(output, codec, duration_multiplier):
         count = round(SAMPLE_RATE * duration_ms / 1000)
         attack_seconds = 0.085 if tone_style == "resonant" else 0.012
