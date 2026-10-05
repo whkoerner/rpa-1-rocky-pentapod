@@ -53,6 +53,39 @@ jobs:
       - name: Run browser protocol tests
         run: node software/brain_web/protocol.test.js
 
+  rocky-diagnostic:
+    name: rocky-diagnostic (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: chordic
+            command: python -m unittest test_chordic_exp002 -v
+          - label: through-conversation
+            command: python -m unittest test_chordic_exp002 test_conversation -v
+          - label: through-desktop
+            command: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade -v
+          - label: through-learning
+            command: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning -v
+          - label: through-translation
+            command: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 -v
+          - label: full-module-order
+            command: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
+          - label: standard-discovery
+            command: python -m unittest discover -s software/rocky/tests -v
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run diagnostic
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: ${{ matrix.command }}
   arduino-uno:
     runs-on: ubuntu-latest
     steps:
