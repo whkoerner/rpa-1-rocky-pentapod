@@ -65,6 +65,26 @@ jobs:
         continue-on-error: true
         working-directory: software/rocky/tests
         run: python -m unittest test_windows_launcher -v
+      - name: Cumulative legacy through conversation
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation -v
+      - name: Cumulative legacy through desktop upgrade
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade -v
+      - name: Cumulative legacy through learning
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning -v
+      - name: Cumulative suite through translation voice
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 -v
+      - name: Cumulative full module order
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
       - name: Run Conversational Brain V1 tests (no model or speakers)
         shell: python
         run: |
