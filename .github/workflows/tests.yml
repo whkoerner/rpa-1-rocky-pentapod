@@ -33,116 +33,13 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
-      - name: Focused EXP-002 runtime tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_translation_voice_exp002.Exp002RuntimeTests -v
-      - name: Focused translation prosody tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_translation_voice_exp002.ProsodyTests -v
-      - name: Focused persistent translation tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_translation_voice_exp002.PersistentTranslationTests -v
-      - name: Legacy conversation regression tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_conversation -v
-      - name: Legacy desktop-upgrade regression tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_desktop_upgrade -v
-      - name: Legacy learning regression tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_learning -v
-      - name: Legacy Chordic EXP-002 regression tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 -v
-      - name: Legacy Windows-launcher regression tests
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_windows_launcher -v
-      - name: Root discovery conversation
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_conversation.py" -v
-      - name: Root discovery desktop upgrade
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_desktop_upgrade.py" -v
-      - name: Root discovery learning
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_learning.py" -v
-      - name: Root discovery legacy EXP-002
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_chordic_exp002.py" -v
-      - name: Root discovery translation voice
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_translation_voice_exp002.py" -v
-      - name: Root discovery Windows launcher
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
-      - name: Root cumulative through conversation
-        continue-on-error: true
-        env:
-          PYTHONPATH: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation -v
-      - name: Root cumulative through learning
-        continue-on-error: true
-        env:
-          PYTHONPATH: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning -v
-      - name: Root cumulative through translation voice
-        continue-on-error: true
-        env:
-          PYTHONPATH: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 -v
-      - name: Root cumulative full module order
-        continue-on-error: true
-        env:
-          PYTHONPATH: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
-      - name: Cumulative legacy through conversation
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation -v
-      - name: Cumulative legacy through desktop upgrade
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade -v
-      - name: Cumulative legacy through learning
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning -v
-      - name: Cumulative suite through translation voice
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 -v
-      - name: Cumulative full module order
-        continue-on-error: true
-        working-directory: software/rocky/tests
-        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
-      - name: Standard full Rocky discovery diagnostic
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -v
-      - name: Fresh-loader full Rocky discovery diagnostic
-        continue-on-error: true
-        shell: python
-        run: |
-          import sys
-          import unittest
-          if __name__ == '__main__':
-              suite = unittest.TestLoader().discover('software/rocky/tests')
-              result = unittest.TextTestRunner(verbosity=2).run(suite)
-              sys.exit(0 if result.wasSuccessful() else 1)
       - name: Run Conversational Brain V1 tests (no model or speakers)
         shell: python
         run: |
           import sys
           import unittest
           if __name__ == '__main__':
-              suite = unittest.defaultTestLoader.discover('software/rocky/tests')
+              suite = unittest.TestLoader().discover('software/rocky/tests')
               result = unittest.TextTestRunner(verbosity=2).run(suite)
               # Preserve tracebacks in check annotations as well as authenticated logs.
               for test, traceback in result.errors + result.failures:
