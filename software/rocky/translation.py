@@ -1,7 +1,7 @@
 """Translation from deterministic symbols, separately checked against source English."""
 from brain.contracts import CommunicationOutput
 from csp.conversation import decode_text
-from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, learning_rows as exp002_learning_rows
+from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, learning_rows as exp002_learning_rows\nfrom csp.exp003 import Exp003Phrase, decode_phrase as decode_exp003_phrase, learning_rows as exp003_learning_rows
 from csp.learning import decode_phrase, unit_text
 from csp.wire import decode, canonical_text
 

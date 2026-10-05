@@ -28,7 +28,7 @@ HELP = """Type a message to Rocky. Commands:
 /help       show commands             /status     brain/backend/language status
 /translate on|off|status  persistent English display + local spoken translation
 /translate  decode the last reply once (backward compatible)
-/language [exp002|ct2|ct1]  show/change future Chordic conversation profile
+/language [exp003|exp002|ct2|ct1]  show/change future Chordic conversation profile
 /replay     replay last tones; also voice when persistent translation is on
 /mute       stop/silence tones + voice /unmute    enable future playback
 /clear      forget history; translation mode persists
@@ -38,7 +38,7 @@ HELP = """Type a message to Rocky. Commands:
 /dictionary show CT2 starter words    /word thank you  replay one CT2 entry
 /learn      use 3x timing + token view /speed 1..6 change duration multiplier
 /tokens     inspect last representation /auto      legacy display-only toggle
-/tone [pure|resonant]  A/B Chordic timbre
+/tone [pure|resonant|contour-v1]  A/B Chordic timbre
 /voice status|list|select NAME|rate N|pitch N|volume N   tune local English voice (-2..2)
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
@@ -154,16 +154,16 @@ def configuration(args):
         base = args.config.parent if args.config and "personality_profile" in custom else Path(str(root))
         profile = base / profile
     defaults["personality_profile"] = str(profile.resolve())
-    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002"}:
-        raise ValueError("text_encoding must be ct1, ct2 or exp002")
+    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002", "exp003"}:
+        raise ValueError("text_encoding must be ct1, ct2, exp002 or exp003")
     for key in defaults:
         value = getattr(args, key, None)
         if value is not None:
             defaults[key] = value
     if type(defaults["provider"]) is not str or defaults["provider"] not in {"local", "dummy"} or type(defaults["audio_backend"]) is not str or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
         raise ValueError("invalid provider/audio backend")
-    if defaults["tone_style"] not in {"pure", "resonant"}:
-        raise ValueError("tone_style must be pure or resonant")
+    if defaults["tone_style"] not in {"pure", "resonant", "contour-v1"}:
+        raise ValueError("tone_style must be pure, resonant or contour-v1")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
         raise ValueError("invalid translation_voice")
     for key in ("voice_rate", "voice_pitch", "voice_volume"):
@@ -213,8 +213,8 @@ def handle_command(line, conversation, settings, display):
             print("Language profile: " + brain.task_controller.text_encoding)
         else:
             profile = line[10:].strip().lower()
-            if profile not in {"exp002", "ct2", "ct1"}:
-                raise ValueError("language must be exp002, ct2 or ct1")
+            if profile not in {"exp003", "exp002", "ct2", "ct1"}:
+                raise ValueError("language must be exp003, exp002, ct2 or ct1")
             brain.task_controller.text_encoding = profile
             settings["text_encoding"] = profile
             print("Language profile: " + profile + " (applies to future replies; CT2 remains available for compatibility/fallback).")
@@ -223,8 +223,8 @@ def handle_command(line, conversation, settings, display):
             print("Chordic tone style: " + hardware.tone_style)
         else:
             style = line[6:].strip().lower()
-            if style not in {"pure", "resonant"}:
-                raise ValueError("tone style must be pure or resonant")
+            if style not in {"pure", "resonant", "contour-v1"}:
+                raise ValueError("tone style must be pure, resonant or contour-v1")
             hardware.tone_style = style
             settings["tone_style"] = style
             print("Chordic tone style: " + style + ". Applies to future playback/replay.")
@@ -370,8 +370,8 @@ def main(argv=None):
     parser.add_argument("--audio-backend", choices=("auto", "winsound", "pygame", "wav"))
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
-    parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002"))
-    parser.add_argument("--tone-style", choices=("pure", "resonant"))
+    parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002", "exp003"))
+    parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
     parser.add_argument("--voice-pitch", type=int)
