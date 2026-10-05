@@ -35,236 +35,60 @@ jobs:
         run: python -m unittest discover -s software/brain/tests -v
       - name: Diagnose memory module compilation
         run: python -m py_compile software/rocky/memory.py software/rocky/providers.py software/rocky/conversation.py software/rocky/cli.py software/rocky/webui.py
-      - name: Diagnose memory store tests
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_memory.MemoryStoreTests')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose memory settings migration
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_desktop_upgrade.SettingsTests')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose browser memory path
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_memory_requires_opt_in_and_is_manageable')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose test assistant v2 benchmark
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_assistant_v2_benchmark.py" -v
-      - name: Diagnose test assistant v2 core
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_assistant_v2_core.py" -v
-      - name: Diagnose test benchmark runner
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_benchmark_runner.py" -v
-      - name: Diagnose test chordic exp002
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_chordic_exp002.py" -v
-      - name: Diagnose test conversation
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_conversation.py" -v
-      - name: Diagnose test desktop upgrade
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_desktop_upgrade.py" -v
-      - name: Diagnose test exp003 runtime
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_exp003_runtime.py" -v
-      - name: Diagnose test learning
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_learning.py" -v
-      - name: Diagnose test symbolic math
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_symbolic_math.py" -v
-      - name: Diagnose test translation voice exp002
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_translation_voice_exp002.py" -v
-      - name: Diagnose test webui
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_webui.py" -v
-      - name: Diagnose test windows launcher
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
-      - name: Diagnose combined suite without memory module
+      - name: Diagnose cumulative memory prefix 0
         continue-on-error: true
         shell: python
         run: |
           import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
-          loader = unittest.defaultTestLoader
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose pre-memory modules plus memory
-        continue-on-error: true
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          loader = unittest.defaultTestLoader
           modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory"]
-          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose memory followed by later modules
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+      - name: Diagnose cumulative memory prefix 1
         continue-on-error: true
         shell: python
         run: |
           import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
-          loader = unittest.defaultTestLoader
-          modules = ["test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_assistant_v2_benchmark
+          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math"]
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+      - name: Diagnose cumulative memory prefix 2
         continue-on-error: true
         shell: python
         run: |
-          import importlib, sys, unittest
+          import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_assistant_v2_benchmark')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_assistant_v2_core
+          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002"]
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+      - name: Diagnose cumulative memory prefix 3
         continue-on-error: true
         shell: python
         run: |
-          import importlib, sys, unittest
+          import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_assistant_v2_core')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_benchmark_runner
+          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui"]
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+      - name: Diagnose cumulative memory prefix 4
         continue-on-error: true
         shell: python
         run: |
-          import importlib, sys, unittest
+          import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
           modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_benchmark_runner')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_chordic_exp002
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+      - name: Diagnose explicit all Rocky modules
         continue-on-error: true
         shell: python
         run: |
-          import importlib, sys, unittest
+          import sys, unittest
           sys.path.insert(0, 'software/rocky/tests')
           modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_chordic_exp002')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_conversation
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_conversation')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_desktop_upgrade
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_desktop_upgrade')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_exp003_runtime
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_exp003_runtime')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_learning
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_learning')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_memory
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_memory')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_symbolic_math
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_symbolic_math')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_translation_voice_exp002
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_translation_voice_exp002')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_webui
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose preimport-all then test_windows_launcher
-        continue-on-error: true
-        shell: python
-        run: |
-          import importlib, sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          for name in modules:
-              importlib.import_module(name)
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_windows_launcher')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
       - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
