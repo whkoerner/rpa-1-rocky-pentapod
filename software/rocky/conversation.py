@@ -72,6 +72,30 @@ class ConversationController:
             raise ValueError("BUSY: wait or /cancel before changing assistant mode")
         self.assistant_mode = selected.value
 
+    def connected_status(self):
+        provider = getattr(self.worker, "provider", None)
+        registry = getattr(provider, "tool_registry", None)
+        client = getattr(registry, "connected_client", None)
+        if client is None:
+            return {"available": False, "enabled": False, "tools": ()}
+        return {
+            "available": True,
+            "enabled": bool(client.enabled),
+            "tools": client.tool_names(),
+        }
+
+    def set_connected_enabled(self, enabled):
+        if self.pending is not None:
+            raise ValueError("BUSY: wait or /cancel before changing connected mode")
+        provider = getattr(self.worker, "provider", None)
+        registry = getattr(provider, "tool_registry", None)
+        client = getattr(registry, "connected_client", None)
+        if client is None:
+            if enabled:
+                raise ValueError("connected gateway is unavailable for this provider")
+            return
+        client.set_enabled(enabled)
+
     def memory_status(self):
         if self.memory_store is None:
             return {"enabled": False, "revision": 0, "count": 0, "path": ""}

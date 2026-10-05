@@ -19,6 +19,7 @@ from brain.contracts import BrainConfig, BrainOutcome, ConnectionState
 from brain.controller import BrainController, JsonlEventLogger, TaskController
 from .audio import SAMPLE_RATE
 from .conversation import ConversationController
+from .connected import ConnectedGatewayClient
 from .memory import MemoryStore
 from .desktop import DesktopHardware
 from .providers import DummyConversationProvider, LocalAIProvider, strict_json
@@ -33,6 +34,7 @@ HELP = """Type a message to Rocky. Commands:
 /language [exp003|exp002|ct2|ct1]  show/change future Chordic conversation profile
 /mode [normal|study|coding|project]  choose assistant response mode
 /memory status|on|off|list|clear  inspect/manage opt-in persistent memory
+/connected status|on|off  optional audited read-only connected tools
 /remember KEY=VALUE  explicitly save a user-stated fact; /forget KEY deletes it
 /replay     replay last tones; also voice when persistent translation is on
 /mute       stop/silence tones + voice /unmute    enable future playback
@@ -208,6 +210,15 @@ def configuration(args):
         raise ValueError("translation_enabled must be true or false")
     if type(defaults["memory_enabled"]) is not bool:
         raise ValueError("memory_enabled must be true or false")
+    if type(defaults["connected_enabled"]) is not bool:
+        raise ValueError("connected_enabled must be true or false")
+    if type(defaults["connected_gateway_port"]) is not int or not 1 <= defaults["connected_gateway_port"] <= 65535:
+        raise ValueError("connected_gateway_port must be 1-65535")
+    for key in ("connected_gateway_token_path", "connected_audit_path"):
+        if type(defaults[key]) is not str or len(defaults[key]) > 1000 or any(ord(char) < 32 for char in defaults[key]):
+            raise ValueError(f"{key} must be a printable path string")
+    if type(defaults["connected_timeout_seconds"]) not in (int, float) or not math.isfinite(defaults["connected_timeout_seconds"]) or not 1 <= defaults["connected_timeout_seconds"] <= 60:
+        raise ValueError("connected_timeout_seconds must be between 1 and 60")
     if defaults["stt_backend"] not in {"disabled", "whisper-cpp"}:
         raise ValueError("stt_backend must be disabled or whisper-cpp")
     for key in ("whisper_cli_path", "whisper_model_path"):
@@ -280,6 +291,25 @@ def handle_command(line, conversation, settings, display):
             conversation.set_mode(mode)
             settings["assistant_mode"] = mode
             print("Assistant mode: " + mode + ". Spoken replies stay short; detail appears in the UI/terminal when useful.")
+    elif line == "/connected" or line.startswith("/connected "):
+        command = line[len("/connected"):].strip().lower() or "status"
+        if command == "status":
+            status = conversation.connected_status()
+            print(
+                "Connected mode: "
+                + ("ONLINE" if status["enabled"] else "OFFLINE")
+                + ("; tools=" + ",".join(status["tools"]) if status["tools"] else "")
+            )
+        elif command in {"on", "off"}:
+            enabled = command == "on"
+            conversation.set_connected_enabled(enabled)
+            settings["connected_enabled"] = enabled
+            print(
+                "Connected mode " + ("ONLINE." if enabled else "OFFLINE.")
+                + " Read-only gateway tools only; no physical authority."
+            )
+        else:
+            raise ValueError("connected command must be status, on or off")
     elif line == "/memory" or line.startswith("/memory "):
         command = line[len("/memory"):].strip().lower() or "status"
         if command == "status":
@@ -483,6 +513,11 @@ def main(argv=None):
     parser.add_argument("--backup-input", type=Path)
     parser.add_argument("--asset-manifest", type=Path)
     parser.add_argument("--memory-path", type=Path, default=Path.home() / ".rpa1" / "memory-v1.json")
+    parser.add_argument("--connected-mode", choices=("offline", "online"))
+    parser.add_argument("--connected-gateway-port", type=int)
+    parser.add_argument("--connected-gateway-token-path")
+    parser.add_argument("--connected-audit-path")
+    parser.add_argument("--connected-timeout-seconds", type=float)
     parser.add_argument("--stt-backend", choices=("disabled", "whisper-cpp"))
     parser.add_argument("--whisper-cli-path")
     parser.add_argument("--whisper-model-path")
@@ -501,6 +536,8 @@ def main(argv=None):
     brain = None
     try:
         settings = configuration(args)
+        if args.connected_mode is not None:
+            settings["connected_enabled"] = args.connected_mode == "online"
         personality = load_personality(args.personality or Path(settings["personality_profile"]))
         if args.command == "backup":
             from .portability import export_user_backup
@@ -623,7 +660,28 @@ def main(argv=None):
                     duration = handle.getnframes() / SAMPLE_RATE
                 time.sleep(duration + 0.1)
             return 0
-        provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
+        if settings["provider"] == "dummy":
+            provider = DummyConversationProvider()
+            connected_client = None
+        else:
+            token_path = Path(settings["connected_gateway_token_path"]).expanduser()
+            audit_path = Path(settings["connected_audit_path"]).expanduser()
+            connected_client = ConnectedGatewayClient(
+                settings["connected_gateway_port"],
+                token_path,
+                audit_path,
+                timeout_seconds=settings["connected_timeout_seconds"],
+                enabled=False,
+            )
+            if settings["connected_enabled"]:
+                connected_client.set_enabled(True)
+            from .tools import AssistantToolRegistry
+            provider = LocalAIProvider(
+                settings["model"],
+                settings["port"],
+                settings["timeout"],
+                AssistantToolRegistry(connected_client=connected_client),
+            )
         memory_store = MemoryStore(args.memory_path, enabled=settings["memory_enabled"])
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"], memory_store=memory_store)
         conversation.set_mode(settings["assistant_mode"])
@@ -645,6 +703,7 @@ def main(argv=None):
                 settings_path=args.config or user_config,
                 open_browser=not args.no_browser,
                 transcriber=transcriber,
+                connected_client=connected_client,
             )
         else:
             terminal(conversation, settings)
