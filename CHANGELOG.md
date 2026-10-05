@@ -34,6 +34,7 @@ All notable changes are recorded here. The project follows semantic versioning f
 
 ### Added
 
+- Added a source-labeled Rocky Desktop + Chordic debugging/test-evidence ledger preserving CI failures, local/manual failures, fixes, regressions, timing observations, and explicit NOT RUN boundaries from the 2026-10-04 work.
 - Minimum deterministic Brain v0.2 host core with strict semantic validation, immutable state/contracts, safety gating, simulated hardware, structured results/logging, and an offline CLI.
 - Brain v0.2 contract/integration tests and Windows/Linux CI coverage for CSP, RPA-Link, simulator, and brain host suites.
 - Project definition and no-wheel requirement
