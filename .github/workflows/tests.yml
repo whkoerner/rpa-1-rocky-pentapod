@@ -33,28 +33,7 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
-      - name: Diagnose UI bounded-settings test
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_settings_are_bounded_and_no_physical_controls_exist')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose UI profile import-export test
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_export_import_and_save_profile')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Diagnose UI loopback security test
-        shell: python
-        run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_loopback_http_rejects_unauthorized_mutation_and_cors')
-          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
-      - name: Run Conversational Brain V1 tests (no model or speakers)
+      - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
           import sys
