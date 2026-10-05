@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rocky Assistant</title>
+<style>
+:root { font-family: system-ui, sans-serif; color-scheme: dark; }
+body { margin:0; background:#111; color:#eee; }
+main { max-width:1100px; margin:auto; padding:20px; }
+header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.badge { border:1px solid #555; border-radius:999px; padding:4px 9px; }
+.grid { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-top:16px; }
+.card { border:1px solid #444; border-radius:12px; padding:14px; background:#181818; }
+#chat { min-height:340px; max-height:55vh; overflow:auto; }
+.message { border-bottom:1px solid #333; padding:10px 0; }
+.detail { white-space:pre-wrap; background:#0d0d0d; padding:10px; border-radius:8px; }
+textarea, select, input, button { font:inherit; }
+textarea { width:100%; min-height:72px; box-sizing:border-box; }
+.controls { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+label { display:flex; flex-direction:column; gap:4px; }
+button { padding:8px 10px; cursor:pointer; }
+.actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+small { color:#aaa; }
+pre { white-space:pre-wrap; word-break:break-word; }
+@media(max-width:800px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Rocky</h1>
+<span id="connection" class="badge">loading</span>
+<span id="coverage" class="badge">coverage —</span>
+<span id="timing" class="badge">timing —</span>
+</header>
+<div class="grid">
+<section class="card">
+<div id="chat"></div>
+<textarea id="input" maxlength="1024" placeholder="Talk to Rocky…"></textarea>
+<div class="actions">
+<button id="send">Send</button>
+<button data-action="replay">Replay</button>
+<button data-action="cancel">Cancel</button>
+<button data-action="stop">STOP</button>
+<button data-action="reset">Reset</button>
+<button data-action="clear">Clear session</button>
+</div>
+<small>Spoken text becomes Chordic and audible English. Detail text stays on screen.</small>
+</section>
+<aside class="card">
+<h2>Tuning</h2>
+<div class="controls">
+<label>Mode<select id="mode"><option>normal</option><option>study</option><option>coding</option><option>project</option></select></label>
+<label>Renderer<select id="tone"><option>vocal-v1</option><option>contour-v1</option><option>resonant</option><option>pure</option></select></label>
+<label>Chordic speed<input id="speed" type="range" min="1" max="6" step="0.25"><span id="speedv"></span></label>
+<label>Chordic volume<input id="volume" type="range" min="0" max="0.3" step="0.01"><span id="volumev"></span></label>
+<label>English voice<input id="voice" type="text" maxlength="200" placeholder="Windows default"></label>
+<label>English rate<input id="vrate" type="number" min="-2" max="2" step="1"></label>
+<label>English pitch<input id="vpitch" type="number" min="-2" max="2" step="1"></label>
+<label>English volume<input id="vvolume" type="number" min="-2" max="2" step="1"></label>
+<label>Translation<input id="translation" type="checkbox"></label>
+</div>
+<div class="actions">
+<button id="apply">Apply</button>
+<button data-action="save_profile">Save profile</button>
+<button data-action="reset_recommended">Recommended defaults</button>
+<button id="export">Export settings</button>
+<label><span>Import settings</span><input id="import" type="file" accept="application/json"></label>
+</div>
+<h2>Status</h2>
+<pre id="status"></pre>
+<small>Loopback only. Safety-critical physical parameters are intentionally absent.</small>
+</aside>
+</div>
+</main>
+<script>
+const TOKEN=__ROCKY_TOKEN__;
+const el=(id)=>document.getElementById(id);
+
+async function api(path, opts) {
+  opts=opts||{};
+  const init=Object.assign({},opts);
+  init.headers=Object.assign({},opts.headers||{});
+  if(init.method && init.method!=="GET") {
+    init.headers["Content-Type"]="application/json";
+    init.headers["X-Rocky-Token"]=TOKEN;
+  }
+  const r=await fetch(path,init);
+  const text=await r.text();
+  const data=text?JSON.parse(text):{};
+  if(!r.ok) throw new Error(data.error||("HTTP "+r.status));
+  return data;
+}
+
+function add(role,text,detail) {
+  const d=document.createElement("div");
+  d.className="message";
+  const strong=document.createElement("strong");
+  strong.textContent=role+": ";
+  d.appendChild(strong);
+  const span=document.createElement("span");
+  span.textContent=text;
+  d.appendChild(span);
+  if(detail) {
+    const p=document.createElement("pre");
+    p.className="detail";
+    p.textContent=detail;
+    d.appendChild(p);
+  }
+  el("chat").appendChild(d);
+  el("chat").scrollTop=el("chat").scrollHeight;
+}
+
+function tune(s) {
+  const t=s.tuning||{};
+  el("mode").value=t.mode||"normal";
+  el("tone").value=t.tone_style||"vocal-v1";
+  el("speed").value=t.duration_multiplier===undefined?2:t.duration_multiplier;
+  el("speedv").textContent=el("speed").value+"×";
+  el("volume").value=t.volume===undefined?0.12:t.volume;
+  el("volumev").textContent=el("volume").value;
+  el("translation").checked=!!t.translation_enabled;
+  el("voice").value=t.translation_voice||"";
+  el("vrate").value=t.voice_rate===undefined?0:t.voice_rate;
+  el("vpitch").value=t.voice_pitch===undefined?0:t.voice_pitch;
+  el("vvolume").value=t.voice_volume===undefined?0:t.voice_volume;
+}
+
+function showStatus(s) {
+  el("connection").textContent=(s.connection||"?")+(s.estop_latched?" • STOP":"")+(s.busy?" • thinking":"");
+  const c=s.chordic_coverage;
+  el("coverage").textContent=c?("coverage "+c.semantic_percent+"% • fallback "+c.fallback_spans):"coverage —";
+  const t=s.timing||{};
+  el("timing").textContent=t.chordic_seconds?("Chordic "+t.chordic_seconds.toFixed(2)+"s • English "+t.english_seconds.toFixed(2)+"s"):"timing —";
+  el("status").textContent=JSON.stringify({
+    provider:s.provider,
+    model:s.model,
+    language:s.language,
+    renderer:s.tuning?s.tuning.tone_style:"",
+    audio:s.audio_status,
+    voice:s.voice_status,
+    representation:s.representation||""
+  },null,2);
+}
+
+async function refresh() {
+  try {
+    const s=await api("/api/status");
+    showStatus(s);
+    tune(s);
+  } catch(e) {
+    el("connection").textContent=e.message;
+  }
+}
+
+async function poll() {
+  try {
+    const r=await api("/api/poll");
+    if(r.error) add("Error",r.error,"");
+    else if(r.text) {
+      add("Rocky",r.text,r.detail_text||"");
+      if(r.status) showStatus(r.status);
+    }
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+  setTimeout(poll,300);
+}
+
+el("send").onclick=async function() {
+  const text=el("input").value.trim();
+  if(!text) return;
+  add("You",text,"");
+  el("input").value="";
+  try {
+    await api("/api/chat",{method:"POST",body:JSON.stringify({text:text})});
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
+
+el("input").addEventListener("keydown",function(e) {
+  if(e.key==="Enter"&&!e.shiftKey) {
+    e.preventDefault();
+    el("send").click();
+  }
+});
+
+for(const b of document.querySelectorAll("[data-action]")) {
+  b.onclick=async function() {
+    try {
+      const r=await api("/api/action",{method:"POST",body:JSON.stringify({action:b.dataset.action})});
+      if(r.status) showStatus(r.status);
+    } catch(e) {
+      add("Error",e.message,"");
+    }
+  };
+}
+
+el("apply").onclick=async function() {
+  try {
+    const payload={
+      mode:el("mode").value,
+      tone_style:el("tone").value,
+      duration_multiplier:Number(el("speed").value),
+      volume:Number(el("volume").value),
+      translation_enabled:el("translation").checked,
+      translation_voice:el("voice").value,
+      voice_rate:Number(el("vrate").value),
+      voice_pitch:Number(el("vpitch").value),
+      voice_volume:Number(el("vvolume").value)
+    };
+    const s=await api("/api/settings",{method:"POST",body:JSON.stringify(payload)});
+    showStatus(s);
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
+
+el("speed").oninput=function(){el("speedv").textContent=el("speed").value+"×";};
+el("volume").oninput=function(){el("volumev").textContent=el("volume").value;};
+
+el("export").onclick=async function() {
+  try {
+    const data=await api("/api/export");
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="rocky-settings.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
+
+el("import").onchange=async function(e) {
+  try {
+    const data=JSON.parse(await e.target.files[0].text());
+    const s=await api("/api/import",{method:"POST",body:JSON.stringify(data)});
+    showStatus(s);
+    tune(s);
+  } catch(err) {
+    add("Error",err.message,"");
+  }
+};
+
+refresh();
+poll();
+setInterval(refresh,1500);
+</script>
+</body>
+</html>
