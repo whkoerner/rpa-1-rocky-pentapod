@@ -49,6 +49,17 @@ pre { white-space:pre-wrap; word-break:break-word; }
 <button data-action="clear">Clear session</button>
 </div>
 <small>Spoken text becomes Chordic and audible English. Detail text stays on screen. Microphone capture is explicit push-to-talk; transcription is placed in the text box for review and is never auto-sent.</small><div id="micstatus" class="badge">microphone: checking</div>
+<h2>Class / Lecture recording</h2>
+<div class="controls">
+<label>Lecture title<input id="lecturetitle" type="text" maxlength="200" placeholder="BIOL 101 Lecture"></label>
+<label>Permission confirmed<input id="lectureconsent" type="checkbox"></label>
+</div>
+<div class="actions">
+<button id="lecturestart">Start visible recording</button>
+<button id="lecturestop" disabled>Stop recording</button>
+</div>
+<div id="lecturestatus" class="badge">lecture: not recording</div>
+<small>Only start after you have permission to record. Audio stays local in bounded chunks. Transcription is deferred until after class.</small>
 </section>
 <aside class="card">
 <h2>Tuning</h2>
@@ -159,12 +170,21 @@ function showStatus(s) {
     voice:s.voice_status,
     representation:s.representation||"",
     stt:s.stt||{},
-    connected:s.connected||{}
+    connected:s.connected||{},
+    lecture:s.lecture||{}
   },null,2);
   const stt=s.stt||{};
   el("micstart").disabled=!stt.enabled || !!mic.recording;
   if(!mic.recording) el("micstop").disabled=true;
   if(!stt.enabled && !mic.recording) el("micstatus").textContent="microphone: STT disabled";
+  const lectureStatus=s.lecture||{};
+  if(!lecture.recording) {
+    el("lecturestart").disabled=!lectureStatus.enabled;
+    el("lecturestop").disabled=true;
+    if(lectureStatus.active) {
+      el("lecturestatus").textContent="lecture: server session active; browser recorder is not attached";
+    }
+  }
 }
 
 async function refreshMemory() {
@@ -261,6 +281,7 @@ function pcmWav(samples, sampleRate) {
 
 async function startMic() {
   if(mic.recording) return;
+  if(lecture.recording) throw new Error("Stop lecture recording before push-to-talk.");
   const status=await api("/api/status");
   if(!status.stt || !status.stt.enabled) throw new Error("Local STT is disabled. Configure whisper.cpp paths first.");
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("This browser does not expose microphone capture.");
@@ -318,6 +339,123 @@ async function stopMic() {
 el("micstart").onclick=function(){startMic().catch(e=>{el("micstatus").textContent="microphone: error";add("Error",e.message,"");});};
 el("micstop").onclick=function(){stopMic().catch(e=>{el("micstatus").textContent="microphone: error";add("Error",e.message,"");});};
 
+const lecture={
+  recording:false,
+  stream:null,
+  context:null,
+  source:null,
+  processor:null,
+  silent:null,
+  chunks:[],
+  sampleRate:0,
+  startedAt:0,
+  flushTimer:null,
+  tickTimer:null,
+  maxTimer:null,
+  chunkSeconds:30,
+  maxSeconds:10800,
+  sessionId:"",
+  uploadChain:Promise.resolve()
+};
+
+async function uploadLectureChunk() {
+  if(!lecture.chunks.length) return;
+  const chunks=lecture.chunks;
+  lecture.chunks=[];
+  const samples=resampleMono(mergeFloat32(chunks),lecture.sampleRate,16000);
+  if(!samples.length) return;
+  const wav=pcmWav(samples,16000);
+  lecture.uploadChain=lecture.uploadChain.then(async function(){
+    const response=await fetch("/api/lecture/chunk",{
+      method:"POST",
+      headers:{"X-Rocky-Token":TOKEN,"Content-Type":"audio/wav"},
+      body:wav
+    });
+    const text=await response.text();
+    const result=text?JSON.parse(text):{};
+    if(!response.ok) throw new Error(result.error||("HTTP "+response.status));
+    el("lecturestatus").textContent="lecture: RECORDING • saved "+Number(result.total_seconds||0).toFixed(1)+"s • chunks "+result.chunk_count;
+  });
+  return lecture.uploadChain;
+}
+
+async function startLecture() {
+  if(lecture.recording) return;
+  if(mic.recording) throw new Error("Stop push-to-talk before lecture recording.");
+  if(!el("lectureconsent").checked) throw new Error("Confirm you have permission to record this class.");
+  const status=await api("/api/status");
+  if(!status.lecture || !status.lecture.enabled) throw new Error("Lecture recording store is unavailable.");
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("This browser does not expose microphone capture.");
+  const started=await api("/api/lecture/start",{
+    method:"POST",
+    body:JSON.stringify({title:el("lecturetitle").value.trim(),consent_confirmed:true})
+  });
+  const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  const Context=window.AudioContext||window.webkitAudioContext;
+  if(!Context){
+    stream.getTracks().forEach(t=>t.stop());
+    await api("/api/lecture/stop",{method:"POST",body:JSON.stringify({session_id:started.session_id})});
+    throw new Error("Web Audio is unavailable.");
+  }
+  const context=new Context();
+  const source=context.createMediaStreamSource(stream);
+  const processor=context.createScriptProcessor(4096,1,1);
+  const silent=context.createGain(); silent.gain.value=0;
+  lecture.recording=true;
+  lecture.stream=stream; lecture.context=context; lecture.source=source; lecture.processor=processor; lecture.silent=silent;
+  lecture.chunks=[]; lecture.sampleRate=context.sampleRate; lecture.startedAt=Date.now();
+  lecture.sessionId=started.session_id; lecture.chunkSeconds=Number(started.chunk_max_seconds||30); lecture.maxSeconds=Number(started.max_seconds||10800);
+  lecture.uploadChain=Promise.resolve();
+  processor.onaudioprocess=function(event){
+    if(!lecture.recording)return;
+    lecture.chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+  };
+  source.connect(processor); processor.connect(silent); silent.connect(context.destination);
+  el("lecturestart").disabled=true; el("lecturestop").disabled=false;
+  el("lecturestatus").textContent="lecture: RECORDING • 0.0s • "+lecture.sessionId;
+  lecture.flushTimer=setInterval(function(){
+    uploadLectureChunk().catch(function(e){
+      add("Error","Lecture chunk upload failed: "+e.message,"");
+      stopLecture().catch(()=>{});
+    });
+  },lecture.chunkSeconds*1000);
+  lecture.tickTimer=setInterval(function(){
+    const elapsed=(Date.now()-lecture.startedAt)/1000;
+    el("lecturestatus").textContent="lecture: RECORDING • "+elapsed.toFixed(1)+"s / "+lecture.maxSeconds.toFixed(0)+"s • "+lecture.sessionId;
+  },500);
+  lecture.maxTimer=setTimeout(function(){
+    stopLecture().catch(e=>add("Error",e.message,""));
+  },lecture.maxSeconds*1000);
+}
+
+async function stopLecture() {
+  if(!lecture.recording) return;
+  lecture.recording=false;
+  clearInterval(lecture.flushTimer); clearInterval(lecture.tickTimer); clearTimeout(lecture.maxTimer);
+  if(lecture.processor){lecture.processor.onaudioprocess=null;lecture.processor.disconnect();}
+  if(lecture.source)lecture.source.disconnect();
+  if(lecture.silent)lecture.silent.disconnect();
+  if(lecture.stream)lecture.stream.getTracks().forEach(t=>t.stop());
+  const context=lecture.context;
+  if(context) await context.close();
+  lecture.stream=lecture.context=lecture.source=lecture.processor=lecture.silent=null;
+  el("lecturestop").disabled=true;
+  el("lecturestatus").textContent="lecture: saving final local chunk";
+  await uploadLectureChunk();
+  await lecture.uploadChain;
+  const stopped=await api("/api/lecture/stop",{
+    method:"POST",
+    body:JSON.stringify({session_id:lecture.sessionId})
+  });
+  const finishedId=lecture.sessionId;
+  lecture.sessionId="";
+  el("lecturestart").disabled=false;
+  el("lecturestatus").textContent="lecture: RECORDED • "+Number(stopped.total_seconds||0).toFixed(1)+"s • "+finishedId+" • deferred transcription ready";
+}
+
+el("lecturestart").onclick=function(){startLecture().catch(e=>{el("lecturestatus").textContent="lecture: error";add("Error",e.message,"");});};
+el("lecturestop").onclick=function(){stopLecture().catch(e=>{el("lecturestatus").textContent="lecture: error";add("Error",e.message,"");});};
+
 el("send").onclick=async function() {
   const text=el("input").value.trim();
   if(!text) return;
@@ -340,6 +478,7 @@ el("input").addEventListener("keydown",function(e) {
 for(const b of document.querySelectorAll("[data-action]")) {
   b.onclick=async function() {
     try {
+      if(b.dataset.action==="stop" && lecture.recording) await stopLecture();
       const r=await api("/api/action",{method:"POST",body:JSON.stringify({action:b.dataset.action})});
       if(r.status) showStatus(r.status);
     } catch(e) {
