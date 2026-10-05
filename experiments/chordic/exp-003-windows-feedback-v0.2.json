@@ -1,0 +1,81 @@
+{
+  "schema_version": "0.3.2",
+  "candidate_id": "EXP-003",
+  "candidate_revision": "contour-v0.2-low-register",
+  "playback_multiplier": 3,
+  "source": "2026-10-05 manual Windows Rocky acceptance transcript",
+  "results": [
+    {
+      "id": "W001",
+      "class": "windows-real-math",
+      "prompt": "what is 8 times 8?",
+      "english": "Rocky think. Eight times eight. Sixty four. Yes.",
+      "observed_windows_v1": {
+        "semantic_coverage_percent": 48.6,
+        "fallback_span_count": 4,
+        "fallback_bytes": 19,
+        "total_duration_seconds": 10.44,
+        "spoken_english_seconds": 7.67
+      },
+      "v2_model": {
+        "semantic_tokens": [
+          "ENTITY.ROCKY",
+          "MENTAL.THINK",
+          "NUM.8",
+          "OP.MUL",
+          "NUM.8",
+          "NUM.6",
+          "NUM.4",
+          "SOCIAL.YES"
+        ],
+        "semantic_token_count": 8,
+        "unsupported_spans": [],
+        "fallback_span_count": 0,
+        "fallback_bytes": 0,
+        "semantic_coverage_percent": 100,
+        "fallback_percent": 0,
+        "semantic_duration_seconds": 5.58,
+        "fallback_duration_seconds": 0,
+        "total_duration_seconds": 5.58
+      }
+    },
+    {
+      "id": "W002",
+      "class": "windows-real-food",
+      "prompt": "what is your favorite food?",
+      "english": "Rocky no eat. Rocky learn. Rocky make. Rocky fix. Rocky problem solve.",
+      "observed_windows_v1": {
+        "semantic_coverage_percent": 77.8,
+        "fallback_span_count": 2,
+        "fallback_bytes": 12,
+        "total_duration_seconds": 11.97,
+        "spoken_english_seconds": 10.36
+      },
+      "v2_model": {
+        "semantic_tokens": [
+          "ENTITY.ROCKY",
+          "GRAM.NEG",
+          "ACTION.EAT",
+          "ENTITY.ROCKY",
+          "MENTAL.LEARN",
+          "ENTITY.ROCKY",
+          "ACTION.MAKE",
+          "ENTITY.ROCKY",
+          "ACTION.FIX",
+          "ENTITY.ROCKY",
+          "ENTITY.PROBLEM",
+          "ACTION.SOLVE"
+        ],
+        "semantic_token_count": 12,
+        "unsupported_spans": [],
+        "fallback_span_count": 0,
+        "fallback_bytes": 0,
+        "semantic_coverage_percent": 100,
+        "fallback_percent": 0,
+        "semantic_duration_seconds": 9.3,
+        "fallback_duration_seconds": 0,
+        "total_duration_seconds": 9.3
+      }
+    }
+  ]
+}
