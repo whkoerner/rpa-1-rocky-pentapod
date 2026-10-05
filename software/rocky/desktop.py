@@ -7,14 +7,17 @@ from brain.contracts import Capability, ConnectionState, EvidenceKind, HardwareR
 from csp.core import CspCodec
 from rpa_link.messages import monotonic_us
 from .audio import AudioPlayer, estimated_duration, render_wav
+from .speech import WindowsSystemSpeechRenderer
 
 
 class DesktopHardware:
     backend_id = "desktop-audio"
 
-    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, player=None):
+    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, player=None, speech_renderer=None):
         self.directory = directory
         self.player = player or AudioPlayer(backend)
+        self.voice = speech_renderer or WindowsSystemSpeechRenderer()
+        self.translation_enabled = False
         self.volume = volume
         self.duration_multiplier = duration_multiplier
         self._muted = False
@@ -26,6 +29,7 @@ class DesktopHardware:
         self._cancel = threading.Event()
         self._future = None
         self._generation = 0
+        self._playback_started = threading.Event()
         self.error = None
         self.audio_status = "IDLE"
         self.duration = 0
@@ -45,6 +49,18 @@ class DesktopHardware:
     def rendering(self):
         return self._future is not None and not self._future.done()
 
+    @property
+    def voice_status(self):
+        return self.voice.status
+
+    @property
+    def speech_duration(self):
+        return self.voice.last_duration_seconds
+
+    @property
+    def combined_duration(self):
+        return self.duration + self.speech_duration
+
     def open(self):
         self.player.open()
         if self._executor is None:
@@ -60,8 +76,24 @@ class DesktopHardware:
             self._cancel.set()
             if self._future is not None:
                 self._future.cancel()
+            self.voice.cancel()
             self.player.stop()
             self.audio_status = "CANCELLED"
+
+    def check_voice_available(self):
+        if self.player.backend == "wav":
+            raise RuntimeError("spoken translation cannot play through the diagnostic wav-only backend")
+        return self.voice.check_available()
+
+    def speak_translation(self, text):
+        """Queue validated English after the current Chordic playback."""
+        with self._lock:
+            if not self.translation_enabled or self.muted or self.stopped or not self.ready:
+                return False
+            if self.player.backend == "wav":
+                return False
+            self.voice.start(text, gate=self._playback_started, delay_seconds=self.duration)
+            return True
 
     def dispatch(self, command):
         def receipt(status, reason):
@@ -76,6 +108,7 @@ class DesktopHardware:
             self.cancel_audio()
             self._generation += 1
             cancelled = self._cancel = threading.Event()
+            self._playback_started = threading.Event()
             self.duration = duration
             self.error = None
             self.audio_status = "RENDERING"
@@ -98,6 +131,7 @@ class DesktopHardware:
                     self.audio_status = "WAV_WRITTEN_MUTED" if self.muted else "WAV_WRITTEN_NO_PLAYBACK"
                 else:
                     self.player.play(path)
+                    self._playback_started.set()
                     self.audio_status = "PLAYBACK_REQUESTED_NOT_ACOUSTICALLY_VERIFIED"
         except Exception as exc:
             with self._lock:
@@ -118,6 +152,7 @@ class DesktopHardware:
             if self.error:
                 error, self.error = self.error, None
                 raise RuntimeError(error)
+        self.voice.poll()
         return ()
 
     def stop(self, reason, *, emergency):
@@ -134,3 +169,4 @@ class DesktopHardware:
         if self._executor is not None:
             self._executor.shutdown(wait=True, cancel_futures=True)
             self._executor = None
+        self.voice.close()
