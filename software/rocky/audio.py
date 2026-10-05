@@ -10,6 +10,7 @@ import wave
 from brain.contracts import CommunicationOutput, ConversationOutput
 from csp.core import CspCodec
 from csp.conversation import decode_text
+from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, load_profile as load_exp002_profile, token_patterns as exp002_token_patterns
 from csp.learning import decode_phrase, literal_text
 
 SAMPLE_RATE = 22050
@@ -32,6 +33,37 @@ def base_events(output, codec: CspCodec):
         timing = phonology["literal_timing"]
         for note in output.notes:
             yield (frequency(note),), timing["note_ms"], timing["inter_note_gap_ms"]
+    elif isinstance(output, ConversationOutput) and isinstance(output.phrase, Exp002Phrase):
+        if decode_exp002_phrase(output.phrase) != output.canonical_text:
+            raise ValueError("EXP-002 translation mismatch")
+        profile = load_exp002_profile()["candidate"]
+        exp_timing = profile["timing"]
+        mapping = {int(key): value for key, value in profile["synthesis_mapping"].items()}
+        patterns = exp002_token_patterns()
+        yield (frequency("D4"), frequency("B4")), exp_timing["profile_marker_ms"] / 2, exp_timing["profile_marker_ms"] / 2
+        ct2_timing = phonology["literal_timing"]
+        scale = [frequency(codec.digit_to_note[n]) for n in range(5)]
+        for exp_unit in output.phrase.units:
+            if exp_unit.kind == "tokens":
+                for token in exp_unit.tokens:
+                    for degree in patterns[token]:
+                        yield (frequency(mapping[degree]),), exp_timing["note_ms"], exp_timing["inter_note_gap_ms"]
+                    yield (), 0, exp_timing["token_boundary_ms"]
+            else:
+                yield (frequency("B3"), frequency("E5")), 50, 50
+                for unit in exp_unit.fallback.units:
+                    if unit.kind == "token":
+                        yield (frequency("D3") * 2 ** {"lower": 0, "initial": 1, "upper": 2}[unit.case],), 50, 50
+                        for note in codec.encode_token(unit.value).notes:
+                            yield (frequency(note),), ct2_timing["note_ms"], ct2_timing["inter_note_gap_ms"]
+                        yield (), 0, ct2_timing["inter_token_gap_ms"]
+                    else:
+                        raw = literal_text(unit.value).encode("utf-8")
+                        yield (frequency("B3"), frequency("E5")), 50, 50
+                        for byte, digits in zip(raw, unit.value):
+                            gap = 300 if byte in b".!?" else 150 if byte in b",;:" else 100 if byte == 32 else 15
+                            yield tuple(scale[d] * 2 ** (voice - 1) for voice, d in enumerate(digits)), 65, gap
+                        yield (), 0, 100
     elif isinstance(output, ConversationOutput) and output.phrase is not None:
         if decode_phrase(output.phrase) != output.canonical_text:
             raise ValueError("CT2 translation mismatch")
