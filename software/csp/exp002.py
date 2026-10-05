@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 
 from .conversation import validate_text
-from .learning import Phrase, encode_phrase as encode_ct2_phrase, decode_phrase as decode_ct2_phrase
+from .learning import Phrase, Unit, byte_symbols, unit_text
 
 PROFILE_PATH = Path(__file__).resolve().parents[2] / "experiments" / "chordic" / "exp-002-runtime.json"
 VERSION = "EXP-002"
@@ -85,6 +85,19 @@ _PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+def _encode_ct2_fragment(text: str) -> Phrase:
+    """Carry exact UTF-8 fragments, including whitespace-only separators."""
+    if type(text) is not str or not text:
+        raise ValueError("EXP-002 fallback fragment must be nonempty text")
+    return Phrase((Unit("utf8", byte_symbols(text.encode("utf-8"))),))
+
+def _decode_ct2_fragment(phrase: Phrase) -> str:
+    if type(phrase) is not Phrase or phrase.version != "CT2" or not phrase.units:
+        raise ValueError("invalid EXP-002 CT2 fallback fragment")
+    if any(unit.kind != "utf8" for unit in phrase.units):
+        raise ValueError("EXP-002 fallback fragment must be exact UTF-8")
+    return "".join(unit_text(unit) for unit in phrase.units)
+
 def encode_phrase(text: str) -> Exp002Phrase:
     validate_text(text)
     profile = load_profile()
@@ -104,14 +117,14 @@ def encode_phrase(text: str) -> Exp002Phrase:
             continue
         if position < match.start():
             literal = text[position:match.start()]
-            units.append(Exp002Unit("ct2", literal, fallback=encode_ct2_phrase(literal)))
+            units.append(Exp002Unit("ct2", literal, fallback=_encode_ct2_fragment(literal)))
         units.append(Exp002Unit("tokens", surface, tokens=tokens))
         position = match.end()
     if position < len(text):
         literal = text[position:]
-        units.append(Exp002Unit("ct2", literal, fallback=encode_ct2_phrase(literal)))
+        units.append(Exp002Unit("ct2", literal, fallback=_encode_ct2_fragment(literal)))
     if not units:
-        units.append(Exp002Unit("ct2", text, fallback=encode_ct2_phrase(text)))
+        units.append(Exp002Unit("ct2", text, fallback=_encode_ct2_fragment(text)))
     phrase = Exp002Phrase(tuple(units), profile["source_commit"])
     if decode_phrase(phrase) != text:
         raise ValueError("EXP-002 adapter round-trip mismatch")
@@ -129,7 +142,7 @@ def decode_phrase(phrase: Exp002Phrase) -> str:
             if not unit.tokens or any(token not in patterns for token in unit.tokens) or unit.fallback is not None:
                 raise ValueError("invalid EXP-002 token unit")
         elif unit.kind == "ct2":
-            if unit.tokens or unit.fallback is None or decode_ct2_phrase(unit.fallback) != unit.text:
+            if unit.tokens or unit.fallback is None or _decode_ct2_fragment(unit.fallback) != unit.text:
                 raise ValueError("invalid EXP-002 fallback unit")
         else:
             raise ValueError("unknown EXP-002 unit kind")

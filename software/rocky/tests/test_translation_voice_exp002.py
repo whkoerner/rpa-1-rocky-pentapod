@@ -80,13 +80,15 @@ class Exp002RuntimeTests(unittest.TestCase):
                 self.assertEqual(tuple(case["tokens"]), phrase.units[0].tokens)
 
     def test_free_form_uses_composition_plus_explicit_exact_ct2_fallback(self):
-        text = "Rocky help xylophone."
-        phrase = encode_phrase(text)
-        self.assertEqual(decode_phrase(phrase), text)
-        self.assertTrue(any(unit.kind == "tokens" for unit in phrase.units))
-        self.assertTrue(any(unit.kind == "ct2" for unit in phrase.units))
-        fallback = [unit for unit in phrase.units if unit.kind == "ct2"]
-        self.assertTrue(all(unit.fallback is not None for unit in fallback))
+        for text in ("Rocky help xylophone.", "Rocky help you.", "Rocky ready. Good."):
+            with self.subTest(text=text):
+                phrase = encode_phrase(text)
+                self.assertEqual(decode_phrase(phrase), text)
+                self.assertTrue(any(unit.kind == "tokens" for unit in phrase.units))
+                self.assertTrue(any(unit.kind == "ct2" for unit in phrase.units))
+                fallback = [unit for unit in phrase.units if unit.kind == "ct2"]
+                self.assertTrue(all(unit.fallback is not None for unit in fallback))
+                self.assertTrue(any(unit.text.isspace() for unit in fallback))
 
     def test_normal_benchmark_reproduces_exp002_speed_target_at_unchanged_3x(self):
         durations = []
