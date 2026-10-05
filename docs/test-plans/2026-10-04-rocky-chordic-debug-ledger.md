@@ -158,3 +158,14 @@ Current PR #14 status:
 - PR #14 CI failures #51 onward are preserved in `docs/test-plans/2026-10-04-persistent-translation-tts-exp002.md`, including the custom unittest-loader discovery regression and its fix.
 
 Do not treat the implementation as an acoustic PASS until the operator completes the manual Windows acceptance in that plan.
+
+
+### PR #14 CI root-cause correction — runs #51-#64
+
+The earlier PR #14 note that blamed `unittest.defaultTestLoader` was corrected after unmasked GitHub Actions diagnostics. Runs #53-#58 used `continue-on-error: true`, so their displayed green diagnostic step conclusions did not prove the underlying commands succeeded. Runs #59-#60 still failed with a fresh `unittest.TestLoader()`, disproving that theory.
+
+Unmasked run #61 established the real boundary: the legacy Rocky suite passed through `test_learning`, and failure began when `test_translation_voice_exp002` was added. Run #62 narrowed this to EXP-002 runtime and persistent-translation tests while prosody stayed green. Run #63 isolated the failing free-form case and persistent turns containing known EXP-002 tokens separated by spaces.
+
+Root cause: the EXP-002 adapter treated whitespace separators between known tokens as standalone CT2 fallback utterances. CT2 correctly rejects whitespace-only complete utterances, so phrases such as `Rocky help you.` failed even though the complete response was valid. Commit `fba35005cf2274294b592c3662a907fbd5278aca` changed fallback fragments to exact CT2 UTF-8 units that preserve whitespace inside the already validated parent utterance.
+
+Verification: GitHub Actions run #64 passed all 11 method diagnostics, standard Rocky discovery, Windows/Linux Python 3.12/3.13 software cells, and Arduino. Subjective Windows speech/listening acceptance remains NOT RUN.

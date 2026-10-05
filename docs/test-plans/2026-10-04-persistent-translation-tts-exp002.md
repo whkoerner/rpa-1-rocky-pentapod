@@ -1,10 +1,10 @@
 # Persistent translation voice + EXP-002 desktop integration — 2026-10-04
 
-Status: **IMPLEMENTED ON DRAFT PR #14 / AUTOMATED CI IN PROGRESS / SUBJECTIVE WINDOWS LISTENING NOT RUN**
+Status: **IMPLEMENTED ON DRAFT PR #14 / AUTOMATED CI GREEN WITH DIAGNOSTICS IN RUN #64 / CLEAN FINAL MATRIX PENDING / SUBJECTIVE WINDOWS LISTENING NOT RUN**
 
 Branch: `feat/persistent-translation-tts-exp002`  
 Starting Rocky SHA: `0b14ee0ce3cf32b200d27672a4e81be5833f0b5d`  
-Chordial authority pin: `whkoerner/chordic-language@56347cf73111d2d708b5919cd01b563826795108`  
+Chordic authority pin: `whkoerner/chordic-language@56347cf73111d2d708b5919cd01b563826795108`  
 Draft PR: #14, **do not merge before manual Windows acceptance**.
 
 ## Hypothesis
@@ -115,13 +115,15 @@ Existing Brain v0.2, provider, safety, Dummy diagnostic, check-no-audio, CT1/CT2
 
 | Run | Head | Observation | Root cause / action |
 | --- | --- | --- | --- |
-| #51 | `8e97a90...` | All four software matrix cells reached Rocky suite then failed; Arduino passed | First full integration run. New focused failures not yet isolated. |
-| #52 | `191906a...` | Same Rocky-suite failure across Windows/Linux 3.12/3.13; Arduino passed | EXP-002 regex corrected, but aggregate failure remained. |
-| #53 | `116e412...` | New focused EXP-002, prosody, and persistent-translation groups passed; aggregate Rocky discovery failed | Established that new functional groups themselves were green. |
-| #54 | `33ac1dc...` | Every legacy Rocky test module also passed independently; aggregate discovery failed | Narrowed to suite/discovery process, not one legacy module. |
-| #55-#57 | diagnostic heads | Full explicit module order, root individual discovery, and root cumulative module order passed | Narrowed further to the custom discovery wrapper. |
-| #58 | `efeed07...` | Standard `python -m unittest discover` and a fresh `unittest.TestLoader()` pass where the shared `unittest.defaultTestLoader` wrapper fails | Root cause: reusable singleton loader state in custom CI wrapper. |
-| next clean run | `5f11a2e...` + documentation | **PENDING at time of this commit** | Workflow restored to normal shape and uses a fresh `unittest.TestLoader()`; temporary bisection steps removed. |
+| #51 | `8e97a90...` | All four software matrix cells reached Rocky suite then failed; Arduino passed. | First full integration run. |
+| #52 | `191906a...` | Same aggregate Rocky failure on Windows/Linux 3.12/3.13. | Corrected the EXP-002 word-boundary regex; a second failure remained. |
+| #53-#58 | diagnostic heads | Focused/module/cumulative diagnostic steps appeared green while the final aggregate wrapper stayed red. | These diagnostics used `continue-on-error: true`; their displayed step conclusions were not valid proof that the underlying commands passed. The temporary fresh-loader theory was therefore unproven. |
+| #59-#60 | `5f11a2e...` / `58fb73d...` | Normal workflow with a fresh `unittest.TestLoader()` still failed the Rocky suite in all four matrix cells; Arduino passed. | Disproved the singleton-loader diagnosis. No application code changed in these heads. |
+| #61 | `a1fbeeb...` | Unmasked cumulative jobs: through `test_learning` passed; adding `test_translation_voice_exp002` failed; standard discovery failed. | First reliable isolation of the interaction boundary. |
+| #62 | `e5dfa59...` | Prosody class passed after the legacy base; EXP-002 runtime and persistent-translation classes failed. | Narrowed failure away from TTS prosody and toward EXP-002/free-form runtime handling. |
+| #63 | `8ded00c...` | Method jobs showed `exp-freeform` failing, plus persistent tests whose replies contain known EXP-002 words separated by spaces. Pin/round-trip/timing/legacy-CT2 and several control tests passed. | Root cause identified: EXP-002 split known tokens from separators, then passed whitespace-only fragments such as `" "` to CT2's complete-utterance encoder, which correctly rejects whitespace-only utterances. |
+| #64 | `fba3500...` | All 11 method diagnostics passed; standard Rocky discovery passed; Ubuntu/Windows Python 3.12/3.13 software cells passed; Arduino passed. | Fixed the representation: EXP-002 exact fallback fragments now use direct CT2 UTF-8 units that can preserve whitespace separators inside an already validated full utterance. Added regression coverage for `"Rocky help you."` and `"Rocky ready. Good."`. |
+| final clean run | workflow cleanup head | **PENDING** | Temporary diagnostic jobs removed; normal CI matrix must pass before manual acceptance begins. |
 
 Failed runs are intentionally retained as engineering evidence. Do not rewrite or hide them.
 
