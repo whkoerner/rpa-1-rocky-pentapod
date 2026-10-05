@@ -216,3 +216,32 @@ New bugs discovered while implementing:
 Automated result:
 - Actions run #68 on `98c7ae67409f5d542fd567f8dd02ddcfa844a71d`: Windows 3.12 PASS, Windows 3.13 PASS, Ubuntu 3.12 PASS, Ubuntu 3.13 PASS, Arduino PASS.
 - No subjective acoustic claim is inferred from that green run.
+
+
+## PR #15 manual Windows failures and new acoustic requirements
+
+Second operator session on PR #15 confirmed name memory and voice selection, but exposed a reproducible tuning bug and insufficient acoustic naturalness.
+
+Reproducible bug:
+- `/voice select Microsoft David Desktop`
+- `/voice rate 2`
+- `/voice pitch -1`
+- ask a question
+- result: `TRANSLATION_VOICE_FAILED: ValueError: untrusted prosody profile`
+- subsequent `/replay` continued failing with the same validation error.
+- switching Chordic tone style did not repair it, correctly localizing the failure to English prosody/SSML validation.
+
+Manual PASS:
+- explicit name `Wyatt` captured and recalled;
+- Microsoft David and Microsoft Zira listed and selectable;
+- translated speech and tones audible;
+- speed/replay worked before the TTS failure.
+
+Manual FAIL / tuning feedback:
+- question delivery lacks natural questioning cadence;
+- pauses and emotional weight are insufficient;
+- resonant Chordic remains too robotic with fast beep-like shifts;
+- desired sound is smoother, lower, resonant, hum/rumble/vibration-like;
+- desired scheduler: Chordic starts 0.5-1.0 s first, stays slightly quieter, and normally finishes shortly before English.
+
+Observed timing samples are preserved in `docs/test-plans/2026-10-04-post-merge-acoustic-feedback.md`.

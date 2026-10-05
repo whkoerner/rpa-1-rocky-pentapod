@@ -171,3 +171,105 @@ Manual status:
 - name-use naturalness/frequency with real model: **NOT RUN**
 
 Do not promote the resonant renderer into a stable Chordic acoustic specification from automated tests alone.
+
+
+## Manual Windows acceptance on PR #15 — second operator session
+
+Branch/head under test: `feat/rocky-audio-overlap-name-tuning` after run #69.
+
+Observed startup state:
+- backend READY;
+- motion DISABLED;
+- translation initially OFF;
+- language reported **CT2** from the operator's local settings;
+- name initially unknown;
+- tone style `resonant`;
+- duration multiplier 3.
+
+### Functional PASS evidence
+
+1. `/translate on` enabled persistent spoken translation.
+2. `hello rocky` produced `Hello. Name question?`; Chordic and English were both audible.
+3. `my name is wyatt` produced `Wyatt. Good. Rocky remember.`; session-name capture worked.
+4. Later `hello whats my name` produced `Wyatt. Good. Rocky remember.`; name recall worked across turns.
+5. `/voice list` returned:
+   - Microsoft David Desktop
+   - Microsoft Zira Desktop
+6. `/voice select Microsoft Zira Desktop` succeeded and Zira was audibly used.
+7. `/voice select Microsoft David Desktop` succeeded.
+8. `/speed 1`, `/speed 2`, and `/replay` functioned before the voice-tuning failure.
+9. `/tone pure` and `/tone resonant` commands themselves remained accepted even after the voice failure.
+
+### Timing evidence from this session
+
+| Case | Chordic estimated | English measured | Current overlap-wall estimate |
+| --- | ---: | ---: | ---: |
+| `Hello. Name question?` | 11.84 s | 3.62 s | 11.84 s |
+| `Wyatt. Good. Rocky remember.` | 12.60 s | 4.78 s | 12.60 s |
+| `15 times 8... equal 120.` at `/speed 1` | 6.15 s | 7.80 s | 7.80 s |
+| replay at `/speed 2` | 12.30 s | 7.61 s | 12.30 s |
+| name-recall reply using Zira | 8.40 s | 5.61 s | 8.40 s |
+
+These measurements show why simple simultaneous start is not the desired final scheduler. In several cases English finishes well before Chordic, which contradicts the intended translation relationship.
+
+### Reproducible voice-tuning failure
+
+Reproduction:
+1. select `Microsoft David Desktop`;
+2. `/voice rate 2`;
+3. `/voice pitch -1`;
+4. ask `what is 8 times 8`.
+
+Observed result:
+
+```text
+TRANSLATION_VOICE_FAILED: ValueError: untrusted prosody profile
+```
+
+After that:
+- `/voice rate 1` succeeded as a configuration command;
+- `/replay` still failed with `untrusted prosody profile`;
+- switching `/tone pure` or `/tone resonant` did not recover replay because the failure is in English SSML/prosody validation, not Chordic rendering.
+
+Root cause to verify in code:
+- tuned application-owned `ProsodyProfile` values are valid bounded profiles but `build_ssml` currently trusts only object values exactly present in the static `PROSODY` table.
+
+### Subjective acoustic feedback
+
+English voice:
+- current Windows voice does not read questions naturally enough;
+- pauses are weak/incorrect;
+- emotional weight is minimal;
+- whole-response prosody is too flat/coarse.
+
+Chordic:
+- current resonant candidate is still too robotic;
+- beep/note shifts feel too fast;
+- target is smoother, more continuous, more like low rumbles/hums/vibrations than computer beeps;
+- transitions should feel like a real spoken/acoustic language rather than isolated tone packets.
+
+### Updated synchronization target
+
+Desired playback relationship:
+- Chordic begins first;
+- English begins roughly **0.5–1.0 seconds later**;
+- Chordic should normally finish **slightly before** spoken English because English is the translation layer;
+- Chordic should be **slightly quieter** than the English voice;
+- scheduler/telemetry should distinguish target overlap from cases where long CT2 fallback makes that relationship impossible without changing speed.
+
+This is a stronger requirement than the first PR #15 overlap implementation and supersedes simple simultaneous start.
+
+### Acceptance status after second session
+
+- session-name capture: **PASS**
+- session-name recall: **PASS**
+- installed voice listing/selection: **PASS**
+- simultaneous overlap exists mechanically: **PASS**
+- desired translation timing relationship: **FAIL / NEEDS REDESIGN**
+- voice tuning rate/pitch path: **FAIL — reproducible ValueError**
+- question delivery: **NEEDS TUNING**
+- emotional delivery: **NEEDS TUNING**
+- pause phrasing: **NEEDS TUNING**
+- resonant tone naturalness: **FAIL subjective target**
+- smooth low-rumble/hum target: **NOT YET ACHIEVED**
+- Chordic-vs-English relative volume target: **NOT YET ACHIEVED**
