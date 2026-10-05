@@ -169,3 +169,23 @@ Unmasked run #61 established the real boundary: the legacy Rocky suite passed th
 Root cause: the EXP-002 adapter treated whitespace separators between known tokens as standalone CT2 fallback utterances. CT2 correctly rejects whitespace-only complete utterances, so phrases such as `Rocky help you.` failed even though the complete response was valid. Commit `fba35005cf2274294b592c3662a907fbd5278aca` changed fallback fragments to exact CT2 UTF-8 units that preserve whitespace inside the already validated parent utterance.
 
 Verification: GitHub Actions run #64 passed all 11 method diagnostics, standard Rocky discovery, Windows/Linux Python 3.12/3.13 software cells, and Arduino. After all temporary diagnostic jobs were removed, clean run #65 also passed the normal Windows/Linux Python 3.12/3.13 matrix and Arduino. Subjective Windows speech/listening acceptance remains NOT RUN.
+
+
+## Post-merge manual Windows acoustic evidence — 2026-10-04
+
+Merged PR #14 was manually exercised on Windows after merge commit `2c7573e12326a8de28c2bc399d9787f95f1c75e7`.
+
+Operator-confirmed evidence:
+- English TTS was genuinely audible.
+- Chordic pitches were genuinely audible.
+- Multi-turn translated conversation worked.
+- `/replay` produced replay plus completed English speech.
+- `/speed 2` and `/speed 1` were exercised.
+- The visible transcript reported CT2, with sample Chordic/English/sequential wall times of 13.10/7.23/20.32 s, 22.65/10.33/32.98 s, 16.01/8.69/24.70 s, 25.36/14.33/39.69 s, and replay at 12.68/14.29/26.97 s.
+- Functional audibility is a PASS; acoustic naturalness is not. The operator says both English voice and Chordic tones are still "off a bit."
+- New requested behavior: English translation should play concurrently over the Chordic tones.
+- New personality requirement: Rocky should learn an explicitly stated session name and use it naturally/often.
+- New acoustic direction: tunable English voice plus a less robotic, whale-like/resonant/vibrating Chordic timbre while preserving machine-recognizable pitch semantics.
+- Longer-term direction: streaming phone/computer recognition and real-time Chordic translation.
+
+The full evidence and acceptance plan is in `docs/test-plans/2026-10-04-post-merge-acoustic-feedback.md`.
