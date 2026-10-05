@@ -140,3 +140,34 @@ Manual Windows:
 - A/B test old pure tones against each new organic candidate;
 - judge whether name use feels frequent but not repetitive;
 - record exact timing and acoustic feedback, including failures.
+
+
+## PR #15 implementation status
+
+Draft PR #15 implements the first follow-up candidate from this feedback.
+
+Implemented:
+- spoken English is gated on actual Chordic playback start but now uses zero post-start delay, so the two streams are intended to overlap;
+- wall-time telemetry uses the longer of the two stream durations instead of adding them;
+- explicit session-name capture for `My name is X` and `Call me X`;
+- name is supplied to provider context with an instruction to use it naturally/often, not every sentence;
+- `/clear` clears the remembered name;
+- bounded local English voice controls: installed voice selection and rate/pitch/volume offsets from -2 to +2;
+- `/tone pure|resonant` for A/B listening;
+- resonant synthesis preserves the fundamental note frequencies while adding bounded harmonic content, amplitude pulse, slower attack/release, and subtle phase vibration;
+- default branch config for this experimental PR selects `resonant`, while `pure` remains available;
+- duplicate `/translate on|off` status printing found during implementation was fixed;
+- duplicate terminal prompt printing after completed responses was found and fixed.
+
+Automated verification:
+- GitHub Actions run #68 at `98c7ae67409f5d542fd567f8dd02ddcfa844a71d` passed Windows Python 3.12/3.13, Ubuntu Python 3.12/3.13, and Arduino.
+- Added tests cover zero-delay overlap scheduling gated on real playback start, max-based overlap wall-time, explicit name capture and clearing, bounded voice tuning, tone command validation, resonant PCM determinism/bounds, and existing safety/regression suites.
+
+Manual status:
+- simultaneous Chordic + English audibility: **NOT RUN on PR #15**
+- relative volume/intelligibility while overlapping: **NOT RUN**
+- resonant-vs-pure subjective comparison: **NOT RUN**
+- best voice rate/pitch/volume offsets: **NOT RUN**
+- name-use naturalness/frequency with real model: **NOT RUN**
+
+Do not promote the resonant renderer into a stable Chordic acoustic specification from automated tests alone.

@@ -189,3 +189,30 @@ Operator-confirmed evidence:
 - Longer-term direction: streaming phone/computer recognition and real-time Chordic translation.
 
 The full evidence and acceptance plan is in `docs/test-plans/2026-10-04-post-merge-acoustic-feedback.md`.
+
+
+## PR #15 post-merge acoustic iteration — automated evidence
+
+Branch: `feat/rocky-audio-overlap-name-tuning`.
+
+Changes under test:
+- overlap English translation with actual Chordic playback start;
+- explicit session-name memory and provider context;
+- bounded Windows voice selection/rate/pitch/volume tuning;
+- pure/resonant Chordic A/B synthesis;
+- fix duplicate `/translate` status output;
+- fix duplicate completed-response prompt output.
+
+New bugs discovered while implementing:
+1. `/translate on|off` printed the same status line twice in merged main.
+   - root cause: duplicate adjacent print statement in CLI command handler;
+   - fix: remove duplicate;
+   - status: fixed on PR #15.
+2. terminal printed `> ` twice after a completed response.
+   - root cause: duplicate adjacent prompt print;
+   - fix: remove duplicate;
+   - status: fixed on PR #15.
+
+Automated result:
+- Actions run #68 on `98c7ae67409f5d542fd567f8dd02ddcfa844a71d`: Windows 3.12 PASS, Windows 3.13 PASS, Ubuntu 3.12 PASS, Ubuntu 3.13 PASS, Arduino PASS.
+- No subjective acoustic claim is inferred from that green run.
