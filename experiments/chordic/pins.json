@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "source_repository": "whkoerner/Chordic-Language",
+  "source_commit": "654deaa0ab7c77efe4d36876936a73ec0890065c",
+  "source_draft_pr": 4,
+  "pinned_files": [
+    {
+      "source": "language/runtime/exp-003-runtime-export.json",
+      "destination": "experiments/chordic/exp-003-runtime.json",
+      "export_id": "EXP-003-runtime-v1"
+    },
+    {
+      "source": "language/runtime/exp-002-runtime-export.json",
+      "destination": "experiments/chordic/exp-002-surfaces.json",
+      "export_id": "EXP-002-surface-runtime-v1"
+    },
+    {
+      "source": "benchmarks/exp-003-open-conversation.json",
+      "destination": "experiments/chordic/exp-003-benchmark.json",
+      "candidate_id": "EXP-003"
+    }
+  ],
+  "policy": "Chordic-Language owns semantic lexicon, surface mappings, grammar and candidate data. Rocky may adapt/render pinned exports but must not independently redefine them."
+}
