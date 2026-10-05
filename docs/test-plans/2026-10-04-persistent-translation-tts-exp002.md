@@ -1,6 +1,6 @@
 # Persistent translation voice + EXP-002 desktop integration — 2026-10-04
 
-Status: **IMPLEMENTED ON DRAFT PR #14 / AUTOMATED CI GREEN WITH DIAGNOSTICS IN RUN #64 / CLEAN FINAL MATRIX PENDING / SUBJECTIVE WINDOWS LISTENING NOT RUN**
+Status: **IMPLEMENTED ON DRAFT PR #14 / CLEAN AUTOMATED CI GREEN IN RUN #65 / SUBJECTIVE WINDOWS LISTENING NOT RUN**
 
 Branch: `feat/persistent-translation-tts-exp002`  
 Starting Rocky SHA: `0b14ee0ce3cf32b200d27672a4e81be5833f0b5d`  
@@ -123,7 +123,7 @@ Existing Brain v0.2, provider, safety, Dummy diagnostic, check-no-audio, CT1/CT2
 | #62 | `e5dfa59...` | Prosody class passed after the legacy base; EXP-002 runtime and persistent-translation classes failed. | Narrowed failure away from TTS prosody and toward EXP-002/free-form runtime handling. |
 | #63 | `8ded00c...` | Method jobs showed `exp-freeform` failing, plus persistent tests whose replies contain known EXP-002 words separated by spaces. Pin/round-trip/timing/legacy-CT2 and several control tests passed. | Root cause identified: EXP-002 split known tokens from separators, then passed whitespace-only fragments such as `" "` to CT2's complete-utterance encoder, which correctly rejects whitespace-only utterances. |
 | #64 | `fba3500...` | All 11 method diagnostics passed; standard Rocky discovery passed; Ubuntu/Windows Python 3.12/3.13 software cells passed; Arduino passed. | Fixed the representation: EXP-002 exact fallback fragments now use direct CT2 UTF-8 units that can preserve whitespace separators inside an already validated full utterance. Added regression coverage for `"Rocky help you."` and `"Rocky ready. Good."`. |
-| final clean run | workflow cleanup head | **PENDING** | Temporary diagnostic jobs removed; normal CI matrix must pass before manual acceptance begins. |
+| #65 | `edb0622...` | Clean normal workflow passed Ubuntu/Windows Python 3.12/3.13 plus Arduino; no temporary diagnostic jobs remained. | Final automated acceptance for this implementation state. Manual Windows acoustic/prosody acceptance remains NOT RUN. |
 
 Failed runs are intentionally retained as engineering evidence. Do not rewrite or hide them.
 

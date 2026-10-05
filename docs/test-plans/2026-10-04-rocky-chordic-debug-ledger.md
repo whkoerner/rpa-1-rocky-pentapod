@@ -155,7 +155,7 @@ Current PR #14 status:
 - EXP-002 is a selectable/default desktop profile through a pinned Chordic export, with exact CT2 fallback for unsupported spans;
 - CT2 remains available;
 - provider identity wording no longer requires Rocky to call himself a desktop program, while immutable no-hardware authority remains;
-- PR #14 CI failures #51 onward are preserved in `docs/test-plans/2026-10-04-persistent-translation-tts-exp002.md`, including the custom unittest-loader discovery regression and its fix.
+- PR #14 CI failures #51 onward are preserved in `docs/test-plans/2026-10-04-persistent-translation-tts-exp002.md`, including the disproven loader theory, unmasked diagnostics, whitespace-fragment root cause, and final fix.
 
 Do not treat the implementation as an acoustic PASS until the operator completes the manual Windows acceptance in that plan.
 
@@ -168,4 +168,4 @@ Unmasked run #61 established the real boundary: the legacy Rocky suite passed th
 
 Root cause: the EXP-002 adapter treated whitespace separators between known tokens as standalone CT2 fallback utterances. CT2 correctly rejects whitespace-only complete utterances, so phrases such as `Rocky help you.` failed even though the complete response was valid. Commit `fba35005cf2274294b592c3662a907fbd5278aca` changed fallback fragments to exact CT2 UTF-8 units that preserve whitespace inside the already validated parent utterance.
 
-Verification: GitHub Actions run #64 passed all 11 method diagnostics, standard Rocky discovery, Windows/Linux Python 3.12/3.13 software cells, and Arduino. Subjective Windows speech/listening acceptance remains NOT RUN.
+Verification: GitHub Actions run #64 passed all 11 method diagnostics, standard Rocky discovery, Windows/Linux Python 3.12/3.13 software cells, and Arduino. After all temporary diagnostic jobs were removed, clean run #65 also passed the normal Windows/Linux Python 3.12/3.13 matrix and Arduino. Subjective Windows speech/listening acceptance remains NOT RUN.
