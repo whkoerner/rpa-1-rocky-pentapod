@@ -33,62 +33,148 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
-      - name: Diagnose memory module compilation
-        run: python -m py_compile software/rocky/memory.py software/rocky/providers.py software/rocky/conversation.py software/rocky/cli.py software/rocky/webui.py
-      - name: Diagnose cumulative memory prefix 0
+      - name: Capture discovery failure IDs
+        id: capture_rocky_failures
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
-      - name: Diagnose cumulative memory prefix 1
+          import pathlib, sys, unittest
+          suite = unittest.TestLoader().discover('software/rocky/tests')
+          result = unittest.TextTestRunner(verbosity=1).run(suite)
+          failures = [test.id() for test, _ in result.failures + result.errors]
+          pathlib.Path('rocky-discovery-failures.txt').write_text('\n'.join(failures), encoding='utf-8')
+          print('Captured failure IDs:', failures, flush=True)
+          sys.exit(0 if result.wasSuccessful() else 1)
+      - name: Discovery failure marker test_assistant_v2_benchmark
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
-      - name: Diagnose cumulative memory prefix 2
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_assistant_v2_benchmark.') or row.startswith('software.rocky.tests.test_assistant_v2_benchmark.') for row in rows)
+          print('test_assistant_v2_benchmark:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_assistant_v2_core
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
-      - name: Diagnose cumulative memory prefix 3
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_assistant_v2_core.') or row.startswith('software.rocky.tests.test_assistant_v2_core.') for row in rows)
+          print('test_assistant_v2_core:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_benchmark_runner
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
-      - name: Diagnose cumulative memory prefix 4
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_benchmark_runner.') or row.startswith('software.rocky.tests.test_benchmark_runner.') for row in rows)
+          print('test_benchmark_runner:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_chordic_exp002
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
-      - name: Diagnose explicit all Rocky modules
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_chordic_exp002.') or row.startswith('software.rocky.tests.test_chordic_exp002.') for row in rows)
+          print('test_chordic_exp002:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_conversation
         continue-on-error: true
         shell: python
         run: |
-          import sys, unittest
-          sys.path.insert(0, 'software/rocky/tests')
-          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
-          suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromName(m) for m in modules)
-          sys.exit(0 if unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful() else 1)
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_conversation.') or row.startswith('software.rocky.tests.test_conversation.') for row in rows)
+          print('test_conversation:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_desktop_upgrade
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_desktop_upgrade.') or row.startswith('software.rocky.tests.test_desktop_upgrade.') for row in rows)
+          print('test_desktop_upgrade:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_exp003_runtime
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_exp003_runtime.') or row.startswith('software.rocky.tests.test_exp003_runtime.') for row in rows)
+          print('test_exp003_runtime:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_learning
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_learning.') or row.startswith('software.rocky.tests.test_learning.') for row in rows)
+          print('test_learning:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_memory
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_memory.') or row.startswith('software.rocky.tests.test_memory.') for row in rows)
+          print('test_memory:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_symbolic_math
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_symbolic_math.') or row.startswith('software.rocky.tests.test_symbolic_math.') for row in rows)
+          print('test_symbolic_math:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_translation_voice_exp002
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_translation_voice_exp002.') or row.startswith('software.rocky.tests.test_translation_voice_exp002.') for row in rows)
+          print('test_translation_voice_exp002:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_webui
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_webui.') or row.startswith('software.rocky.tests.test_webui.') for row in rows)
+          print('test_webui:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
+      - name: Discovery failure marker test_windows_launcher
+        continue-on-error: true
+        shell: python
+        run: |
+          import pathlib, sys
+          path = pathlib.Path('rocky-discovery-failures.txt')
+          rows = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
+          hit = any(row.startswith('test_windows_launcher.') or row.startswith('software.rocky.tests.test_windows_launcher.') for row in rows)
+          print('test_windows_launcher:', 'FAILURE_PRESENT' if hit else 'clear')
+          sys.exit(1 if hit else 0)
       - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
