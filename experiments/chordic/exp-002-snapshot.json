@@ -1,0 +1,309 @@
+{
+  "schema_version": "0.1",
+  "purpose": "Read-only exported test fixture. Chordic-Language remains authoritative.",
+  "source_repository": "whkoerner/Chordic-Language",
+  "source_branch": "feat/chordic-speed-exp-002",
+  "source_commit": "65e04f31cd7d53f75efe2d00583270835cabb92b",
+  "source_pull_request": 1,
+  "candidate_id": "EXP-002",
+  "language_version": "0.1-experimental",
+  "timing": {
+    "phrase_header_ms": 450,
+    "profile_marker_ms": 200,
+    "note_ms": 140,
+    "inter_note_gap_ms": 35,
+    "token_boundary_ms": 100,
+    "playback_multiplier": 3
+  },
+  "patterns": {
+    "PRON.I": [
+      0,
+      1
+    ],
+    "PRON.YOU": [
+      1,
+      0
+    ],
+    "PRON.WE": [
+      0,
+      2
+    ],
+    "PRON.IT": [
+      2,
+      0
+    ],
+    "PRON.THIS": [
+      0,
+      3
+    ],
+    "PRON.THAT": [
+      3,
+      0
+    ],
+    "GRAM.Q": [
+      1,
+      1
+    ],
+    "GRAM.NEG": [
+      3,
+      3
+    ],
+    "GRAM.IMP": [
+      2,
+      2
+    ],
+    "GRAM.PAST": [
+      1,
+      2
+    ],
+    "GRAM.FUT": [
+      2,
+      1
+    ],
+    "GRAM.VERY": [
+      4,
+      1
+    ],
+    "GRAM.SHOULD": [
+      2,
+      3
+    ],
+    "LOC.HERE": [
+      3,
+      4
+    ],
+    "LOC.WHERE": [
+      4,
+      3
+    ],
+    "QUALITY.READY": [
+      2,
+      0,
+      2
+    ],
+    "MENTAL.LIKE": [
+      2,
+      1,
+      3
+    ],
+    "QUALITY.GOOD": [
+      1,
+      3,
+      4
+    ],
+    "ACTION.COME": [
+      1,
+      1,
+      2
+    ],
+    "ACTION.WAIT": [
+      1,
+      0,
+      1
+    ],
+    "MENTAL.UNDERSTAND": [
+      2,
+      2,
+      4
+    ],
+    "QUESTION.WHAT": [
+      4,
+      0,
+      4
+    ],
+    "EVENT.HAPPEN": [
+      2,
+      3,
+      0
+    ],
+    "ACTION.GO": [
+      1,
+      2,
+      3
+    ],
+    "ACTION.HELP": [
+      0,
+      3,
+      3
+    ],
+    "ACTION.FIND": [
+      2,
+      4,
+      1
+    ],
+    "STATE.NEED": [
+      3,
+      0,
+      3
+    ],
+    "ACTION.FIX": [
+      3,
+      1,
+      4
+    ]
+  },
+  "cases": [
+    {
+      "id": "N001",
+      "english": "I am ready.",
+      "tokens": [
+        "PRON.I",
+        "QUALITY.READY"
+      ]
+    },
+    {
+      "id": "N002",
+      "english": "Are you ready?",
+      "tokens": [
+        "GRAM.Q",
+        "PRON.YOU",
+        "QUALITY.READY"
+      ]
+    },
+    {
+      "id": "N003",
+      "english": "I like this.",
+      "tokens": [
+        "PRON.I",
+        "MENTAL.LIKE",
+        "PRON.THIS"
+      ]
+    },
+    {
+      "id": "N004",
+      "english": "I do not like this.",
+      "tokens": [
+        "PRON.I",
+        "GRAM.NEG",
+        "MENTAL.LIKE",
+        "PRON.THIS"
+      ]
+    },
+    {
+      "id": "N005",
+      "english": "That is good.",
+      "tokens": [
+        "PRON.THAT",
+        "QUALITY.GOOD"
+      ]
+    },
+    {
+      "id": "N006",
+      "english": "That is very good.",
+      "tokens": [
+        "PRON.THAT",
+        "GRAM.VERY",
+        "QUALITY.GOOD"
+      ]
+    },
+    {
+      "id": "N007",
+      "english": "Where are you?",
+      "tokens": [
+        "GRAM.Q",
+        "PRON.YOU",
+        "LOC.WHERE"
+      ]
+    },
+    {
+      "id": "N008",
+      "english": "Come here.",
+      "tokens": [
+        "GRAM.IMP",
+        "ACTION.COME",
+        "LOC.HERE"
+      ]
+    },
+    {
+      "id": "N009",
+      "english": "Wait for me.",
+      "tokens": [
+        "GRAM.IMP",
+        "ACTION.WAIT",
+        "PRON.I"
+      ]
+    },
+    {
+      "id": "N010",
+      "english": "I understand.",
+      "tokens": [
+        "PRON.I",
+        "MENTAL.UNDERSTAND"
+      ]
+    },
+    {
+      "id": "N011",
+      "english": "I do not understand.",
+      "tokens": [
+        "PRON.I",
+        "GRAM.NEG",
+        "MENTAL.UNDERSTAND"
+      ]
+    },
+    {
+      "id": "N012",
+      "english": "What happened?",
+      "tokens": [
+        "GRAM.Q",
+        "QUESTION.WHAT",
+        "GRAM.PAST",
+        "EVENT.HAPPEN"
+      ]
+    },
+    {
+      "id": "N013",
+      "english": "We should go.",
+      "tokens": [
+        "PRON.WE",
+        "GRAM.SHOULD",
+        "ACTION.GO"
+      ]
+    },
+    {
+      "id": "N014",
+      "english": "I will help you.",
+      "tokens": [
+        "PRON.I",
+        "GRAM.FUT",
+        "ACTION.HELP",
+        "PRON.YOU"
+      ]
+    },
+    {
+      "id": "N015",
+      "english": "You helped me.",
+      "tokens": [
+        "PRON.YOU",
+        "GRAM.PAST",
+        "ACTION.HELP",
+        "PRON.I"
+      ]
+    },
+    {
+      "id": "N016",
+      "english": "I found it.",
+      "tokens": [
+        "PRON.I",
+        "GRAM.PAST",
+        "ACTION.FIND",
+        "PRON.IT"
+      ]
+    },
+    {
+      "id": "N017",
+      "english": "We need to fix this.",
+      "tokens": [
+        "PRON.WE",
+        "STATE.NEED",
+        "ACTION.FIX",
+        "PRON.THIS"
+      ]
+    }
+  ],
+  "expected_metrics": {
+    "rocky_ct2_baseline_mean_seconds": 8.03,
+    "candidate_mean_seconds": 6.794,
+    "candidate_max_seconds": 8.4,
+    "candidate_percent_at_or_below_10_seconds": 100
+  }
+}
