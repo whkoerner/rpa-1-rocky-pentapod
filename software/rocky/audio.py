@@ -37,14 +37,15 @@ def base_events(output, codec: CspCodec):
             raise ValueError("EXP-003 translation mismatch")
         profile = load_exp003_profile()
         candidate = profile["candidate"]
-        timing = candidate["acoustics"]["timing_ms"]
-        offsets = {int(key): value for key, value in candidate["acoustics"]["pitch_offsets_semitones"].items()}
+        acoustics = candidate["acoustics"]
+        timing = acoustics["timing_ms"]
+        offsets = {int(key): value for key, value in acoustics["pitch_offsets_semitones"].items()}
         patterns = exp003_token_patterns()
         classes = {row["id"]: row["duration_class"] for row in candidate["tokens"]}
-        baseline = 180.0
+        baseline = float(acoustics.get("reference_baseline_hz", 180.0))
+        fallback_baseline = float(acoustics.get("fallback_reference_hz", baseline))
         yield (baseline,), timing["phrase_header"], 0
         yield (_relative_frequency(baseline, -2), _relative_frequency(baseline, 2)), timing["profile_marker"], 0
-        scale = [frequency(codec.digit_to_note[n]) for n in range(5)]
         for exp_unit in output.phrase.units:
             if exp_unit.kind == "tokens":
                 for token in exp_unit.tokens:
@@ -54,11 +55,11 @@ def base_events(output, codec: CspCodec):
                         yield (_relative_frequency(baseline, offsets[degree]),), anchor, 0
                     yield (), 0, timing["token_boundary"]
             elif exp_unit.kind == "ct2":
-                yield (frequency("B3"), frequency("E5")), timing["fallback_marker"], 0
+                yield (_relative_frequency(fallback_baseline, -2), _relative_frequency(fallback_baseline, 2)), timing["fallback_marker"], 0
                 raw = exp_unit.text.encode("utf-8")
                 for byte, digits in zip(raw, exp_unit.fallback.units[0].value):
                     gap = timing["fallback_sentence_punctuation_gap"] if byte in b".!?" else timing["fallback_minor_punctuation_gap"] if byte in b",;:" else timing["fallback_space_gap"] if byte == 32 else timing["fallback_default_gap"]
-                    yield tuple(scale[d] * 2 ** (voice - 1) for voice, d in enumerate(digits)), timing["fallback_byte"], gap
+                    yield tuple(_relative_frequency(fallback_baseline, offsets[d]) for d in digits), timing["fallback_byte"], gap
                 yield (), 0, timing["fallback_boundary"]
         return
     header = phonology["phrase_header"]
@@ -142,7 +143,16 @@ def estimated_duration(output, codec, duration_multiplier=1):
     return sum(round(SAMPLE_RATE * d / 1000) + round(SAMPLE_RATE * g / 1000) for _, d, g in events(output, codec, duration_multiplier)) / SAMPLE_RATE
 
 
-def _contour_gesture(frequencies, duration_ms, volume, cancelled):
+def _contour_gesture(frequencies, duration_ms, volume, cancelled, timbre=None):
+    timbre = timbre or {}
+    fundamental_gain = float(timbre.get("fundamental_gain", 0.76))
+    subharmonic_gain = float(timbre.get("subharmonic_gain", 0.0))
+    second_gain = float(timbre.get("second_harmonic_gain", 0.17))
+    third_gain = float(timbre.get("third_harmonic_gain", 0.07))
+    vibrato_depth = float(timbre.get("vibrato_depth_radians", 0.035))
+    pulse_depth = float(timbre.get("amplitude_pulse_depth", 0.0))
+    pulse_hz = float(timbre.get("amplitude_pulse_hz", 1.6))
+    normalizer = max(1e-9, fundamental_gain + subharmonic_gain + second_gain + third_gain)
     count = max(1, round(SAMPLE_RATE * duration_ms / 1000))
     anchors = len(frequencies)
     for start in range(0, count, 1024):
@@ -163,10 +173,16 @@ def _contour_gesture(frequencies, duration_ms, volume, cancelled):
             attack = min(1.0, index / max(1, round(SAMPLE_RATE * 0.045)))
             release = min(1.0, (count - 1 - index) / max(1, round(SAMPLE_RATE * 0.065)))
             envelope = max(0.0, min(attack, release))
-            vibration = 0.035 * math.sin(2 * math.pi * 4.1 * t)
+            vibration = vibrato_depth * math.sin(2 * math.pi * 4.1 * t)
             phase = 2 * math.pi * hz * t + vibration
-            body = 0.76 * math.sin(phase) + 0.17 * math.sin(2 * phase) + 0.07 * math.sin(3 * phase)
-            samples.append(round(32767 * volume * envelope * body))
+            pulse = (1.0 - pulse_depth) + pulse_depth * (0.5 + 0.5 * math.sin(2 * math.pi * pulse_hz * t))
+            body = (
+                fundamental_gain * math.sin(phase)
+                + subharmonic_gain * math.sin(0.5 * phase)
+                + second_gain * math.sin(2 * phase)
+                + third_gain * math.sin(3 * phase)
+            ) / normalizer
+            samples.append(round(32767 * volume * envelope * pulse * body))
         if sys.byteorder != "little":
             samples.byteswap()
         yield samples.tobytes()
@@ -187,34 +203,37 @@ def _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled
         raise ValueError("EXP-003 translation mismatch")
     profile = load_exp003_profile()
     candidate = profile["candidate"]
-    timing = candidate["acoustics"]["timing_ms"]
-    offsets = {int(key): value for key, value in candidate["acoustics"]["pitch_offsets_semitones"].items()}
+    acoustics = candidate["acoustics"]
+    timing = acoustics["timing_ms"]
+    offsets = {int(key): value for key, value in acoustics["pitch_offsets_semitones"].items()}
     patterns = exp003_token_patterns()
     classes = {row["id"]: row["duration_class"] for row in candidate["tokens"]}
-    baseline = 180.0
-    for chunk in _contour_gesture((baseline,), timing["phrase_header"] * duration_multiplier, volume, cancelled):
+    baseline = float(acoustics.get("reference_baseline_hz", 180.0))
+    fallback_baseline = float(acoustics.get("fallback_reference_hz", baseline))
+    timbre = acoustics.get("timbre", {})
+    for chunk in _contour_gesture((baseline,), timing["phrase_header"] * duration_multiplier, volume, cancelled, timbre):
         yield chunk
     marker = (_relative_frequency(baseline, -2), _relative_frequency(baseline, 2))
-    for chunk in _contour_gesture(marker, timing["profile_marker"] * duration_multiplier, volume, cancelled):
+    for chunk in _contour_gesture(marker, timing["profile_marker"] * duration_multiplier, volume, cancelled, timbre):
         yield chunk
-    scale = [frequency(codec.digit_to_note[n]) for n in range(5)]
     for unit in output.phrase.units:
         if unit.kind == "tokens":
             for token in unit.tokens:
                 gesture = timing["short_gesture"] if classes[token] == "short" else timing["root_gesture"]
                 freqs = tuple(_relative_frequency(baseline, offsets[d]) for d in patterns[token])
-                for chunk in _contour_gesture(freqs, gesture * duration_multiplier, volume, cancelled):
+                for chunk in _contour_gesture(freqs, gesture * duration_multiplier, volume, cancelled, timbre):
                     yield chunk
                 for chunk in _silence_chunks(timing["token_boundary"] * duration_multiplier, cancelled):
                     yield chunk
         elif unit.kind == "ct2":
-            for chunk in _contour_gesture((frequency("B3"), frequency("E5")), timing["fallback_marker"] * duration_multiplier, volume, cancelled):
+            fallback_marker = (_relative_frequency(fallback_baseline, -2), _relative_frequency(fallback_baseline, 2))
+            for chunk in _contour_gesture(fallback_marker, timing["fallback_marker"] * duration_multiplier, volume, cancelled, timbre):
                 yield chunk
             raw = unit.text.encode("utf-8")
             for byte, digits in zip(raw, unit.fallback.units[0].value):
                 gap = timing["fallback_sentence_punctuation_gap"] if byte in b".!?" else timing["fallback_minor_punctuation_gap"] if byte in b",;:" else timing["fallback_space_gap"] if byte == 32 else timing["fallback_default_gap"]
-                freqs = tuple(scale[d] * 2 ** (voice - 1) for voice, d in enumerate(digits))
-                for chunk in _contour_gesture(freqs, timing["fallback_byte"] * duration_multiplier, volume, cancelled):
+                freqs = tuple(_relative_frequency(fallback_baseline, offsets[d]) for d in digits)
+                for chunk in _contour_gesture(freqs, timing["fallback_byte"] * duration_multiplier, volume, cancelled, timbre):
                     yield chunk
                 for chunk in _silence_chunks(gap * duration_multiplier, cancelled):
                     yield chunk
