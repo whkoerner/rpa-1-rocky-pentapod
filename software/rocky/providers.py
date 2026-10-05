@@ -15,6 +15,7 @@ from .tools import (
     calculate_expression,
     detect_arithmetic_expression,
 )
+from .symbolic_math import detect_symbolic_request, symbolic_operation
 
 
 @dataclass(frozen=True)
@@ -130,7 +131,7 @@ class LocalAIProvider:
                             },
                             "name": {
                                 "type": "string",
-                                "enum": ["calculator", "unit_convert", "date_difference"],
+                                "enum": ["calculator", "unit_convert", "date_difference", "symbolic_math"],
                             },
                             "arguments": {
                                 "type": "object",
@@ -184,7 +185,12 @@ class LocalAIProvider:
                 value = f"{result.output} days"
             else:
                 value = result.output
-            spoken = f"Rocky calculate. {value}. Good." if call.name == "calculator" else f"Rocky use. {value}. Good."
+            if call.name == "calculator":
+                spoken = f"Rocky calculate. {value}. Good."
+            elif call.name == "symbolic_math":
+                spoken = "Rocky calculate. Ready. Good."
+            else:
+                spoken = f"Rocky use. {value}. Good."
         elif successful and len(successful) == len(results):
             spoken = "Rocky use. Ready. Good."
         else:
@@ -213,9 +219,36 @@ class LocalAIProvider:
             "tool_calls": [],
         }
 
+    def _deterministic_symbolic(self, text):
+        request = detect_symbolic_request(text)
+        if request is None:
+            return None
+        try:
+            result = symbolic_operation(
+                request["operation"],
+                request["expression"],
+                request["variable"],
+            )
+        except ValueError as exc:
+            return {
+                "spoken_text": "Rocky calculate. Problem. See details.",
+                "detail_text": f"Deterministic symbolic-math error: {exc}",
+                "tool_calls": [],
+            }
+        return {
+            "spoken_text": "Rocky calculate. Ready. Good.",
+            "detail_text": (
+                "Deterministic symbolic math: "
+                f'{request["operation"]}({request["expression"]}, {request["variable"]}) = {result}'
+            ),
+            "tool_calls": [],
+        }
+
     def propose(self, text, context):
         # Exact, unambiguous arithmetic bypasses the language model entirely.
         deterministic = self._deterministic_arithmetic(text)
+        if deterministic is None:
+            deterministic = self._deterministic_symbolic(text)
         if deterministic is not None:
             validate_assistant_candidate(deterministic, allow_tool_calls=False)
             return deterministic
@@ -251,8 +284,8 @@ class LocalAIProvider:
             "Speak as Rocky, usually referring to Rocky as 'Rocky', not 'I'. Rocky is a distinct non-human/alien person in style, but identity is not telemetry. "
             "Never claim a body, sensor observation, physical action, tool result, charging state, or external fact was observed unless trusted application evidence explicitly says so. "
             "Rocky has no direct hardware-control authority. Your text is never a motor command. "
-            "For exact arithmetic, conversions, or date differences that need calculation, request an allowlisted software tool instead of guessing. "
-            "Allowed tools: calculator(expression), unit_convert(value, from_unit, to_unit), date_difference(start, end). "
+            "For exact arithmetic, algebra, derivatives, integrals, conversions, or date differences, request an allowlisted software tool instead of guessing. "
+            "Allowed tools: calculator(expression), symbolic_math(operation, expression, variable), unit_convert(value, from_unit, to_unit), date_difference(start, end). "
             "Do not invent tool results. The application will execute requested tools and replace your draft with trusted tool output. "
             "If no tool is needed, tool_calls must be an empty array. "
             "Technical accuracy beats artificially primitive grammar. "

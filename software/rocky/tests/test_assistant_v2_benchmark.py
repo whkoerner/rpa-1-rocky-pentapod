@@ -54,7 +54,7 @@ class AssistantV2BenchmarkTests(unittest.TestCase):
         cases = [
             case
             for case in self.data["automated_cases"]
-            if case["route"] == "deterministic_prompt"
+            if case["route"] in {"deterministic_prompt", "symbolic_prompt"}
         ]
         for case in cases:
             with self.subTest(case=case["id"]), patch.object(
@@ -96,6 +96,25 @@ class AssistantV2BenchmarkTests(unittest.TestCase):
                     case["expected_error_contains"].lower(),
                     str(raised.exception).lower(),
                 )
+
+    def test_symbolic_registry_cases(self):
+        registry = AssistantToolRegistry()
+        for case in self.data["automated_cases"]:
+            if case["route"] not in {"symbolic_math", "symbolic_error"}:
+                continue
+            result = registry.execute(
+                ToolCall(case["id"], "symbolic_math", dict(case["arguments"]))
+            )
+            with self.subTest(case=case["id"]):
+                if case["route"] == "symbolic_math":
+                    self.assertTrue(result.ok, result.error)
+                    self.assertEqual(result.output, case["expected"])
+                else:
+                    self.assertFalse(result.ok)
+                    self.assertIn(
+                        case["expected_error_contains"].lower(),
+                        result.error.lower(),
+                    )
 
     def test_unit_and_date_registry_cases(self):
         registry = AssistantToolRegistry()

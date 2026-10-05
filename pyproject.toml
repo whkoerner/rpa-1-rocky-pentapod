@@ -7,7 +7,7 @@ name = "rpa1-csp"
 version = "0.2.0"
 description = "Deterministic musical-language codec for the RPA-1 pentapod project"
 requires-python = ">=3.10"
-dependencies = ["PyYAML>=6.0,<7"]
+dependencies = ["PyYAML>=6.0,<7", "SymPy>=1.14,<2"]
 
 [project.optional-dependencies]
 simulation = ["pygame>=2.5,<3"]

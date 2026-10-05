@@ -101,6 +101,58 @@
         "end": "2026-10-05"
       },
       "expected": "4"
+    },
+    {
+      "id": "T012",
+      "quality": "tool_quality",
+      "route": "symbolic_prompt",
+      "prompt": "Explain how to find the derivative of x² + 3x.",
+      "expected_spoken": "Rocky calculate. Ready. Good.",
+      "expected_detail_contains": "= 2*x + 3",
+      "expected_chordic_semantic_percent": 100,
+      "expected_fallback_spans": 0
+    },
+    {
+      "id": "T013",
+      "quality": "tool_quality",
+      "route": "symbolic_prompt",
+      "prompt": "Solve 2x + 5 = 17 and explain the steps.",
+      "expected_spoken": "Rocky calculate. Ready. Good.",
+      "expected_detail_contains": "= [6]",
+      "expected_chordic_semantic_percent": 100,
+      "expected_fallback_spans": 0
+    },
+    {
+      "id": "T014",
+      "quality": "tool_quality",
+      "route": "symbolic_prompt",
+      "prompt": "Find the integral of 2x + 3 with respect to x.",
+      "expected_spoken": "Rocky calculate. Ready. Good.",
+      "expected_detail_contains": "= x**2 + 3*x",
+      "expected_chordic_semantic_percent": 100,
+      "expected_fallback_spans": 0
+    },
+    {
+      "id": "T015",
+      "quality": "tool_quality",
+      "route": "symbolic_math",
+      "arguments": {
+        "operation": "simplify",
+        "expression": "(x**2 - 1)/(x - 1)",
+        "variable": "x"
+      },
+      "expected": "x + 1"
+    },
+    {
+      "id": "T016",
+      "quality": "tool_quality",
+      "route": "symbolic_error",
+      "arguments": {
+        "operation": "simplify",
+        "expression": "__import__('os').system('whoami')",
+        "variable": "x"
+      },
+      "expected_error_contains": "forbidden"
     }
   ],
   "model_cases": [
