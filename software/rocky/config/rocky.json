@@ -6,6 +6,6 @@
   "audio_backend": "auto",
   "volume": 0.12,
   "duration_multiplier": 3,
-  "text_encoding": "ct2",
+  "text_encoding": "exp002",
   "personality_profile": "personality.json"
 }

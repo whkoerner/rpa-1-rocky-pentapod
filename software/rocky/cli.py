@@ -25,16 +25,19 @@ from .translation import decoded_text, learning_rows
 from csp.learning import WORDS
 
 HELP = """Type a message to Rocky. Commands:
-/help       show commands             /status     brain and backend status
-/translate  decode last representation   /auto       toggle automatic translation
-/replay     play last reply again     /mute       stop and mute playback
-/unmute     enable future playback    /clear      forget session history
+/help       show commands             /status     brain/backend/language status
+/translate on|off|status  persistent English display + local spoken translation
+/translate  decode the last reply once (backward compatible)
+/language [exp002|ct2|ct1]  show/change future Chordic conversation profile
+/replay     replay last tones; also voice when persistent translation is on
+/mute       stop/silence tones + voice /unmute    enable future playback
+/clear      forget history; translation mode persists
 /model      show provider/model       /offline    explain local-only operation
-/cancel     cancel pending inference  /stop       cancel, silence and latch stop
+/cancel     cancel inference/audio    /stop       cancel, silence and latch stop
 /reset      operator reset (no replay) /quit      exit
-/dictionary show supported words      /word thank you  replay one entry
-/learn      use 3x timing + tokens    /speed 1..6 change duration multiplier
-/tokens     inspect last representation
+/dictionary show CT2 starter words    /word thank you  replay one CT2 entry
+/learn      use 3x timing + token view /speed 1..6 change duration multiplier
+/tokens     inspect last representation /auto      legacy display-only toggle
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
 NO_INPUT = object()
@@ -149,8 +152,8 @@ def configuration(args):
         base = args.config.parent if args.config and "personality_profile" in custom else Path(str(root))
         profile = base / profile
     defaults["personality_profile"] = str(profile.resolve())
-    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2"}:
-        raise ValueError("text_encoding must be ct1 or ct2")
+    if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002"}:
+        raise ValueError("text_encoding must be ct1, ct2 or exp002")
     for key in defaults:
         value = getattr(args, key, None)
         if value is not None:
@@ -177,7 +180,14 @@ def handle_command(line, conversation, settings, display):
         print(HELP)
     elif line == "/status":
         state = brain.state
-        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; duration_multiplier={hardware.duration_multiplier}")
+        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; duration_multiplier={hardware.duration_multiplier}")
+    elif line in {"/translate on", "/translate off", "/translate status"}:
+        if line == "/translate status":
+            print("Persistent translation: " + ("ON" if conversation.translation_enabled else "OFF") + f"; voice={hardware.voice_status}")
+        else:
+            enabled = line.endswith(" on")
+            conversation.set_translation(enabled)
+            print("Persistent translation: " + ("ON; English will display and speak after each Chordic reply until /translate off." if enabled else "OFF; current/pending English voice cancelled."))
     elif line == "/translate":
         if conversation.last_output is None:
             print("No response yet.")
@@ -185,8 +195,20 @@ def handle_command(line, conversation, settings, display):
             text, version = decoded_text(conversation.last_output)
             print(f"Decoded English ({version}; not microphone decoding): {text}")
     elif line == "/auto":
-        display["automatic"] = not display["automatic"]
-        print("Automatic translation: " + str(display["automatic"]))
+        display["automatic"] = not display.get("automatic", False)
+        print("Legacy display-only translation: " + str(display["automatic"]) + ". Use /translate on for persistent display + spoken English.")
+    elif line == "/language" or line.startswith("/language "):
+        if conversation.pending is not None:
+            raise ValueError("BUSY: wait or /cancel before changing language profile")
+        if line == "/language":
+            print("Language profile: " + brain.task_controller.text_encoding)
+        else:
+            profile = line[10:].strip().lower()
+            if profile not in {"exp002", "ct2", "ct1"}:
+                raise ValueError("language must be exp002, ct2 or ct1")
+            brain.task_controller.text_encoding = profile
+            settings["text_encoding"] = profile
+            print("Language profile: " + profile + " (applies to future replies; CT2 remains available for compatibility/fallback).")
     elif line == "/dictionary":
         for word, token in WORDS.items():
             print(f"{word}: {token} = {' '.join(hardware.codec.encode_token(token).notes)}")
@@ -219,11 +241,11 @@ def handle_command(line, conversation, settings, display):
     elif line == "/clear":
         conversation.clear()
         hardware.cancel_audio()
-        print("Session history cleared; pending inference cancelled. Local WAV remains until replaced.")
+        print("Session history cleared; pending inference/audio cancelled. Persistent translation remains " + ("ON." if conversation.translation_enabled else "OFF.") + " Local WAV remains until replaced.")
     elif line == "/model":
         print(f"provider={settings['provider']}; model={settings['model'] if settings['provider'] == 'local' else 'none (deterministic diagnostic)'}")
     elif line == "/offline":
-        print("AI connects only to 127.0.0.1. No downloads or cloud fallback. Disable Ollama cloud, then disconnect internet to verify. This command does not test your network.")
+        print("AI connects only to 127.0.0.1. Spoken translation uses installed Windows System.Speech voices. No TTS cloud fallback or silent voice download. Disable Ollama cloud, then disconnect internet to verify; this command itself does not test your network.")
     elif line == "/cancel":
         conversation.cancel()
         hardware.cancel_audio()
@@ -243,25 +265,36 @@ def handle_command(line, conversation, settings, display):
 
 def terminal(conversation, settings):
     terminal_input = TerminalInput()
-    display = {"automatic": True}
+    display = {"automatic": False}
     print(HELP)
     print("> ", end="", flush=True)
     last_audio_status = None
+    last_voice_status = None
     while True:
         status = conversation.brain.hardware.audio_status
         if status != last_audio_status and status not in {"IDLE", "RENDERING"}:
             print("\nAudio: " + status, flush=True)
         last_audio_status = status
+        voice_status = conversation.brain.hardware.voice_status
+        if voice_status != last_voice_status and voice_status not in {"IDLE", "QUEUED", "SPEAKING", "CANCELLED"}:
+            print("\nEnglish voice: " + voice_status, flush=True)
+            if voice_status == "COMPLETED":
+                hardware = conversation.brain.hardware
+                print(f"Durations: Chordic estimated={hardware.duration:.2f}s; spoken English measured={hardware.speech_duration:.2f}s; combined={hardware.combined_duration:.2f}s", flush=True)
+        last_voice_status = voice_status
         result = conversation.poll()
         if result:
             if "error" in result:
                 print("\n" + result["error"])
             else:
-                print(f"\nDecoded English ({result['version']}): " + (result["text"] if display["automatic"] else "[Chordic response; /translate for English]"))
+                show_english = conversation.translation_enabled or display.get("automatic", False)
+                print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
                 print("Audio: " + result["delivery"])
+                if conversation.translation_enabled:
+                    print("English voice: " + ("queued after Chordic playback" if result.get("spoken") else "suppressed by mute"))
                 if conversation.brain.hardware.duration > 30:
                     print("Long playback: fallback is exact but not fluent speech. /cancel or /word hello for short practice.")
-                if display.get("learning") and display["automatic"]:
+                if display.get("learning") and (conversation.translation_enabled or display.get("automatic", False)):
                     for text, token in learning_rows(conversation.last_output):
                         print(f"{text!r}: {token}")
             print("> ", end="", flush=True)
@@ -298,7 +331,7 @@ def main(argv=None):
     parser.add_argument("--audio-backend", choices=("auto", "winsound", "pygame", "wav"))
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
-    parser.add_argument("--text-encoding", choices=("ct1", "ct2"))
+    parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002"))
     user_config = Path.home() / ".rpa1" / "settings" / "rocky.json"
     parser.add_argument("--config", type=Path, default=user_config if user_config.is_file() else None)
     parser.add_argument("--personality", type=Path)

@@ -17,6 +17,26 @@ class ConversationController:
         self.pending = None
         self.last_text = None
         self.last_output = None
+        self.translation_enabled = False
+        if hasattr(self.brain.hardware, "translation_enabled"):
+            self.brain.hardware.translation_enabled = False
+
+    def set_translation(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("translation mode must be boolean")
+        hardware = self.brain.hardware
+        if enabled:
+            checker = getattr(hardware, "check_voice_available", None)
+            if checker is None:
+                raise RuntimeError("spoken translation backend is unavailable")
+            checker()
+        self.translation_enabled = enabled
+        if hasattr(hardware, "translation_enabled"):
+            hardware.translation_enabled = enabled
+        if not enabled:
+            voice = getattr(hardware, "voice", None)
+            if voice is not None:
+                voice.cancel()
 
     def start(self, text):
         if self.pending is not None:
@@ -70,14 +90,31 @@ class ConversationController:
         # Bounded, complete turn pairs. No persistent personal memory in V1.
         while len(self.history) > 24 or sum(len(v.encode("utf-8")) for _, v in self.history) > 12000:
             del self.history[:2]
-        return {"text": translated, "version": version, "delivery": accepted.detail}
+        spoken = False
+        if self.translation_enabled:
+            speak = getattr(self.brain.hardware, "speak_translation", None)
+            if speak is None:
+                self.stop()
+                return {"error": "TRANSLATION_VOICE_UNAVAILABLE; stopped"}
+            try:
+                spoken = bool(speak(translated))
+            except Exception as exc:
+                return {"error": f"TRANSLATION_VOICE_FAILED: {type(exc).__name__}: {exc}"}
+            if not spoken and not self.brain.hardware.muted:
+                return {"error": "TRANSLATION_VOICE_NOT_QUEUED"}
+        return {"text": translated, "version": version, "delivery": accepted.detail, "spoken": spoken}
 
     def replay(self):
         if self.pending is not None:
             raise ValueError("BUSY: wait or /cancel before replay")
         if self.last_text is None:
             raise ValueError("no response to replay")
-        return self.brain.submit_utterance({"text": self.last_text})
+        result = self.brain.submit_utterance({"text": self.last_text})
+        if result.outcome in {BrainOutcome.ACCEPTED, BrainOutcome.COMPLETED} and self.translation_enabled:
+            speak = getattr(self.brain.hardware, "speak_translation", None)
+            if speak is None or (not speak(self.last_text) and not self.brain.hardware.muted):
+                raise RuntimeError("translated voice could not be queued for replay")
+        return result
 
     def replay_word(self, text):
         if self.pending is not None:
@@ -95,6 +132,8 @@ class ConversationController:
         self.history.clear()
         self.last_text = None
         self.last_output = None
+        # Translation is a session mode, not conversation history, so /clear
+        # deliberately leaves self.translation_enabled unchanged.
 
     def stop(self):
         self.cancel()

@@ -39,7 +39,7 @@ jobs:
           import sys
           import unittest
           if __name__ == '__main__':
-              suite = unittest.defaultTestLoader.discover('software/rocky/tests')
+              suite = unittest.TestLoader().discover('software/rocky/tests')
               result = unittest.TextTestRunner(verbosity=2).run(suite)
               # Preserve tracebacks in check annotations as well as authenticated logs.
               for test, traceback in result.errors + result.failures:

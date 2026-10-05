@@ -38,7 +38,7 @@ class SettingsTests(unittest.TestCase):
     def test_old_config_and_default_profile(self):
         settings = self.config(dict(provider='dummy', model='qwen3:8b', port=11434, timeout=120, audio_backend='wav', volume=0.12))
         self.assertEqual(settings['duration_multiplier'], 3)
-        self.assertEqual(settings['text_encoding'], 'ct2')
+        self.assertEqual(settings['text_encoding'], 'exp002')
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
     def test_relative_personality_resolves_against_settings_not_cwd(self):
