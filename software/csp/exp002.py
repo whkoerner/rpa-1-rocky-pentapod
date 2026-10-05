@@ -81,7 +81,7 @@ _SURFACES = {
     "where": ("LOC.WHERE",),
 }
 _PATTERN = re.compile(
-    r"(?<![\\w'’])(" + "|".join(re.escape(x) for x in sorted(_SURFACES, key=len, reverse=True)) + r")(?![\\w'’])",
+    r"(?<![\w'’])(" + "|".join(re.escape(x) for x in sorted(_SURFACES, key=len, reverse=True)) + r")(?![\w'’])",
     re.IGNORECASE,
 )
 
