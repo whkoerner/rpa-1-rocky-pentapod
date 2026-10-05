@@ -1,0 +1,401 @@
+{
+  "schema_version": "0.2",
+  "export_id": "EXP-002-surface-runtime-v1",
+  "candidate_id": "EXP-002",
+  "purpose": "Authoritative EXP-002 English surface registry export. This moves the runtime mapping out of Rocky without changing EXP-002 token definitions.",
+  "source_candidate_path": "language/candidates/exp-002-compact-conversation.json",
+  "source_benchmark_path": "benchmarks/exp-002-conversation.json",
+  "compatibility": "Preserves the exact surface-to-token registry previously embedded in Rocky software/csp/exp002.py.",
+  "surface_forms": [
+    {
+      "text": "thank you",
+      "tokens": [
+        "SOCIAL.THANK_YOU"
+      ]
+    },
+    {
+      "text": "fist my bump",
+      "tokens": [
+        "SOCIAL.FIST_BUMP"
+      ]
+    },
+    {
+      "text": "do not",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "don't",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "yes",
+      "tokens": [
+        "SOCIAL.YES"
+      ]
+    },
+    {
+      "text": "no",
+      "tokens": [
+        "SOCIAL.NO"
+      ]
+    },
+    {
+      "text": "hello",
+      "tokens": [
+        "SOCIAL.HELLO"
+      ]
+    },
+    {
+      "text": "goodbye",
+      "tokens": [
+        "SOCIAL.GOODBYE"
+      ]
+    },
+    {
+      "text": "help",
+      "tokens": [
+        "ACTION.HELP"
+      ]
+    },
+    {
+      "text": "stop",
+      "tokens": [
+        "ACTION.STOP"
+      ]
+    },
+    {
+      "text": "wait",
+      "tokens": [
+        "ACTION.WAIT"
+      ]
+    },
+    {
+      "text": "come",
+      "tokens": [
+        "ACTION.COME"
+      ]
+    },
+    {
+      "text": "go",
+      "tokens": [
+        "ACTION.GO"
+      ]
+    },
+    {
+      "text": "good",
+      "tokens": [
+        "QUALITY.GOOD"
+      ]
+    },
+    {
+      "text": "bad",
+      "tokens": [
+        "QUALITY.BAD"
+      ]
+    },
+    {
+      "text": "ready",
+      "tokens": [
+        "QUALITY.READY"
+      ]
+    },
+    {
+      "text": "like",
+      "tokens": [
+        "MENTAL.LIKE"
+      ]
+    },
+    {
+      "text": "understand",
+      "tokens": [
+        "MENTAL.UNDERSTAND"
+      ]
+    },
+    {
+      "text": "happen",
+      "tokens": [
+        "EVENT.HAPPEN"
+      ]
+    },
+    {
+      "text": "happened",
+      "tokens": [
+        "GRAM.PAST",
+        "EVENT.HAPPEN"
+      ]
+    },
+    {
+      "text": "find",
+      "tokens": [
+        "ACTION.FIND"
+      ]
+    },
+    {
+      "text": "found",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.FIND"
+      ]
+    },
+    {
+      "text": "need",
+      "tokens": [
+        "STATE.NEED"
+      ]
+    },
+    {
+      "text": "fix",
+      "tokens": [
+        "ACTION.FIX"
+      ]
+    },
+    {
+      "text": "please",
+      "tokens": [
+        "SOCIAL.PLEASE"
+      ]
+    },
+    {
+      "text": "sorry",
+      "tokens": [
+        "SOCIAL.SORRY"
+      ]
+    },
+    {
+      "text": "repeat",
+      "tokens": [
+        "ACTION.REPEAT"
+      ]
+    },
+    {
+      "text": "what",
+      "tokens": [
+        "QUESTION.WHAT"
+      ]
+    },
+    {
+      "text": "now",
+      "tokens": [
+        "TIME.NOW"
+      ]
+    },
+    {
+      "text": "amaze",
+      "tokens": [
+        "EMOTION.AMAZE"
+      ]
+    },
+    {
+      "text": "voice",
+      "tokens": [
+        "ENTITY.VOICE"
+      ]
+    },
+    {
+      "text": "fear",
+      "tokens": [
+        "EMOTION.FEAR"
+      ]
+    },
+    {
+      "text": "scary",
+      "tokens": [
+        "GRAM.VERY",
+        "EMOTION.FEAR"
+      ]
+    },
+    {
+      "text": "robot",
+      "tokens": [
+        "ENTITY.ROBOT"
+      ]
+    },
+    {
+      "text": "music",
+      "tokens": [
+        "ENTITY.MUSIC"
+      ]
+    },
+    {
+      "text": "computer",
+      "tokens": [
+        "ENTITY.COMPUTER"
+      ]
+    },
+    {
+      "text": "project",
+      "tokens": [
+        "ENTITY.PROJECT"
+      ]
+    },
+    {
+      "text": "watch",
+      "tokens": [
+        "ACTION.WATCH"
+      ]
+    },
+    {
+      "text": "watched",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.WATCH"
+      ]
+    },
+    {
+      "text": "crew",
+      "tokens": [
+        "ENTITY.CREW"
+      ]
+    },
+    {
+      "text": "die",
+      "tokens": [
+        "EVENT.DIE"
+      ]
+    },
+    {
+      "text": "died",
+      "tokens": [
+        "GRAM.PAST",
+        "EVENT.DIE"
+      ]
+    },
+    {
+      "text": "say",
+      "tokens": [
+        "ACTION.SAY"
+      ]
+    },
+    {
+      "text": "said",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.SAY"
+      ]
+    },
+    {
+      "text": "rocky",
+      "tokens": [
+        "ENTITY.ROCKY"
+      ]
+    },
+    {
+      "text": "grace",
+      "tokens": [
+        "ENTITY.GRACE"
+      ]
+    },
+    {
+      "text": "earth",
+      "tokens": [
+        "ENTITY.EARTH"
+      ]
+    },
+    {
+      "text": "space",
+      "tokens": [
+        "ENTITY.SPACE"
+      ]
+    },
+    {
+      "text": "more",
+      "tokens": [
+        "QUANT.MORE"
+      ]
+    },
+    {
+      "text": "less",
+      "tokens": [
+        "QUANT.LESS"
+      ]
+    },
+    {
+      "text": "i",
+      "tokens": [
+        "PRON.I"
+      ]
+    },
+    {
+      "text": "you",
+      "tokens": [
+        "PRON.YOU"
+      ]
+    },
+    {
+      "text": "we",
+      "tokens": [
+        "PRON.WE"
+      ]
+    },
+    {
+      "text": "it",
+      "tokens": [
+        "PRON.IT"
+      ]
+    },
+    {
+      "text": "this",
+      "tokens": [
+        "PRON.THIS"
+      ]
+    },
+    {
+      "text": "that",
+      "tokens": [
+        "PRON.THAT"
+      ]
+    },
+    {
+      "text": "not",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "will",
+      "tokens": [
+        "GRAM.FUT"
+      ]
+    },
+    {
+      "text": "should",
+      "tokens": [
+        "GRAM.SHOULD"
+      ]
+    },
+    {
+      "text": "very",
+      "tokens": [
+        "GRAM.VERY"
+      ]
+    },
+    {
+      "text": "and",
+      "tokens": [
+        "GRAM.AND"
+      ]
+    },
+    {
+      "text": "if",
+      "tokens": [
+        "GRAM.IF"
+      ]
+    },
+    {
+      "text": "here",
+      "tokens": [
+        "LOC.HERE"
+      ]
+    },
+    {
+      "text": "where",
+      "tokens": [
+        "LOC.WHERE"
+      ]
+    }
+  ]
+}
