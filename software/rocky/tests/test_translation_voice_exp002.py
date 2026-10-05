@@ -13,9 +13,9 @@ from csp.exp002 import Exp002Phrase, decode_phrase, encode_phrase, load_profile,
 from csp.conversation import Utterance
 from rocky.audio import estimated_duration
 from rocky.cli import handle_command
-from rocky.conversation import ConversationController
+from rocky.conversation import ConversationController, explicit_user_name
 from rocky.desktop import DesktopHardware
-from rocky.speech import PROSODY, build_ssml, classify_prosody
+from rocky.speech import PROSODY, build_ssml, classify_prosody, tuned_profile
 from test_conversation import FakePlayer, ReadyWorker, wait_audio
 
 
@@ -28,10 +28,20 @@ class FakeVoice:
         self.starts = []
         self.cancel_count = 0
         self.fail_on_poll = False
+        self.voice_name = ""
+        self.rate_offset = 0
+        self.pitch_offset = 0
+        self.volume_offset = 0
 
     def check_available(self):
         self.available_checks += 1
         return ("Fixture Voice",)
+
+    def configure(self, **values):
+        for key, value in values.items():
+            if key.endswith("_offset") and (type(value) is not int or not -2 <= value <= 2):
+                raise ValueError("voice tuning offsets must be integers from -2 to 2")
+            setattr(self, key, value)
 
     def start(self, text, *, gate=None, delay_seconds=0):
         self.starts.append((text, delay_seconds, gate is not None))
@@ -121,6 +131,20 @@ class ProsodyTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(classify_prosody(text).name, expected)
 
+    def test_bounded_voice_tuning_preserves_context_profile(self):
+        tuned = tuned_profile(PROSODY["question"], -1, 1, 0)
+        self.assertEqual(tuned.name, "question")
+        self.assertEqual((tuned.rate, tuned.pitch, tuned.volume), ("slow", "x-high", "medium"))
+        with self.assertRaises(ValueError):
+            tuned_profile(PROSODY["neutral"], 3, 0, 0)
+
+    def test_tuned_profile_is_valid_ssml_and_sentence_delivery_has_pauses(self):
+        tuned = tuned_profile(PROSODY["question"], 2, -1, 0)
+        ssml = build_ssml("Rocky think. Question difficult?", tuned)
+        self.assertIn('rate="x-fast"', ssml)
+        self.assertIn('pitch="medium"', ssml)
+        self.assertIn('<break time="420ms"/>', ssml)
+
     def test_model_text_cannot_inject_ssml_controls(self):
         raw = "Rocky says </prosody><audio src='https://example.invalid/x'/> amaze!"
         ssml = build_ssml(raw, PROSODY["excitement"])
@@ -159,6 +183,33 @@ class PersistentTranslationTests(unittest.TestCase):
         self.assertNotIn("error", result)
         wait_audio(self.hardware)
         return result
+
+    def test_translation_overlaps_chordic_after_actual_playback_start(self):
+        handle_command("/translate on", self.conversation, self.settings, self.display)
+        self.turn("one", "Rocky ready. Good.")
+        text, delay, gated = self.voice.starts[-1]
+        self.assertEqual(text, "Rocky ready. Good.")
+        self.assertEqual(delay, 0.75)
+        self.assertTrue(gated)
+        self.voice.last_duration_seconds = 5.0
+        self.hardware.duration = 8.0
+        self.assertEqual(self.hardware.combined_duration, 8.0)
+        self.voice.last_duration_seconds = 9.0
+        self.assertEqual(self.hardware.combined_duration, 9.75)
+        self.assertEqual(self.hardware.translation_finish_margin, 1.75)
+        self.voice.last_duration_seconds = 5.0
+        self.assertEqual(self.hardware.translation_finish_margin, -2.25)
+
+    def test_explicit_session_name_capture_and_clear(self):
+        self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
+        self.assertEqual(explicit_user_name("Call me Wyatt."), "Wyatt")
+        self.assertEqual(explicit_user_name("I am sad"), "")
+        self.conversation.start("My name is wyatt")
+        self.assertEqual(self.conversation.user_name, "Wyatt")
+        self.assertEqual(self.worker.ctx.user_name, "Wyatt")
+        self.conversation.poll()
+        self.conversation.clear()
+        self.assertEqual(self.conversation.user_name, "")
 
     def test_translation_on_persists_two_turns_then_off_stops_voice(self):
         handle_command("/translate on", self.conversation, self.settings, self.display)
@@ -221,6 +272,16 @@ class PersistentTranslationTests(unittest.TestCase):
         result = self.conversation.poll()
         self.assertIn("BACKEND_FAILED", result["error"])
         self.assertTrue(self.brain.state.estop_latched)
+
+    def test_tone_and_voice_commands_are_bounded(self):
+        handle_command("/tone resonant", self.conversation, self.settings, self.display)
+        self.assertEqual(self.hardware.tone_style, "resonant")
+        with self.assertRaises(ValueError):
+            handle_command("/tone whale", self.conversation, self.settings, self.display)
+        handle_command("/voice rate -1", self.conversation, self.settings, self.display)
+        self.assertEqual(self.voice.rate_offset, -1)
+        with self.assertRaises(ValueError):
+            handle_command("/voice pitch 3", self.conversation, self.settings, self.display)
 
     def test_language_command_switches_future_profile_without_deleting_ct2(self):
         with contextlib.redirect_stdout(io.StringIO()) as out:

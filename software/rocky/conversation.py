@@ -1,11 +1,31 @@
 """Session history and inference supervision above the deterministic brain."""
 
+import re
+
 from brain.contracts import BrainOutcome, ConnectionState
 from brain.validation import validate_utterance
 from .providers import ConversationContext
 from .worker import InferenceWorker
 from .translation import decoded_text
 from csp.learning import WORDS
+
+
+_NAME_PATTERNS = (
+    re.compile(r"^\s*my\s+name\s+is\s+([A-Za-z][A-Za-z'’-]{0,31})(?:[.!?]|\s*)$", re.IGNORECASE),
+    re.compile(r"^\s*call\s+me\s+([A-Za-z][A-Za-z'’-]{0,31})(?:[.!?]|\s*)$", re.IGNORECASE),
+)
+
+
+def explicit_user_name(text):
+    """Return only a conservatively extracted, explicitly supplied name."""
+    if type(text) is not str:
+        return ""
+    for pattern in _NAME_PATTERNS:
+        match = pattern.fullmatch(text)
+        if match:
+            name = match.group(1)
+            return name[:1].upper() + name[1:]
+    return ""
 
 
 class ConversationController:
@@ -18,6 +38,7 @@ class ConversationController:
         self.last_text = None
         self.last_output = None
         self.translation_enabled = False
+        self.user_name = ""
         if hasattr(self.brain.hardware, "translation_enabled"):
             self.brain.hardware.translation_enabled = False
 
@@ -46,7 +67,10 @@ class ConversationController:
         state = self.brain.state
         if state.estop_latched or state.connection_state != ConnectionState.READY:
             raise ValueError("brain is stopped or unavailable; check /status and /reset")
-        context = ConversationContext("rocky-text-v1", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality)
+        supplied_name = explicit_user_name(text)
+        if supplied_name:
+            self.user_name = supplied_name
+        context = ConversationContext("rocky-text-v1", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality, self.user_name)
         self.worker.start(text, context)
         self.pending = (text, state.session_id, state.revision)
 
@@ -132,6 +156,7 @@ class ConversationController:
         self.history.clear()
         self.last_text = None
         self.last_output = None
+        self.user_name = ""
         # Translation is a session mode, not conversation history, so /clear
         # deliberately leaves self.translation_enabled unchanged.
 

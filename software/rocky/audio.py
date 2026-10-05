@@ -108,20 +108,38 @@ def estimated_duration(output, codec, duration_multiplier=1):
     return sum(round(SAMPLE_RATE * d / 1000) + round(SAMPLE_RATE * g / 1000) for _, d, g in events(output, codec, duration_multiplier)) / SAMPLE_RATE
 
 
-def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lambda: False):
+def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lambda: False, tone_style="pure"):
     if type(volume) not in (int, float) or not math.isfinite(volume) or not 0 <= volume <= 0.3:
         raise ValueError("volume must be between 0 and 0.3")
+    if tone_style not in {"pure", "resonant"}:
+        raise ValueError("tone_style must be pure or resonant")
     for frequencies, duration_ms, gap_ms in events(output, codec, duration_multiplier):
         count = round(SAMPLE_RATE * duration_ms / 1000)
-        attack = max(1, round(SAMPLE_RATE * 0.012))
-        release = max(1, min(round(SAMPLE_RATE * 0.060), count // 2))
+        attack_seconds = 0.085 if tone_style == "resonant" else 0.012
+        release_seconds = 0.150 if tone_style == "resonant" else 0.060
+        attack = max(1, round(SAMPLE_RATE * attack_seconds))
+        release = max(1, min(round(SAMPLE_RATE * release_seconds), count // 2))
         for start in range(0, count, 1024):
             if cancelled():
                 return
             samples = array("h")
             for i in range(start, min(start + 1024, count)):
                 envelope = min(1, i / attack, (count - 1 - i) / release)
-                value = sum(math.sin(2 * math.pi * hz * i / SAMPLE_RATE) for hz in frequencies) / len(frequencies)
+                if frequencies:
+                    if tone_style == "pure":
+                        value = sum(math.sin(2 * math.pi * hz * i / SAMPLE_RATE) for hz in frequencies) / len(frequencies)
+                    else:
+                        t = i / SAMPLE_RATE
+                        vibration = 0.10 * math.sin(2 * math.pi * 3.2 * t)
+                        pulse = 0.94 + 0.06 * math.sin(2 * math.pi * 1.35 * t)
+                        voices = []
+                        for hz in frequencies:
+                            phase = 2 * math.pi * hz * t + vibration
+                            body = 0.22 * math.sin(0.5 * phase)
+                            voices.append((0.72 * math.sin(phase) + body + 0.20 * math.sin(2 * phase) + 0.06 * math.sin(3 * phase)) / 1.20)
+                        value = pulse * sum(voices) / len(voices)
+                else:
+                    value = 0.0
                 samples.append(round(32767 * volume * envelope * value))
             if sys.byteorder != "little":
                 samples.byteswap()
@@ -135,17 +153,17 @@ def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lamb
             remaining -= size
 
 
-def synthesize(output, codec: CspCodec, volume=0.12, duration_multiplier=1) -> bytes:
-    return b"".join(pcm_chunks(output, codec, volume, duration_multiplier))
+def synthesize(output, codec: CspCodec, volume=0.12, duration_multiplier=1, tone_style="pure") -> bytes:
+    return b"".join(pcm_chunks(output, codec, volume, duration_multiplier, tone_style=tone_style))
 
 
-def render_wav(path, output, codec, volume, duration_multiplier, cancelled):
+def render_wav(path, output, codec, volume, duration_multiplier, cancelled, tone_style="pure"):
     path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(1)
         handle.setsampwidth(2)
         handle.setframerate(SAMPLE_RATE)
-        for chunk in pcm_chunks(output, codec, volume, duration_multiplier, cancelled):
+        for chunk in pcm_chunks(output, codec, volume, duration_multiplier, cancelled, tone_style):
             handle.writeframesraw(chunk)
 
 

@@ -119,6 +119,14 @@ class CodecTests(unittest.TestCase):
         self.assertEqual(samples[0], 0)
         self.assertEqual(samples[-1], 0)
         self.assertEqual(pcm, synthesize(output, codec))
+        resonant = synthesize(output, codec, tone_style="resonant")
+        self.assertEqual(len(resonant), len(pcm))
+        self.assertNotEqual(resonant, pcm)
+        resonant_samples = array("h")
+        resonant_samples.frombytes(resonant)
+        if sys.byteorder != "little":
+            resonant_samples.byteswap()
+        self.assertLessEqual(max(abs(x) for x in resonant_samples), round(32767 * 0.12))
 
 
 def wait_audio(hardware, timeout=5):

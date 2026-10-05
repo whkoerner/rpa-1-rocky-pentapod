@@ -13,13 +13,18 @@ from .speech import WindowsSystemSpeechRenderer
 class DesktopHardware:
     backend_id = "desktop-audio"
 
-    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, player=None, speech_renderer=None):
+    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, tone_style="pure", translation_voice="", voice_rate=0, voice_pitch=0, voice_volume=0, player=None, speech_renderer=None):
         self.directory = directory
         self.player = player or AudioPlayer(backend)
-        self.voice = speech_renderer or WindowsSystemSpeechRenderer()
+        self.voice = speech_renderer or WindowsSystemSpeechRenderer(translation_voice, voice_rate, voice_pitch, voice_volume)
         self.translation_enabled = False
         self.volume = volume
         self.duration_multiplier = duration_multiplier
+        self.translation_delay_seconds = 0.75
+        self.translation_tone_gain = 0.72
+        if tone_style not in {"pure", "resonant"}:
+            raise ValueError("tone_style must be pure or resonant")
+        self.tone_style = tone_style
         self._muted = False
         self.ready = self.stopped = False
         self.last_wav = None
@@ -59,7 +64,13 @@ class DesktopHardware:
 
     @property
     def combined_duration(self):
-        return self.duration + self.speech_duration
+        """Approximate wall time with English starting after the Chordic lead-in."""
+        return max(self.duration, self.translation_delay_seconds + self.speech_duration)
+
+    @property
+    def translation_finish_margin(self):
+        """Positive means English speech finished after Chordic, as intended."""
+        return self.translation_delay_seconds + self.speech_duration - self.duration
 
     def open(self):
         self.player.open()
@@ -86,13 +97,13 @@ class DesktopHardware:
         return self.voice.check_available()
 
     def speak_translation(self, text):
-        """Queue validated English after the current Chordic playback."""
+        """Queue validated English to begin with the current Chordic playback."""
         with self._lock:
             if not self.translation_enabled or self.muted or self.stopped or not self.ready:
                 return False
             if self.player.backend == "wav":
                 return False
-            self.voice.start(text, gate=self._playback_started, delay_seconds=self.duration)
+            self.voice.start(text, gate=self._playback_started, delay_seconds=self.translation_delay_seconds)
             return True
 
     def dispatch(self, command):
@@ -112,13 +123,14 @@ class DesktopHardware:
             self.duration = duration
             self.error = None
             self.audio_status = "RENDERING"
-            self._future = self._executor.submit(self._render, command, cancelled, self._generation, self.volume, self.duration_multiplier)
+            render_volume = self.volume * (self.translation_tone_gain if self.translation_enabled else 1.0)
+            self._future = self._executor.submit(self._render, command, cancelled, self._generation, render_volume, self.duration_multiplier)
             return receipt(ReceiptStatus.ACCEPTED, f"AUDIO_QUEUED: estimated playback {duration:.2f}s; not acoustically verified")
 
     def _render(self, command, cancelled, generation, volume, multiplier):
         temporary = self.directory / f"render-{generation}.tmp.wav"
         try:
-            render_wav(temporary, command.communication, self.codec, volume, multiplier, cancelled.is_set)
+            render_wav(temporary, command.communication, self.codec, volume, multiplier, cancelled.is_set, self.tone_style)
             with self._lock:
                 if cancelled.is_set() or self.stopped or not self.ready:
                     return

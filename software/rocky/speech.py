@@ -25,6 +25,10 @@ class ProsodyProfile:
     volume: str
 
 
+RATE_LEVELS = ("x-slow", "slow", "medium", "fast", "x-fast")
+PITCH_LEVELS = ("x-low", "low", "medium", "high", "x-high")
+VOLUME_LEVELS = ("x-soft", "soft", "medium", "loud", "x-loud")
+
 PROSODY = {
     "question": ProsodyProfile("question", "medium", "high", "medium"),
     "excitement": ProsodyProfile("excitement", "fast", "high", "loud"),
@@ -50,15 +54,70 @@ def classify_prosody(text: str) -> ProsodyProfile:
     return PROSODY["neutral"]
 
 
-def build_ssml(text: str, profile: ProsodyProfile | None = None) -> str:
-    """Escape model text; only fixed application-owned values become SSML controls."""
-    profile = profile or classify_prosody(text)
-    if profile not in PROSODY.values():
+def _shift(levels, value, offset):
+    if type(offset) is not int or not -2 <= offset <= 2:
+        raise ValueError("voice tuning offset must be an integer from -2 to 2")
+    try:
+        index = levels.index(value)
+    except ValueError as exc:
+        raise ValueError("unsupported prosody level") from exc
+    return levels[max(0, min(len(levels) - 1, index + offset))]
+
+
+def tuned_profile(profile: ProsodyProfile, rate_offset=0, pitch_offset=0, volume_offset=0) -> ProsodyProfile:
+    return ProsodyProfile(
+        profile.name,
+        _shift(RATE_LEVELS, profile.rate, rate_offset),
+        _shift(PITCH_LEVELS, profile.pitch, pitch_offset),
+        _shift(VOLUME_LEVELS, profile.volume, volume_offset),
+    )
+
+
+def _validate_profile(profile: ProsodyProfile) -> ProsodyProfile:
+    if type(profile) is not ProsodyProfile:
         raise ValueError("untrusted prosody profile")
-    escaped = html.escape(text, quote=False)
+    if profile.name not in PROSODY:
+        raise ValueError("untrusted prosody profile")
+    if profile.rate not in RATE_LEVELS or profile.pitch not in PITCH_LEVELS or profile.volume not in VOLUME_LEVELS:
+        raise ValueError("untrusted prosody profile")
+    return profile
+
+
+def _sentence_parts(text: str):
+    parts = []
+    start = 0
+    for index, char in enumerate(text):
+        if char in ".!?":
+            segment = text[start:index + 1].strip()
+            if segment:
+                parts.append(segment)
+            start = index + 1
+    tail = text[start:].strip()
+    if tail:
+        parts.append(tail)
+    return parts or [text.strip()]
+
+
+def build_ssml(text: str, profile: ProsodyProfile | None = None, *, rate_offset=0, pitch_offset=0, volume_offset=0) -> str:
+    """Build bounded contextual SSML from validated text.
+
+    Each sentence gets its own application-owned delivery profile so questions,
+    reassurance, excitement and technical statements can differ inside one reply.
+    """
+    if type(text) is not str or not text.strip():
+        raise ValueError("speech text must be nonempty")
+    chunks = []
+    for sentence in _sentence_parts(text):
+        base = profile or classify_prosody(sentence)
+        current = tuned_profile(base, rate_offset, pitch_offset, volume_offset)
+        _validate_profile(current)
+        escaped = html.escape(sentence, quote=False)
+        chunks.append(f'<prosody rate="{current.rate}" pitch="{current.pitch}" volume="{current.volume}">{escaped}</prosody>')
+        pause = "420ms" if sentence.endswith("?") else "320ms" if sentence.endswith("!") else "230ms"
+        chunks.append(f'<break time="{pause}"/>')
     return (
         '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
-        f'<prosody rate="{profile.rate}" pitch="{profile.pitch}" volume="{profile.volume}">{escaped}</prosody>'
+        + "".join(chunks) +
         '</speak>'
     )
 
@@ -95,10 +154,16 @@ class WindowsSystemSpeechRenderer:
     specific voice may be configured, but it must already exist locally.
     """
 
-    def __init__(self, voice_name: str = ""):
+    def __init__(self, voice_name: str = "", rate_offset=0, pitch_offset=0, volume_offset=0):
         if type(voice_name) is not str or len(voice_name) > 200 or any(ord(c) < 32 for c in voice_name):
             raise ValueError("translation voice must be a printable string up to 200 characters")
         self.voice_name = voice_name
+        for value in (rate_offset, pitch_offset, volume_offset):
+            if type(value) is not int or not -2 <= value <= 2:
+                raise ValueError("voice tuning offsets must be integers from -2 to 2")
+        self.rate_offset = rate_offset
+        self.pitch_offset = pitch_offset
+        self.volume_offset = volume_offset
         self.status = "IDLE"
         self.last_profile = ""
         self.last_duration_seconds = 0.0
@@ -142,11 +207,25 @@ class WindowsSystemSpeechRenderer:
             raise RuntimeError(f"configured local voice is not installed: {self.voice_name}")
         return names
 
+    def configure(self, *, voice_name=None, rate_offset=None, pitch_offset=None, volume_offset=None):
+        if voice_name is not None:
+            if type(voice_name) is not str or len(voice_name) > 200 or any(ord(c) < 32 for c in voice_name):
+                raise ValueError("translation voice must be a printable string up to 200 characters")
+            names = self.check_available()
+            if voice_name and voice_name not in names:
+                raise ValueError("voice is not installed locally")
+            self.voice_name = voice_name
+        for attr, value in (("rate_offset", rate_offset), ("pitch_offset", pitch_offset), ("volume_offset", volume_offset)):
+            if value is not None:
+                if type(value) is not int or not -2 <= value <= 2:
+                    raise ValueError("voice tuning offsets must be integers from -2 to 2")
+                setattr(self, attr, value)
+
     def start(self, text: str, *, gate=None, delay_seconds=0) -> None:
         if type(delay_seconds) not in (int, float) or not 0 <= delay_seconds <= 600:
             raise ValueError("invalid speech delay")
-        profile = classify_prosody(text)
-        ssml = build_ssml(text, profile)
+        profile = tuned_profile(classify_prosody(text), self.rate_offset, self.pitch_offset, self.volume_offset)
+        ssml = build_ssml(text, rate_offset=self.rate_offset, pitch_offset=self.pitch_offset, volume_offset=self.volume_offset)
         with self._lock:
             self.cancel()
             if self._executor is None:
