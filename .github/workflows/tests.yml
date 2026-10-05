@@ -65,6 +65,24 @@ jobs:
         continue-on-error: true
         working-directory: software/rocky/tests
         run: python -m unittest test_windows_launcher -v
+      - name: Root discovery conversation
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_conversation.py" -v
+      - name: Root discovery desktop upgrade
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_desktop_upgrade.py" -v
+      - name: Root discovery learning
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_learning.py" -v
+      - name: Root discovery legacy EXP-002
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_chordic_exp002.py" -v
+      - name: Root discovery translation voice
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_translation_voice_exp002.py" -v
+      - name: Root discovery Windows launcher
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
       - name: Cumulative legacy through conversation
         continue-on-error: true
         working-directory: software/rocky/tests
