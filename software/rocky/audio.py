@@ -10,7 +10,7 @@ import wave
 from brain.contracts import CommunicationOutput, ConversationOutput
 from csp.core import CspCodec
 from csp.conversation import decode_text
-from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, load_profile as load_exp002_profile, token_patterns as exp002_token_patterns
+from csp.exp002 import Exp002Phrase, decode_phrase as decode_exp002_phrase, load_profile as load_exp002_profile, token_patterns as exp002_token_patterns\nfrom csp.exp003 import Exp003Phrase, decode_phrase as decode_exp003_phrase, load_profile as load_exp003_profile, token_patterns as exp003_token_patterns
 from csp.learning import decode_phrase, literal_text
 
 SAMPLE_RATE = 22050
@@ -25,8 +25,41 @@ def frequency(note: str) -> float:
     return 440 * 2 ** ((midi - 69) / 12)
 
 
+def _relative_frequency(baseline, semitones):
+    return baseline * 2 ** (semitones / 12)
+
+
 def base_events(output, codec: CspCodec):
     phonology = codec.specification["phonology"]
+    if isinstance(output, ConversationOutput) and isinstance(output.phrase, Exp003Phrase):
+        if decode_exp003_phrase(output.phrase) != output.canonical_text:
+            raise ValueError("EXP-003 translation mismatch")
+        profile = load_exp003_profile()
+        candidate = profile["candidate"]
+        timing = candidate["acoustics"]["timing_ms"]
+        offsets = {int(key): value for key, value in candidate["acoustics"]["pitch_offsets_semitones"].items()}
+        patterns = exp003_token_patterns()
+        classes = {row["id"]: row["duration_class"] for row in candidate["tokens"]}
+        baseline = 180.0
+        yield (baseline,), timing["phrase_header"], 0
+        yield (_relative_frequency(baseline, -2), _relative_frequency(baseline, 2)), timing["profile_marker"], 0
+        scale = [frequency(codec.digit_to_note[n]) for n in range(5)]
+        for exp_unit in output.phrase.units:
+            if exp_unit.kind == "tokens":
+                for token in exp_unit.tokens:
+                    gesture = timing["short_gesture"] if classes[token] == "short" else timing["root_gesture"]
+                    anchor = gesture / len(patterns[token])
+                    for degree in patterns[token]:
+                        yield (_relative_frequency(baseline, offsets[degree]),), anchor, 0
+                    yield (), 0, timing["token_boundary"]
+            elif exp_unit.kind == "ct2":
+                yield (frequency("B3"), frequency("E5")), timing["fallback_marker"], 0
+                raw = exp_unit.text.encode("utf-8")
+                for byte, digits in zip(raw, exp_unit.fallback.units[0].value):
+                    gap = timing["fallback_sentence_punctuation_gap"] if byte in b".!?" else timing["fallback_minor_punctuation_gap"] if byte in b",;:" else timing["fallback_space_gap"] if byte == 32 else timing["fallback_default_gap"]
+                    yield tuple(scale[d] * 2 ** (voice - 1) for voice, d in enumerate(digits)), timing["fallback_byte"], gap
+                yield (), 0, timing["fallback_boundary"]
+        return
     header = phonology["phrase_header"]
     yield tuple(frequency(n) for n in header["notes"]), header["duration_ms"], header["rest_after_ms"]
     if isinstance(output, CommunicationOutput):
@@ -106,6 +139,86 @@ def events(output, codec: CspCodec, duration_multiplier=1):
 
 def estimated_duration(output, codec, duration_multiplier=1):
     return sum(round(SAMPLE_RATE * d / 1000) + round(SAMPLE_RATE * g / 1000) for _, d, g in events(output, codec, duration_multiplier)) / SAMPLE_RATE
+
+
+def _contour_gesture(frequencies, duration_ms, volume, cancelled):
+    count = max(1, round(SAMPLE_RATE * duration_ms / 1000))
+    anchors = len(frequencies)
+    for start in range(0, count, 1024):
+        if cancelled():
+            return
+        samples = array("h")
+        for index in range(start, min(start + 1024, count)):
+            position = 0 if count <= 1 else index * (anchors - 1) / (count - 1)
+            segment = min(anchors - 2, int(position)) if anchors > 1 else 0
+            fraction = position - segment if anchors > 1 else 0
+            smooth = 0.5 - 0.5 * math.cos(math.pi * fraction)
+            if anchors > 1:
+                left, right = frequencies[segment], frequencies[segment + 1]
+                hz = 2 ** ((1 - smooth) * math.log2(left) + smooth * math.log2(right))
+            else:
+                hz = frequencies[0]
+            t = index / SAMPLE_RATE
+            attack = min(1.0, index / max(1, round(SAMPLE_RATE * 0.045)))
+            release = min(1.0, (count - 1 - index) / max(1, round(SAMPLE_RATE * 0.065)))
+            envelope = max(0.0, min(attack, release))
+            vibration = 0.035 * math.sin(2 * math.pi * 4.1 * t)
+            phase = 2 * math.pi * hz * t + vibration
+            body = 0.76 * math.sin(phase) + 0.17 * math.sin(2 * phase) + 0.07 * math.sin(3 * phase)
+            samples.append(round(32767 * volume * envelope * body))
+        if sys.byteorder != "little":
+            samples.byteswap()
+        yield samples.tobytes()
+
+
+def _silence_chunks(duration_ms, cancelled):
+    remaining = round(SAMPLE_RATE * duration_ms / 1000)
+    while remaining:
+        if cancelled():
+            return
+        size = min(remaining, 1024)
+        yield bytes(size * 2)
+        remaining -= size
+
+
+def _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled):
+    if decode_exp003_phrase(output.phrase) != output.canonical_text:
+        raise ValueError("EXP-003 translation mismatch")
+    profile = load_exp003_profile()
+    candidate = profile["candidate"]
+    timing = candidate["acoustics"]["timing_ms"]
+    offsets = {int(key): value for key, value in candidate["acoustics"]["pitch_offsets_semitones"].items()}
+    patterns = exp003_token_patterns()
+    classes = {row["id"]: row["duration_class"] for row in candidate["tokens"]}
+    baseline = 180.0
+    for chunk in _contour_gesture((baseline,), timing["phrase_header"] * duration_multiplier, volume, cancelled):
+        yield chunk
+    marker = (_relative_frequency(baseline, -2), _relative_frequency(baseline, 2))
+    for chunk in _contour_gesture(marker, timing["profile_marker"] * duration_multiplier, volume, cancelled):
+        yield chunk
+    scale = [frequency(codec.digit_to_note[n]) for n in range(5)]
+    for unit in output.phrase.units:
+        if unit.kind == "tokens":
+            for token in unit.tokens:
+                gesture = timing["short_gesture"] if classes[token] == "short" else timing["root_gesture"]
+                freqs = tuple(_relative_frequency(baseline, offsets[d]) for d in patterns[token])
+                for chunk in _contour_gesture(freqs, gesture * duration_multiplier, volume, cancelled):
+                    yield chunk
+                for chunk in _silence_chunks(timing["token_boundary"] * duration_multiplier, cancelled):
+                    yield chunk
+        elif unit.kind == "ct2":
+            for chunk in _contour_gesture((frequency("B3"), frequency("E5")), timing["fallback_marker"] * duration_multiplier, volume, cancelled):
+                yield chunk
+            raw = unit.text.encode("utf-8")
+            for byte, digits in zip(raw, unit.fallback.units[0].value):
+                gap = timing["fallback_sentence_punctuation_gap"] if byte in b".!?" else timing["fallback_minor_punctuation_gap"] if byte in b",;:" else timing["fallback_space_gap"] if byte == 32 else timing["fallback_default_gap"]
+                freqs = tuple(scale[d] * 2 ** (voice - 1) for voice, d in enumerate(digits))
+                for chunk in _contour_gesture(freqs, timing["fallback_byte"] * duration_multiplier, volume, cancelled):
+                    yield chunk
+                for chunk in _silence_chunks(gap * duration_multiplier, cancelled):
+                    yield chunk
+            for chunk in _silence_chunks(timing["fallback_boundary"] * duration_multiplier, cancelled):
+                yield chunk
 
 
 def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lambda: False, tone_style="pure"):
