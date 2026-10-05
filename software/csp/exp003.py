@@ -9,9 +9,9 @@ import re
 from .conversation import validate_text
 from .learning import Phrase, Unit, byte_symbols, unit_text
 
-PROFILE_PATH = Path(__file__).resolve().parents[2] / "experiments" / "chordic" / "exp-003-runtime-v2.json"
+PROFILE_PATH = Path(__file__).resolve().parents[2] / "experiments" / "chordic" / "exp-003-runtime-v3.json"
 VERSION = "EXP-003"
-SOURCE_COMMIT = "e618b39150c7f318b7a0da51408062ca9eb43ad9"
+SOURCE_COMMIT = "1f564424609983147bcf9fa4ef40c4b28a4c35a1"
 _WORD = re.compile(r"[A-Za-z0-9]+(?:['’][A-Za-z]+)?")
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ def load_profile():
         profile = json.load(handle)
     if type(profile) is not dict or profile.get("schema_version") != "0.3":
         raise ValueError("invalid EXP-003 runtime profile")
-    if profile.get("candidate_id") != VERSION or profile.get("export_id") != "EXP-003-runtime-v2":
+    if profile.get("candidate_id") != VERSION or profile.get("export_id") != "EXP-003-runtime-v3":
         raise ValueError("wrong EXP-003 runtime export")
     candidate = profile.get("candidate", {})
     if candidate.get("candidate_id") != VERSION:

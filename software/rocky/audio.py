@@ -188,6 +188,77 @@ def _contour_gesture(frequencies, duration_ms, volume, cancelled, timbre=None):
         yield samples.tobytes()
 
 
+
+
+def _vocal_gesture(frequencies, duration_ms, volume, cancelled, state, profile, timbre):
+    """Phase-continuous, low-register vocal carrier for EXP-003 contours."""
+    count = max(1, round(SAMPLE_RATE * duration_ms / 1000))
+    anchors = len(frequencies)
+    attack = max(1, round(SAMPLE_RATE * float(profile.get("attack_ms", 55)) / 1000))
+    release = max(1, round(SAMPLE_RATE * float(profile.get("release_ms", 85)) / 1000))
+    micro = float(profile.get("max_micro_pitch_jitter_semitones", 0.12))
+    drift = float(profile.get("phrase_drift_semitones", 0.18))
+    fundamental_gain = float(timbre.get("fundamental_gain", 0.72))
+    subharmonic_gain = float(timbre.get("subharmonic_gain", 0.20))
+    second_gain = min(0.08, float(timbre.get("second_harmonic_gain", 0.07)))
+    third_gain = min(0.02, float(timbre.get("third_harmonic_gain", 0.01)))
+    pulse_depth = float(timbre.get("amplitude_pulse_depth", 0.035))
+    pulse_hz = float(timbre.get("amplitude_pulse_hz", 1.6))
+    normalizer = max(1e-9, fundamental_gain + subharmonic_gain + second_gain + third_gain)
+    phase = float(state.get("phase", 0.0))
+    sub_phase = float(state.get("sub_phase", 0.0))
+    sample_index = int(state.get("sample_index", 0))
+    for start in range(0, count, 1024):
+        if cancelled():
+            return
+        samples = array("h")
+        for local_index in range(start, min(start + 1024, count)):
+            position = 0 if count <= 1 else local_index * (anchors - 1) / (count - 1)
+            segment = min(anchors - 2, int(position)) if anchors > 1 else 0
+            fraction = position - segment if anchors > 1 else 0
+            smooth = 0.5 - 0.5 * math.cos(math.pi * fraction)
+            if anchors > 1:
+                left, right = frequencies[segment], frequencies[segment + 1]
+                base_hz = 2 ** ((1 - smooth) * math.log2(left) + smooth * math.log2(right))
+            else:
+                base_hz = frequencies[0]
+            t = (sample_index + local_index) / SAMPLE_RATE
+            pitch_motion = (
+                drift * math.sin(2 * math.pi * 0.31 * t + 0.37)
+                + micro * (
+                    0.58 * math.sin(2 * math.pi * 2.17 * t + 0.61)
+                    + 0.42 * math.sin(2 * math.pi * 3.79 * t + 1.13)
+                )
+            )
+            hz = base_hz * 2 ** (pitch_motion / 12)
+            phase += 2 * math.pi * hz / SAMPLE_RATE
+            sub_phase += math.pi * hz / SAMPLE_RATE
+            envelope = min(1.0, local_index / attack, (count - 1 - local_index) / release)
+            envelope = max(0.0, envelope)
+            pulse = (1.0 - pulse_depth) + pulse_depth * (0.5 + 0.5 * math.sin(2 * math.pi * pulse_hz * t + 0.4))
+            # Soft glottal-like carrier: low, rounded, and intentionally light on upper harmonics.
+            glottal = math.tanh(1.35 * (math.sin(phase) + 0.16 * math.sin(2 * phase)))
+            body = (
+                fundamental_gain * glottal
+                + subharmonic_gain * math.sin(sub_phase)
+                + second_gain * math.sin(2 * phase + 0.2)
+                + third_gain * math.sin(3 * phase + 0.35)
+            ) / normalizer
+            # Deterministic low-level aspiration prevents a perfectly sterile oscillator tone.
+            aspiration = 0.008 * (
+                math.sin(2 * math.pi * 71.0 * t + 0.7 * math.sin(2 * math.pi * 1.1 * t))
+                + 0.5 * math.sin(2 * math.pi * 113.0 * t + 0.2)
+            )
+            value = max(-1.0, min(1.0, pulse * body + aspiration))
+            samples.append(round(32767 * volume * envelope * value))
+        if sys.byteorder != "little":
+            samples.byteswap()
+        yield samples.tobytes()
+    state["phase"] = phase % (2 * math.pi)
+    state["sub_phase"] = sub_phase % (2 * math.pi)
+    state["sample_index"] = sample_index + count
+
+
 def _silence_chunks(duration_ms, cancelled):
     remaining = round(SAMPLE_RATE * duration_ms / 1000)
     while remaining:
@@ -241,14 +312,67 @@ def _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled
                 yield chunk
 
 
+
+
+def _exp003_vocal_chunks(output, codec, volume, duration_multiplier, cancelled):
+    if decode_exp003_phrase(output.phrase) != output.canonical_text:
+        raise ValueError("EXP-003 translation mismatch")
+    profile_data = load_exp003_profile()
+    candidate = profile_data["candidate"]
+    acoustics = candidate["acoustics"]
+    timing = acoustics["timing_ms"]
+    offsets = {int(key): value for key, value in acoustics["pitch_offsets_semitones"].items()}
+    patterns = exp003_token_patterns()
+    classes = {row["id"]: row["duration_class"] for row in candidate["tokens"]}
+    baseline = float(acoustics.get("reference_baseline_hz", 120.0))
+    fallback_baseline = float(acoustics.get("fallback_reference_hz", baseline))
+    timbre = acoustics.get("timbre", {})
+    renderer = acoustics.get("renderer_profiles", {}).get("vocal-v1", {})
+    state = {"phase": 0.0, "sub_phase": 0.0, "sample_index": 0}
+
+    for chunk in _vocal_gesture((baseline,), timing["phrase_header"] * duration_multiplier, volume, cancelled, state, renderer, timbre):
+        yield chunk
+    marker = (_relative_frequency(baseline, -2), _relative_frequency(baseline, 2))
+    for chunk in _vocal_gesture(marker, timing["profile_marker"] * duration_multiplier, volume, cancelled, state, renderer, timbre):
+        yield chunk
+
+    for unit in output.phrase.units:
+        if unit.kind == "tokens":
+            for token in unit.tokens:
+                gesture = timing["short_gesture"] if classes[token] == "short" else timing["root_gesture"]
+                freqs = tuple(_relative_frequency(baseline, offsets[d]) for d in patterns[token])
+                for chunk in _vocal_gesture(freqs, gesture * duration_multiplier, volume, cancelled, state, renderer, timbre):
+                    yield chunk
+                for chunk in _silence_chunks(timing["token_boundary"] * duration_multiplier, cancelled):
+                    yield chunk
+        elif unit.kind == "ct2":
+            marker = (_relative_frequency(fallback_baseline, -2), _relative_frequency(fallback_baseline, 2))
+            for chunk in _vocal_gesture(marker, timing["fallback_marker"] * duration_multiplier, volume, cancelled, state, renderer, timbre):
+                yield chunk
+            raw = unit.text.encode("utf-8")
+            for byte, digits in zip(raw, unit.fallback.units[0].value):
+                gap = timing["fallback_sentence_punctuation_gap"] if byte in b".!?" else timing["fallback_minor_punctuation_gap"] if byte in b",;:" else timing["fallback_space_gap"] if byte == 32 else timing["fallback_default_gap"]
+                freqs = tuple(_relative_frequency(fallback_baseline, offsets[d]) for d in digits)
+                for chunk in _vocal_gesture(freqs, timing["fallback_byte"] * duration_multiplier, volume, cancelled, state, renderer, timbre):
+                    yield chunk
+                for chunk in _silence_chunks(gap * duration_multiplier, cancelled):
+                    yield chunk
+            for chunk in _silence_chunks(timing["fallback_boundary"] * duration_multiplier, cancelled):
+                yield chunk
+
+
 def pcm_chunks(output, codec, volume=0.12, duration_multiplier=1, cancelled=lambda: False, tone_style="pure"):
     if type(volume) not in (int, float) or not math.isfinite(volume) or not 0 <= volume <= 0.3:
         raise ValueError("volume must be between 0 and 0.3")
-    if tone_style not in {"pure", "resonant", "contour-v1"}:
-        raise ValueError("tone_style must be pure, resonant or contour-v1")
-    if isinstance(output, ConversationOutput) and isinstance(output.phrase, Exp003Phrase) and tone_style == "contour-v1":
-        yield from _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled)
-        return
+    if tone_style not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+        raise ValueError("tone_style must be pure, resonant, contour-v1 or vocal-v1")
+    if isinstance(output, ConversationOutput) and isinstance(output.phrase, Exp003Phrase):
+        if tone_style == "contour-v1":
+            yield from _exp003_contour_chunks(output, codec, volume, duration_multiplier, cancelled)
+            return
+        if tone_style == "vocal-v1":
+            yield from _exp003_vocal_chunks(output, codec, volume, duration_multiplier, cancelled)
+            return
     for frequencies, duration_ms, gap_ms in events(output, codec, duration_multiplier):
         count = round(SAMPLE_RATE * duration_ms / 1000)
         attack_seconds = 0.085 if tone_style == "resonant" else 0.012
