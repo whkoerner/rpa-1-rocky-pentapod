@@ -60,6 +60,7 @@ pre { white-space:pre-wrap; word-break:break-word; }
 <label>English pitch<input id="vpitch" type="number" min="-2" max="2" step="1"></label>
 <label>English volume<input id="vvolume" type="number" min="-2" max="2" step="1"></label>
 <label>Translation<input id="translation" type="checkbox"></label>
+<label>Persistent memory<input id="memoryenabled" type="checkbox"></label>
 </div>
 <div class="actions">
 <button id="apply">Apply</button>
@@ -68,6 +69,17 @@ pre { white-space:pre-wrap; word-break:break-word; }
 <button id="export">Export settings</button>
 <label><span>Import settings</span><input id="import" type="file" accept="application/json"></label>
 </div>
+<h2>Memory</h2>
+<div class="controls">
+<label>Key<input id="memkey" type="text" maxlength="64" placeholder="favorite_color"></label>
+<label>Value<input id="memvalue" type="text" maxlength="512" placeholder="blue"></label>
+</div>
+<div class="actions">
+<button id="remember">Remember</button>
+<button id="forget">Forget key</button>
+<button id="clearmemory">Clear memory</button>
+</div>
+<pre id="memorylist"></pre>
 <h2>Status</h2>
 <pre id="status"></pre>
 <small>Loopback only. Safety-critical physical parameters are intentionally absent.</small>
@@ -121,6 +133,7 @@ function tune(s) {
   el("volume").value=t.volume===undefined?0.12:t.volume;
   el("volumev").textContent=el("volume").value;
   el("translation").checked=!!t.translation_enabled;
+  el("memoryenabled").checked=!!t.memory_enabled;
   el("voice").value=t.translation_voice||"";
   el("vrate").value=t.voice_rate===undefined?0:t.voice_rate;
   el("vpitch").value=t.voice_pitch===undefined?0:t.voice_pitch;
@@ -142,6 +155,18 @@ function showStatus(s) {
     voice:s.voice_status,
     representation:s.representation||""
   },null,2);
+}
+
+async function refreshMemory() {
+  try {
+    const data=await api("/api/memory");
+    const lines=(data.items||[]).map(function(item){
+      return item.key+" = "+item.value+" ["+item.provenance+"]";
+    });
+    el("memorylist").textContent=lines.length?lines.join("\n"):"No enabled persistent memory items.";
+  } catch(e) {
+    el("memorylist").textContent=e.message;
+  }
 }
 
 async function refresh() {
@@ -206,6 +231,7 @@ el("apply").onclick=async function() {
       duration_multiplier:Number(el("speed").value),
       volume:Number(el("volume").value),
       translation_enabled:el("translation").checked,
+      memory_enabled:el("memoryenabled").checked,
       translation_voice:el("voice").value,
       voice_rate:Number(el("vrate").value),
       voice_pitch:Number(el("vpitch").value),
@@ -220,6 +246,37 @@ el("apply").onclick=async function() {
 
 el("speed").oninput=function(){el("speedv").textContent=el("speed").value+"×";};
 el("volume").oninput=function(){el("volumev").textContent=el("volume").value;};
+
+el("remember").onclick=async function() {
+  try {
+    const key=el("memkey").value.trim();
+    const value=el("memvalue").value.trim();
+    await api("/api/memory",{method:"POST",body:JSON.stringify({action:"remember",key:key,value:value})});
+    el("memvalue").value="";
+    await refreshMemory();
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
+
+el("forget").onclick=async function() {
+  try {
+    const key=el("memkey").value.trim();
+    await api("/api/memory",{method:"POST",body:JSON.stringify({action:"forget",key:key})});
+    await refreshMemory();
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
+
+el("clearmemory").onclick=async function() {
+  try {
+    await api("/api/memory",{method:"POST",body:JSON.stringify({action:"clear"})});
+    await refreshMemory();
+  } catch(e) {
+    add("Error",e.message,"");
+  }
+};
 
 el("export").onclick=async function() {
   try {
@@ -247,8 +304,10 @@ el("import").onchange=async function(e) {
 };
 
 refresh();
+refreshMemory();
 poll();
 setInterval(refresh,1500);
+setInterval(refreshMemory,2500);
 </script>
 </body>
 </html>

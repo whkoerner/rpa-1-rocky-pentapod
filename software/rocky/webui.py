@@ -31,6 +31,7 @@ RECOMMENDED_TUNING = {
     "voice_rate": 0,
     "voice_pitch": 0,
     "voice_volume": 0,
+    "memory_enabled": False,
 }
 
 _ALLOWED_TUNING = frozenset(
@@ -44,6 +45,7 @@ _ALLOWED_TUNING = frozenset(
         "voice_rate",
         "voice_pitch",
         "voice_volume",
+        "memory_enabled",
     }
 )
 
@@ -86,6 +88,7 @@ class LocalWebUI:
             "voice_rate": int(getattr(voice, "rate_offset", 0)) if voice else 0,
             "voice_pitch": int(getattr(voice, "pitch_offset", 0)) if voice else 0,
             "voice_volume": int(getattr(voice, "volume_offset", 0)) if voice else 0,
+            "memory_enabled": bool(self.conversation.memory_status()["enabled"]),
         }
 
     def status(self):
@@ -104,6 +107,7 @@ class LocalWebUI:
                 "provider": self.settings.get("provider", ""),
                 "model": self.settings.get("model", ""),
                 "language": self.conversation.brain.task_controller.text_encoding,
+                "memory": self.conversation.memory_status(),
                 "tuning": self._tuning(),
                 "timing": {
                     "chordic_seconds": float(getattr(hardware, "duration", 0.0)),
@@ -190,6 +194,12 @@ class LocalWebUI:
                     raise ValueError("translation_enabled must be boolean")
                 self.conversation.set_translation(value)
                 self.settings["translation_enabled"] = value
+            if "memory_enabled" in payload:
+                value = payload["memory_enabled"]
+                if type(value) is not bool:
+                    raise ValueError("memory_enabled must be boolean")
+                self.conversation.set_memory_enabled(value)
+                self.settings["memory_enabled"] = value
             voice_kwargs = {}
             for field in ("voice_rate", "voice_pitch", "voice_volume"):
                 if field in payload:
@@ -249,6 +259,45 @@ class LocalWebUI:
             else:
                 raise ValueError("unsupported UI action")
             return {"ok": True, "status": self.status()}
+
+    def memory(self):
+        with self.lock:
+            return {
+                "status": self.conversation.memory_status(),
+                "items": [
+                    {
+                        "key": item.key,
+                        "value": item.value,
+                        "provenance": item.provenance,
+                        "created_at": item.created_at,
+                        "updated_at": item.updated_at,
+                    }
+                    for item in self.conversation.memory_items()
+                ],
+            }
+
+    def memory_action(self, payload):
+        if type(payload) is not dict or "action" not in payload:
+            raise ValueError("memory request requires action")
+        action = payload["action"]
+        with self.lock:
+            if action == "remember":
+                if set(payload) != {"action", "key", "value"}:
+                    raise ValueError("remember requires exactly action, key, value")
+                item = self.conversation.remember(payload["key"], payload["value"])
+                result = {"remembered": item.key}
+            elif action == "forget":
+                if set(payload) != {"action", "key"}:
+                    raise ValueError("forget requires exactly action and key")
+                result = {"forgot": bool(self.conversation.forget(payload["key"]))}
+            elif action == "clear":
+                if set(payload) != {"action"}:
+                    raise ValueError("clear requires exactly action")
+                self.conversation.clear_memory()
+                result = {"cleared": True}
+            else:
+                raise ValueError("memory action must be remember, forget or clear")
+            return {**result, **self.memory()}
 
     def export_settings(self):
         with self.lock:
@@ -364,6 +413,8 @@ class RockyWebHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.poll())
             elif self.path == "/api/export":
                 self._json(200, self.server.app.export_settings())
+            elif self.path == "/api/memory":
+                self._json(200, self.server.app.memory())
             elif self.path == "/favicon.ico":
                 self._headers(204, length=0)
             else:
@@ -385,6 +436,8 @@ class RockyWebHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.action(payload))
             elif self.path == "/api/import":
                 self._json(200, self.server.app.import_settings(payload))
+            elif self.path == "/api/memory":
+                self._json(200, self.server.app.memory_action(payload))
             else:
                 self._error(404, ValueError("not found"))
         except PermissionError as exc:

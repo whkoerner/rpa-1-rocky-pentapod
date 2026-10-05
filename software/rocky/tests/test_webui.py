@@ -77,6 +77,53 @@ class FakeConversation:
         self.last_output = None
         self.started = []
         self.stopped = False
+        self.memory_enabled = False
+        self.memory = {}
+
+    def memory_status(self):
+        return {
+            "enabled": self.memory_enabled,
+            "revision": len(self.memory),
+            "count": len(self.memory) if self.memory_enabled else 0,
+            "path": "fixture-memory.json",
+        }
+
+    def set_memory_enabled(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("bad memory state")
+        self.memory_enabled = enabled
+
+    def memory_items(self):
+        if not self.memory_enabled:
+            return ()
+        return tuple(
+            SimpleNamespace(
+                key=key,
+                value=value,
+                provenance="user_statement",
+                created_at="fixture",
+                updated_at="fixture",
+            )
+            for key, value in sorted(self.memory.items())
+        )
+
+    def remember(self, key, value):
+        if not self.memory_enabled:
+            raise ValueError("memory off")
+        self.memory[key] = value
+        return SimpleNamespace(
+            key=key,
+            value=value,
+            provenance="user_statement",
+            created_at="fixture",
+            updated_at="fixture",
+        )
+
+    def forget(self, key):
+        return self.memory.pop(key, None) is not None
+
+    def clear_memory(self):
+        self.memory.clear()
 
     def start(self, text):
         if type(text) is not str or not text.strip():
@@ -122,6 +169,7 @@ class WebUITests(unittest.TestCase):
             "tone_style": "vocal-v1",
             "volume": 0.12,
             "translation_enabled": False,
+            "memory_enabled": False,
             "translation_voice": "",
             "voice_rate": 0,
             "voice_pitch": 0,
@@ -152,6 +200,26 @@ class WebUITests(unittest.TestCase):
             app.apply_settings({"raw_motor_power": 1})
         with self.assertRaises(ValueError):
             app.apply_settings({"volume": 1.0})
+
+    def test_memory_requires_opt_in_and_is_manageable(self):
+        app = self.app()
+        with self.assertRaises(ValueError):
+            app.memory_action(
+                {"action": "remember", "key": "favorite_color", "value": "blue"}
+            )
+        app.apply_settings({"memory_enabled": True})
+        result = app.memory_action(
+            {"action": "remember", "key": "favorite_color", "value": "blue"}
+        )
+        self.assertEqual(result["items"][0]["provenance"], "user_statement")
+        self.assertEqual(result["items"][0]["value"], "blue")
+        app.memory_action({"action": "forget", "key": "favorite_color"})
+        self.assertEqual(app.memory()["items"], [])
+        app.memory_action(
+            {"action": "remember", "key": "class", "value": "biology"}
+        )
+        app.memory_action({"action": "clear"})
+        self.assertEqual(app.memory()["items"], [])
 
     def test_export_import_and_save_profile(self):
         with tempfile.TemporaryDirectory() as temp:

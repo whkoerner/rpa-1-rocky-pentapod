@@ -42,6 +42,7 @@ class ConversationController:
         self.translation_enabled = False
         self.user_name = ""
         self.assistant_mode = AssistantMode.NORMAL.value
+        self.memory_store = memory_store
         if hasattr(self.brain.hardware, "translation_enabled"):
             self.brain.hardware.translation_enabled = False
 
@@ -71,6 +72,36 @@ class ConversationController:
             raise ValueError("BUSY: wait or /cancel before changing assistant mode")
         self.assistant_mode = selected.value
 
+    def memory_status(self):
+        if self.memory_store is None:
+            return {"enabled": False, "revision": 0, "count": 0, "path": ""}
+        return self.memory_store.status()
+
+    def set_memory_enabled(self, enabled):
+        if self.memory_store is None:
+            raise ValueError("persistent memory store is unavailable")
+        self.memory_store.set_enabled(enabled)
+
+    def memory_items(self):
+        if self.memory_store is None:
+            return ()
+        return self.memory_store.items()
+
+    def remember(self, key, value):
+        if self.memory_store is None:
+            raise ValueError("persistent memory store is unavailable")
+        return self.memory_store.remember(key, value)
+
+    def forget(self, key):
+        if self.memory_store is None:
+            raise ValueError("persistent memory store is unavailable")
+        return self.memory_store.forget(key)
+
+    def clear_memory(self):
+        if self.memory_store is None:
+            raise ValueError("persistent memory store is unavailable")
+        self.memory_store.clear()
+
     def start(self, text):
         if self.pending is not None:
             raise ValueError("BUSY: wait, or use /cancel")
@@ -82,7 +113,8 @@ class ConversationController:
         supplied_name = explicit_user_name(text)
         if supplied_name:
             self.user_name = supplied_name
-        context = ConversationContext("rocky-text-v2", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality, self.user_name, self.assistant_mode)
+        memory_rows = self.memory_store.prompt_rows() if self.memory_store is not None else ()
+        context = ConversationContext("rocky-text-v2", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality, self.user_name, self.assistant_mode, memory_rows)
         self.worker.start(text, context)
         self.pending = (text, state.session_id, state.revision)
 
