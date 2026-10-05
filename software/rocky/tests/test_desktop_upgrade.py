@@ -42,8 +42,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings['tone_style'], 'vocal-v1')
         self.assertTrue(settings['translation_enabled'])
         self.assertFalse(settings['memory_enabled'])
+        self.assertEqual(settings['stt_backend'], 'disabled')
+        self.assertEqual(settings['stt_max_seconds'], 30)
         self.assertEqual(settings['assistant_mode'], 'normal')
-        self.assertEqual(settings['defaults_profile_version'], 4)
+        self.assertEqual(settings['defaults_profile_version'], 5)
         self.assertEqual((settings['voice_rate'], settings['voice_pitch'], settings['voice_volume']), (0, 0, 0))
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
@@ -53,7 +55,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings['personality_profile'].endswith('my profile.json'))
 
     def test_settings_fail_readably(self):
-        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'assistant_mode': 'unsafe'}, {'memory_enabled': 'yes'}, {'defaults_profile_version': 0}):
+        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'assistant_mode': 'unsafe'}, {'memory_enabled': 'yes'}, {'stt_backend': 'cloud'}, {'stt_max_seconds': 0}, {'stt_max_seconds': 61}, {'whisper_cli_path': 3}, {'defaults_profile_version': 0}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.config(values)
 

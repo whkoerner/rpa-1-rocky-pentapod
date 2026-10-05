@@ -36,6 +36,28 @@ class FakeVoice:
             self.volume_offset = volume_offset
 
 
+class FakeTranscriber:
+    def __init__(self):
+        self.status = "IDLE"
+        self.cancel_count = 0
+        self.raw = None
+
+    def transcribe_wav(self, raw):
+        self.raw = raw
+        self.status = "COMPLETED"
+        return {
+            "text": "hello rocky",
+            "audio_seconds": 0.25,
+            "confidence": None,
+            "confidence_source": "not_provided_by_bounded_whisper_cpp_adapter",
+        }
+
+    def cancel(self):
+        self.cancel_count += 1
+        self.status = "CANCELLED"
+        return True
+
+
 class FakeHardware:
     def __init__(self):
         self.muted = False
@@ -160,7 +182,7 @@ class FakeConversation:
 
 
 class WebUITests(unittest.TestCase):
-    def app(self, path=None):
+    def app(self, path=None, transcriber=None):
         settings = {
             "provider": "local",
             "model": "qwen3:8b",
@@ -175,7 +197,8 @@ class WebUITests(unittest.TestCase):
             "voice_pitch": 0,
             "voice_volume": 0,
         }
-        return LocalWebUI(FakeConversation(), settings, settings_path=path)
+        settings["stt_max_seconds"] = 30
+        return LocalWebUI(FakeConversation(), settings, settings_path=path, transcriber=transcriber)
 
     def test_settings_are_bounded_and_no_physical_controls_exist(self):
         app = self.app()
@@ -220,6 +243,56 @@ class WebUITests(unittest.TestCase):
         )
         app.memory_action({"action": "clear"})
         self.assertEqual(app.memory()["items"], [])
+
+    def test_stt_endpoint_is_token_gated_and_never_auto_sends(self):
+        transcriber = FakeTranscriber()
+        app = self.app(transcriber=transcriber)
+        server = build_server(app, 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.server_address[1]
+            body = b"RIFFfixture"
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            connection.request(
+                "POST",
+                "/api/stt",
+                body=body,
+                headers={"Content-Type": "audio/wav"},
+            )
+            response = connection.getresponse()
+            response.read()
+            self.assertEqual(response.status, 403)
+
+            connection.request(
+                "POST",
+                "/api/stt",
+                body=body,
+                headers={
+                    "Content-Type": "audio/wav",
+                    "X-Rocky-Token": app.token,
+                },
+            )
+            response = connection.getresponse()
+            payload = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(response.status, 200)
+            self.assertEqual(payload["text"], "hello rocky")
+            self.assertIsNone(payload["confidence"])
+            self.assertEqual(transcriber.raw, body)
+            self.assertEqual(app.conversation.started, [])
+
+            app.action({"action": "cancel"})
+            self.assertGreaterEqual(transcriber.cancel_count, 1)
+            connection.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_stt_disabled_fails_readably(self):
+        app = self.app()
+        with self.assertRaisesRegex(ValueError, "disabled"):
+            app.transcribe_voice(b"RIFFfixture")
 
     def test_export_import_and_save_profile(self):
         with tempfile.TemporaryDirectory() as temp:

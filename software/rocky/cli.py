@@ -208,6 +208,13 @@ def configuration(args):
         raise ValueError("translation_enabled must be true or false")
     if type(defaults["memory_enabled"]) is not bool:
         raise ValueError("memory_enabled must be true or false")
+    if defaults["stt_backend"] not in {"disabled", "whisper-cpp"}:
+        raise ValueError("stt_backend must be disabled or whisper-cpp")
+    for key in ("whisper_cli_path", "whisper_model_path"):
+        if type(defaults[key]) is not str or len(defaults[key]) > 1000 or any(ord(char) < 32 for char in defaults[key]):
+            raise ValueError(f"{key} must be a printable path string")
+    if type(defaults["stt_max_seconds"]) not in (int, float) or not math.isfinite(defaults["stt_max_seconds"]) or not 1 <= defaults["stt_max_seconds"] <= 60:
+        raise ValueError("stt_max_seconds must be between 1 and 60")
     if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
         raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
@@ -388,7 +395,7 @@ def handle_command(line, conversation, settings, display):
         conversation.cancel()
         print("Reset to disabled." if brain.reset_stop() else "Reset unavailable; inspect /status.")
     elif line == "/listen":
-        print("Voice input is prepared for V2 only. Type your message.")
+        print("Push-to-talk is available in the local web UI when a whisper.cpp sidecar is explicitly configured. Transcripts require review before send.")
     else:
         print("Unknown command. Use /help.")
     return True
@@ -473,6 +480,10 @@ def main(argv=None):
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--benchmark-output", type=Path)
     parser.add_argument("--memory-path", type=Path, default=Path.home() / ".rpa1" / "memory-v1.json")
+    parser.add_argument("--stt-backend", choices=("disabled", "whisper-cpp"))
+    parser.add_argument("--whisper-cli-path")
+    parser.add_argument("--whisper-model-path")
+    parser.add_argument("--stt-max-seconds", type=float)
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -491,7 +502,10 @@ def main(argv=None):
         if args.command == "check":
             if settings["provider"] == "local":
                 LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()
-            print("Configuration and selected provider checks passed; no inference/audio acceptance implied.")
+            if settings["stt_backend"] != "disabled":
+                from .stt import WhisperCppTranscriber
+                WhisperCppTranscriber.from_settings(settings).check_available()
+            print("Configuration and selected provider checks passed; no inference/audio/microphone acceptance implied.")
             return 0
         if args.command == "benchmark":
             from .benchmark_runner import run_benchmark_file
@@ -567,13 +581,16 @@ def main(argv=None):
         print(f"Rocky Assistant V2 | provider={settings['provider']} | audio={hardware.player.backend}")
         print(f"Local output: {args.data_dir}")
         if args.command == "web":
+            from .stt import WhisperCppTranscriber
             from .webui import serve_local_web_ui
+            transcriber = WhisperCppTranscriber.from_settings(settings)
             serve_local_web_ui(
                 conversation,
                 settings,
                 port=args.ui_port,
                 settings_path=args.config or user_config,
                 open_browser=not args.no_browser,
+                transcriber=transcriber,
             )
         else:
             terminal(conversation, settings)
