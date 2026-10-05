@@ -284,6 +284,8 @@ class PersistentTranslationTests(unittest.TestCase):
         self.assertTrue(self.brain.state.estop_latched)
 
     def test_tone_and_voice_commands_are_bounded(self):
+        handle_command("/tone vocal-v1", self.conversation, self.settings, self.display)
+        self.assertEqual(self.hardware.tone_style, "vocal-v1")
         handle_command("/tone resonant", self.conversation, self.settings, self.display)
         self.assertEqual(self.hardware.tone_style, "resonant")
         with self.assertRaises(ValueError):

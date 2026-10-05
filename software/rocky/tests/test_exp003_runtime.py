@@ -24,8 +24,8 @@ class Exp003RuntimeTests(unittest.TestCase):
         self.windows_benchmark = json.loads(WINDOWS_BENCHMARK.read_text(encoding="utf-8"))
 
     def test_chordic_export_is_pinned_and_rocky_has_no_exp002_surface_dictionary(self):
-        self.assertEqual(SOURCE_COMMIT, "e618b39150c7f318b7a0da51408062ca9eb43ad9")
-        self.assertEqual(self.profile["export_id"], "EXP-003-runtime-v2")
+        self.assertEqual(SOURCE_COMMIT, "1f564424609983147bcf9fa4ef40c4b28a4c35a1")
+        self.assertEqual(self.profile["export_id"], "EXP-003-runtime-v3")
         self.assertFalse(hasattr(exp002, "_SURFACES"))
         exported = exp002.surface_registry()
         self.assertEqual(exported["hello"], ("SOCIAL.HELLO",))
@@ -122,6 +122,17 @@ class Exp003RuntimeTests(unittest.TestCase):
         self.assertEqual(len(first) % 2, 0)
         expected_frames = round(estimated_duration(output, self.codec, 3) * 22050)
         self.assertLessEqual(abs(len(first) // 2 - expected_frames), 8)
+
+    def test_vocal_v1_pcm_is_deterministic_and_distinct_from_contour(self):
+        output = self.tasks.build_communication(Utterance("hello rocky"))
+        vocal_first = synthesize(output, self.codec, volume=0.12, duration_multiplier=2, tone_style="vocal-v1")
+        vocal_second = synthesize(output, self.codec, volume=0.12, duration_multiplier=2, tone_style="vocal-v1")
+        contour = synthesize(output, self.codec, volume=0.12, duration_multiplier=2, tone_style="contour-v1")
+        self.assertEqual(vocal_first, vocal_second)
+        self.assertNotEqual(vocal_first, contour)
+        self.assertEqual(len(vocal_first), len(contour))
+        self.assertEqual(self.profile["candidate"]["acoustics"]["recommended_renderer"], "vocal-v1")
+        self.assertEqual(self.profile["candidate"]["acoustics"]["default_duration_multiplier"], 2)
 
     def test_ct2_and_exp002_profiles_remain_available(self):
         self.assertEqual(TaskController(self.codec, "ct2").text_encoding, "ct2")

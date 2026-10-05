@@ -38,7 +38,7 @@ HELP = """Type a message to Rocky. Commands:
 /dictionary show CT2 starter words    /word thank you  replay one CT2 entry
 /learn      use 3x timing + token view /speed 1..6 change duration multiplier
 /tokens     inspect last representation /auto      legacy display-only toggle
-/tone [pure|resonant|contour-v1]  A/B Chordic timbre
+/tone [pure|resonant|contour-v1|vocal-v1]  A/B Chordic timbre
 /voice status|list|select NAME|rate N|pitch N|volume N   tune local English voice (-2..2)
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
@@ -145,6 +145,18 @@ def configuration(args):
         custom = strict_json(args.config.read_text(encoding="utf-8-sig"))
         if type(custom) is not dict or set(custom) - set(defaults):
             raise ValueError("settings must be an object with known fields: " + ", ".join(sorted(defaults)))
+        legacy_generated = (
+            "defaults_profile_version" not in custom
+            and custom.get("duration_multiplier") == 3
+            and custom.get("text_encoding") == "exp002"
+            and custom.get("tone_style") == "resonant"
+        )
+        if legacy_generated:
+            custom = dict(custom)
+            custom.pop("duration_multiplier", None)
+            custom.pop("text_encoding", None)
+            custom.pop("tone_style", None)
+            custom["defaults_profile_version"] = defaults["defaults_profile_version"]
         defaults.update(custom)
     if type(defaults["personality_profile"]) is not str or not defaults["personality_profile"]:
         raise ValueError("personality_profile must be a nonempty file path")
@@ -162,8 +174,12 @@ def configuration(args):
             defaults[key] = value
     if type(defaults["provider"]) is not str or defaults["provider"] not in {"local", "dummy"} or type(defaults["audio_backend"]) is not str or defaults["audio_backend"] not in {"auto", "winsound", "pygame", "wav"}:
         raise ValueError("invalid provider/audio backend")
-    if defaults["tone_style"] not in {"pure", "resonant", "contour-v1"}:
-        raise ValueError("tone_style must be pure, resonant or contour-v1")
+    if defaults["tone_style"] not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+        raise ValueError("tone_style must be pure, resonant, contour-v1 or vocal-v1")
+    if type(defaults["translation_enabled"]) is not bool:
+        raise ValueError("translation_enabled must be true or false")
+    if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
+        raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
         raise ValueError("invalid translation_voice")
     for key in ("voice_rate", "voice_pitch", "voice_volume"):
@@ -196,7 +212,7 @@ def handle_command(line, conversation, settings, display):
         else:
             enabled = line.endswith(" on")
             conversation.set_translation(enabled)
-            print("Persistent translation: " + ("ON; English will display and speak after each Chordic reply until /translate off." if enabled else "OFF; current/pending English voice cancelled."))
+            print("Persistent translation: " + ("ON; English will display and actively overlap Chordic while finishing after it, until /translate off." if enabled else "OFF; current/pending English voice cancelled."))
     elif line == "/translate":
         if conversation.last_output is None:
             print("No response yet.")
@@ -223,8 +239,8 @@ def handle_command(line, conversation, settings, display):
             print("Chordic tone style: " + hardware.tone_style)
         else:
             style = line[6:].strip().lower()
-            if style not in {"pure", "resonant", "contour-v1"}:
-                raise ValueError("tone style must be pure, resonant or contour-v1")
+            if style not in {"pure", "resonant", "contour-v1", "vocal-v1"}:
+                raise ValueError("tone style must be pure, resonant, contour-v1 or vocal-v1")
             hardware.tone_style = style
             settings["tone_style"] = style
             print("Chordic tone style: " + style + ". Applies to future playback/replay.")
@@ -372,7 +388,7 @@ def main(argv=None):
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
     parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002", "exp003"))
-    parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1"))
+    parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
     parser.add_argument("--voice-pitch", type=int)
@@ -417,6 +433,11 @@ def main(argv=None):
             return 0
         provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"])
+        if settings["translation_enabled"]:
+            if sys.platform == "win32" and hardware.player.backend != "wav":
+                conversation.set_translation(True)
+            elif sys.platform != "win32":
+                print("Persistent spoken translation default is ON for Windows; this platform has no supported local speech backend, so translation remains OFF.")
         print(f"Rocky Conversational Brain V1.1 | provider={settings['provider']} | audio={hardware.player.backend}")
         print(f"Local output: {args.data_dir}")
         terminal(conversation, settings)

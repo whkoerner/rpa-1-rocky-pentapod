@@ -5,12 +5,14 @@
   "timeout": 120,
   "audio_backend": "auto",
   "volume": 0.12,
-  "duration_multiplier": 3,
-  "text_encoding": "exp002",
+  "duration_multiplier": 2,
+  "text_encoding": "exp003",
   "personality_profile": "personality.json",
-  "tone_style": "resonant",
+  "tone_style": "vocal-v1",
   "translation_voice": "",
   "voice_rate": 0,
   "voice_pitch": 0,
-  "voice_volume": 0
+  "voice_volume": 0,
+  "defaults_profile_version": 2,
+  "translation_enabled": true
 }
