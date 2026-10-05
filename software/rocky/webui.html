@@ -164,6 +164,7 @@ function showStatus(s) {
   el("status").textContent=JSON.stringify({
     provider:s.provider,
     model:s.model,
+    voice_backend:s.voice_backend||"system-speech",
     language:s.language,
     renderer:s.tuning?s.tuning.tone_style:"",
     audio:s.audio_status,

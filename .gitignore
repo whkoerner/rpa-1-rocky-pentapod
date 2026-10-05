@@ -32,3 +32,6 @@ software/simulation/logs/*.csv
 *.egg-info/
 .venv-rocky-*/
 .rocky-python-path.txt
+.venv-rocky-piper/
+/.venv-rocky-piper-repair-*/
+/.rocky-piper-python-path.txt

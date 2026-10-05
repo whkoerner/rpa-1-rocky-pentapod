@@ -33,6 +33,14 @@
       "reference": "local Whisper model file",
       "path": "",
       "sha256": ""
+    },
+    {
+      "id": "piper_voice_model",
+      "kind": "file",
+      "required": false,
+      "reference": "local Piper ONNX voice model used by optional neural TTS sidecar",
+      "path": "",
+      "sha256": ""
     }
   ]
 }

@@ -48,8 +48,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings['lecture_chunk_seconds'], 30)
         self.assertEqual(settings['stt_max_seconds'], 30)
         self.assertEqual(settings['assistant_mode'], 'normal')
-        self.assertEqual(settings['defaults_profile_version'], 7)
+        self.assertEqual(settings['defaults_profile_version'], 8)
         self.assertEqual((settings['voice_rate'], settings['voice_pitch'], settings['voice_volume']), (0, 0, 0))
+        self.assertEqual(settings['translation_voice_backend'], 'system-speech')
+        self.assertEqual(settings['piper_sidecar_port'], 5055)
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
     def test_relative_personality_resolves_against_settings_not_cwd(self):
@@ -58,7 +60,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings['personality_profile'].endswith('my profile.json'))
 
     def test_settings_fail_readably(self):
-        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'assistant_mode': 'unsafe'}, {'memory_enabled': 'yes'}, {'stt_backend': 'cloud'}, {'stt_max_seconds': 0}, {'stt_max_seconds': 61}, {'whisper_cli_path': 3}, {'connected_enabled': 'yes'}, {'connected_gateway_port': 0}, {'connected_timeout_seconds': 0}, {'lecture_max_seconds': 599}, {'lecture_max_seconds': 14401}, {'lecture_chunk_seconds': 9}, {'lecture_chunk_seconds': 61}, {'stt_max_seconds': 20, 'lecture_chunk_seconds': 30}, {'defaults_profile_version': 0}):
+        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'assistant_mode': 'unsafe'}, {'memory_enabled': 'yes'}, {'stt_backend': 'cloud'}, {'stt_max_seconds': 0}, {'stt_max_seconds': 61}, {'whisper_cli_path': 3}, {'connected_enabled': 'yes'}, {'connected_gateway_port': 0}, {'connected_timeout_seconds': 0}, {'lecture_max_seconds': 599}, {'lecture_max_seconds': 14401}, {'lecture_chunk_seconds': 9}, {'lecture_chunk_seconds': 61}, {'stt_max_seconds': 20, 'lecture_chunk_seconds': 30}, {'translation_voice_backend': 'cloud'}, {'piper_sidecar_port': 0}, {'piper_sidecar_timeout_seconds': 0}, {'piper_sidecar_token_path': 3}, {'defaults_profile_version': 0}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.config(values)
 

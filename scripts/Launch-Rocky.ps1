@@ -123,6 +123,11 @@ function Run-Rocky($choice) {
         & $python -m rocky lecture-notes @arguments --lecture-session $session --provider local
         return
     }
+    if ($choice -eq '15') {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'scriptsSetup-Piper.ps1')
+        if ($LASTEXITCODE -ne 0) { throw 'Optional Piper sidecar setup failed.' }
+        return
+    }
     if ($choice -eq '1' -or $choice -eq '9') {
         Write-Host 'Local model availability check only; this does not establish GPU stability.'
         & $python -m rocky check @arguments --provider local
@@ -143,7 +148,7 @@ try {
     if ($Action -eq 'shortcut') { Create-Shortcut; Read-Host 'Press Enter to close'; exit 0 }
     if ($Action -eq 'tests') { Run-Rocky '4'; Read-Host 'Press Enter to close'; exit 0 }
     while ($true) {
-        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n11 Export portable user backup`n12 Verify external asset manifest`n13 Transcribe recorded lecture session`n14 Generate study notes from lecture`n0 Exit"
+        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n11 Export portable user backup`n12 Verify external asset manifest`n13 Transcribe recorded lecture session`n14 Generate study notes from lecture`n15 Setup optional Piper neural voice sidecar`n0 Exit"
         $choice = Read-Host 'Choose'
         try {
             switch ($choice) {
@@ -160,8 +165,8 @@ try {
                 }
                 '7' { Setup-Rocky }
                 '8' { Create-Shortcut }
-                { $_ -in '1','2','3','4','9','10','11','12','13','14' } { Run-Rocky $choice }
-                default { Write-Host 'Choose 0 through 14.' }
+                { $_ -in '1','2','3','4','9','10','11','12','13','14','15' } { Run-Rocky $choice }
+                default { Write-Host 'Choose 0 through 15.' }
             }
         } catch { Write-Host "ERROR: $_" -ForegroundColor Red }
     }
