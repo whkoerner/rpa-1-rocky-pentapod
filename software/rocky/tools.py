@@ -18,6 +18,7 @@ from typing import Callable
 from brain.constitution import ActionDomain, AuthorityRequest, RockySafetyConstitution
 
 from .assistant_contracts import ToolCall, ToolResult
+from .symbolic_math import SymbolicMathError, symbolic_operation
 
 
 class ToolExecutionError(ValueError):
@@ -253,7 +254,7 @@ class AssistantToolRegistry:
     constitution: RockySafetyConstitution = RockySafetyConstitution()
 
     def names(self) -> tuple[str, ...]:
-        return ("calculator", "date_difference", "unit_convert")
+        return ("calculator", "date_difference", "symbolic_math", "unit_convert")
 
     def execute(self, call: ToolCall) -> ToolResult:
         decision = self.constitution.validate_authority_request(
@@ -278,7 +279,7 @@ class AssistantToolRegistry:
                     call.arguments["from_unit"],
                     call.arguments["to_unit"],
                 )
-            else:
+            elif call.name == "date_difference":
                 if set(call.arguments) != {"start", "end"}:
                     raise ToolExecutionError(
                         "date_difference requires exactly start and end"
@@ -286,8 +287,18 @@ class AssistantToolRegistry:
                 output = date_difference(
                     call.arguments["start"], call.arguments["end"]
                 )
+            else:
+                if set(call.arguments) != {"operation", "expression", "variable"}:
+                    raise ToolExecutionError(
+                        "symbolic_math requires exactly operation, expression, variable"
+                    )
+                output = symbolic_operation(
+                    call.arguments["operation"],
+                    call.arguments["expression"],
+                    call.arguments["variable"],
+                )
             return ToolResult(call.call_id, call.name, True, output=output)
-        except (ToolExecutionError, ZeroDivisionError, OverflowError) as exc:
+        except (ToolExecutionError, SymbolicMathError, ZeroDivisionError, OverflowError) as exc:
             return ToolResult(
                 call.call_id,
                 call.name,

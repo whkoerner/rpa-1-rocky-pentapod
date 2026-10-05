@@ -412,7 +412,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -424,6 +424,7 @@ def main(argv=None):
     parser.add_argument("--assistant-mode", choices=("normal", "study", "coding", "project"))
     parser.add_argument("--ui-port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--benchmark-output", type=Path)
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -444,6 +445,45 @@ def main(argv=None):
                 LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()
             print("Configuration and selected provider checks passed; no inference/audio acceptance implied.")
             return 0
+        if args.command == "benchmark":
+            from .benchmark_runner import run_benchmark_file
+            if settings["provider"] != "local":
+                raise ValueError("real Assistant benchmark requires provider=local")
+            provider = LocalAIProvider(
+                settings["model"], settings["port"], settings["timeout"]
+            )
+            provider.check_available()
+            benchmark_path = (
+                Path(__file__).resolve().parents[2]
+                / "experiments"
+                / "assistant"
+                / "assistant-v2-benchmark-v0.1.json"
+            )
+            output_path = args.benchmark_output or (
+                args.data_dir / "assistant-benchmark-latest.json"
+            )
+            report = run_benchmark_file(
+                provider,
+                personality,
+                benchmark_path,
+                output_path,
+                duration_multiplier=settings["duration_multiplier"],
+            )
+            summary = report["summary"]
+            print(
+                "Assistant benchmark: "
+                f'run={summary["run"]}; skipped={summary["skipped"]}; '
+                f'failed={summary["failed"]}; '
+                f'mean_latency={summary["mean_latency_seconds"]}; '
+                f'mean_EXP003_coverage={summary["mean_semantic_coverage_percent"]}; '
+                f'fallback_spans={summary["total_fallback_spans"]}'
+            )
+            print("Report: " + str(output_path))
+            print(
+                "Human review still required for factual correctness, usefulness, "
+                "personality and listening quality."
+            )
+            return 2 if summary["failed"] else 0
         hardware = DesktopHardware(args.data_dir, backend=settings["audio_backend"], volume=settings["volume"], duration_multiplier=settings["duration_multiplier"], tone_style=settings["tone_style"], translation_voice=settings["translation_voice"], voice_rate=settings["voice_rate"], voice_pitch=settings["voice_pitch"], voice_volume=settings["voice_volume"])
         brain = BrainController(provider=DummyAIProvider(), hardware=hardware, config=BrainConfig(max_provider_response_bytes=4096, operation_timeout_ms=10000), event_logger=JsonlEventLogger(args.data_dir / "events.jsonl"))
         brain.task_controller = TaskController(hardware.codec, settings["text_encoding"])
