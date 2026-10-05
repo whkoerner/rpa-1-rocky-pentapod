@@ -1,0 +1,145 @@
+# Rocky Desktop + Chordic debugging and test-evidence ledger
+
+**Date recorded:** 2026-10-04  
+**Scope:** Documentation/test-evidence only; no production behavior change  
+**Repository baseline inspected:** `58218d83774ae437c51ed23130ba03267e4946da` on `main`  
+**Primary merged work:** PR #11, "Test Chordic EXP-002 through Rocky timing and Brain boundary"
+
+This ledger preserves the real debugging sequence around Rocky Desktop V1.1, the local personality/provider repair work, and the Chordic EXP-002 integration. It intentionally distinguishes committed/automated evidence from user-observed local evidence. A local observation is not promoted to CI evidence simply because a related invariant exists in the repository.
+
+## Evidence labels
+
+- **AUTOMATED** — directly exercised by committed tests/CI, with a run or test named below.
+- **REPOSITORY** — directly visible in committed source/configuration/documentation, but not by itself proof of a runtime observation.
+- **MANUAL / USER-OBSERVED** — reported from the user's local Windows/manual session. Preserve as real acceptance/debug history, but do not represent it as CI.
+- **NOT RUN / SUBJECTIVE** — not executed, not implemented, or requiring human listening/judgment beyond automated evidence.
+
+## Repository state inspected before this update
+
+- `main`: `58218d83774ae437c51ed23130ba03267e4946da`, merge commit for PR #11.
+- Merged PR #11 head: `fb226d5b35fcd9907f9a60ce79c969503998f300`.
+- `feat/rocky-desktop-v1-1`: `7882956d87447be005107b456cb91f8d10250514`.
+- `feat/rocky-conversation-v1`: `37b0ba4a03def2c3904b9d66712e6f65175223a1`.
+- `feat/chordic-exp-002-integration`: currently `9554fcd420b12c4ceb02d6850e69f30ada738278`, one commit ahead of and one merge commit behind `main`. That post-merge branch commit contains an unmerged personality-profile edit; it is evidence of ongoing personality experimentation, not part of merged PR #11.
+- Existing evidence documents reviewed: `docs/test-plans/rocky-desktop-v1-1.md` and `docs/test-plans/chordic-exp-002.md`.
+- Current code/tests reviewed for the personality schema, provider system prompt, deterministic Dummy provider, check-no-audio invariant, and Windows launcher regression.
+
+## Detailed bug/test ledger
+
+| Order | Feature/test | Reproduction | Exact symptom/error | Root cause | Fix | Verification | Final status | Evidence | Related commit/PR/run |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | PR #11 EXP-002 integration | Run pinned EXP-002 timing tests and send a benchmark utterance through Brain/Safety/Task | Integration goal; no defect claimed | N/A | Added pinned read-only EXP-002 snapshot and focused tests without replacing production CT2 | PR #11 merged; committed plan states production Brain/SafetyValidator/Task/hardware/CT1/CT2/launcher/audio behavior was not replaced | **PASS / MERGED** | AUTOMATED + REPOSITORY | PR #11; merge `58218d8...` |
+| 2 | EXP-002 integration CI | Push PR #11 corrections and run normal workflow | Runs #42-#44 failed in **Conversational Brain V1 tests (no model or speakers)**; Arduino passed | See entries 3-4 | Corrected test-only backend and capability declaration | Run #45 passed Windows/Linux x Python 3.12/3.13, browser protocol and Arduino; post-merge #46 passed | **PASS**; earlier failures preserved | AUTOMATED | Runs #42-#46 |
+| 3 | Initial Brain-path test backend | Execute new Brain-path test with initial `SimulatorHardware` | Conversational Brain V1 step failed across matrix | `SimulatorHardware` unsuitable for arbitrary `ConversationOutput` dispatch in this test | Replaced with dedicated communication-only backend | Commit `b54d007...`; later failure changed to missing capability rather than backend mismatch | **FIXED** | AUTOMATED + REPOSITORY | run #42; commit `b54d007...` |
+| 4 | Communication-only backend capability | Run Brain-path test without `TEXT_COMMUNICATION` | SafetyValidator correctly rejected conversational utterance | Test backend advertised communication but omitted explicit text communication capability | Added `Capability.TEXT_COMMUNICATION` to test backend only; no motion capability added | Final backend has COMMUNICATION, TEXT_COMMUNICATION, LOCAL_STOP; test confirms host motion remains disabled; run #45 green | **FIXED / SAFETY PRESERVED** | AUTOMATED + REPOSITORY | commits `45746ad...`, `fb226d5...`; runs #43-#45 |
+| 5 | Local virtual environment | Local machine used stale `.venv-1` | Referenced missing Python314 executable | Stale/broken interpreter reference; exact origin not preserved | Rocky setup/repair restored working `.venv-rocky` | Existing Desktop V1.1 acceptance independently records successful setup/repair using `.venv-rocky` | **PASS locally after repair** | MANUAL; final state corroborated by repo docs | `rocky-desktop-v1-1.md` |
+| 6 | Desktop shortcut | Launch original desktop shortcut | Opened `rpa-1-rocky-pentapod-v11` instead of current `rpa-1-rocky-pentapod` | Shortcut target pointed at old/different checkout | Recreated shortcut for current checkout | User later observed correct repo and `.venv-rocky`; prior Desktop V1.1 acceptance records shortcut launching without manual activation | **PASS locally after recreation** | MANUAL | no exact commit/run found |
+| 7 | Personality identity | Ask real local model identity/self-description questions | Rocky described itself like software/a desktop conversation program | Merged personality self-description says "currently a desktop conversation program"; merged provider system prompt also says "You are a desktop conversation program..." | Local wording adjusted so normal identity can be Rocky-first while capability limits remain immutable | User later observed desired Rocky-style wording; no headless CI can prove subjective persona quality | **IMPROVED manually; merged wording still deserves deliberate follow-up** | REPOSITORY + MANUAL | merged files; post-merge branch `9554fcd...` |
+| 8 | Manual `providers.py` edit | Run Rocky/tests after manual edit | `IndentationError: unexpected indent` around line 159 | Manual edit introduced invalid indentation | Repaired file | User reports `py_compile` then succeeded; current committed provider is syntactically valid and CI green | **PASS locally after repair** | MANUAL | no broken intermediate commit found |
+| 9 | Personality schema | Load edited profile/startup tests | `personality.speaking_style must be 1-500 printable characters` (repo renders `1–500`) | Edited style violated explicit printable/length constraint | Shortened style; moved detailed behavior to appropriate provider/system instructions | `personality.py` enforces <=500 printable chars; inspected post-merge branch style is 475 chars; local errors reportedly cleared | **PASS locally; schema retained** | REPOSITORY + MANUAL | `personality.py`; branch `9554fcd...` |
+| 10 | DummyConversationProvider deterministic diagnostic | Run worker/provider regression after wording change | Expected phrase `dummy test mode` disappeared | User-facing wording edit changed a deterministic diagnostic contract | Restored Dummy wording/behavior | Current provider returns `dummy test mode`; test explicitly asserts it; main CI #46 green | **PASS / protected** | transient failure MANUAL; restored invariant AUTOMATED + REPOSITORY | provider/test files; run #46 |
+| 11 | `test_check_never_generates_or_opens_audio` | Run focused desktop-upgrade tests in broken local personality/provider state | Test also failed during broken state | Exact transient local failure path not preserved, so no narrower cause claimed | Repair local state; do not weaken assertion | Current test patches `DesktopHardware.open` and asserts not called; main CI #46 green | **PASS currently / invariant protected** | failure MANUAL; current protection AUTOMATED + REPOSITORY | `test_desktop_upgrade.py`; run #46 |
+| 12 | Windows launcher temporary environment | Run `test_valid_environment_and_broken_explicit_override` locally | `No module named 'yaml'` | Selected temporary/local Python lacked YAML module | Environment/PyYAML repaired; exact repair command intentionally not invented | User reports later local suite had no failures; GitHub Windows CI had already passed launcher suite | **PASS locally after environment repair** | local failure/fix MANUAL; CI AUTOMATED | Desktop runs #36-#38; main #41/#46 |
+| 13 | Real-model personality acceptance | Converse with real local model after repairs | Prior software-like identity replaced by Rocky-style phrasing | See entry 7 | Local personality/provider repair | User observed example `Rocky is name. You friend. Good.`; third-person/telegraphic style working | **MANUAL PASS** | MANUAL / SUBJECTIVE | no exact merged commit/run establishes qualitative output |
+| 14 | Normal CT2 fallback runtime duration | Allow normal free-form real-model replies to use current production CT2 fallback | User-observed durations about 14.07 s, 50.84 s, 35.06 s, 24.32 s | Current fallback scales with arbitrary reply text and can become too long for conversation | No production codec replacement claimed here; evidence motivates production EXP-002 integration/evaluation | Separate automated fixed 17-case benchmark: current CT2 mean 8.030 s/max 10.875 s; EXP-002 mean 6.794 s/max 8.400 s, 17/17 <=10 s | **OPEN runtime problem** | free-form durations MANUAL; benchmark AUTOMATED | PR #11; `chordic-exp-002.md`; runs #45/#46 |
+
+## CI progression for PR #11
+
+| Run | Head | Result | Relevant evidence |
+| --- | --- | --- | --- |
+| #42 | `7388181...` | FAIL | Conversational Brain V1 step failed in all four Python matrix cells; Arduino passed. |
+| #43 | `b54d007...` | FAIL | Communication-only backend was in place, but the focused conversational path still failed. |
+| #44 | `45746ad...` | FAIL | Conversational Brain V1 step still failed; Arduino passed. |
+| #45 | `fb226d5...` | PASS | Windows/Linux x Python 3.12/3.13, browser protocol, and Arduino all passed. |
+| #46 | `58218d8...` | PASS | Post-merge `main` verification passed. |
+
+PR #11's final validation comment records the development failure sequence: unsuitable `SimulatorHardware`, then missing `TEXT_COMMUNICATION`, then final green with a communication-only, no-motion backend.
+
+## Timing evidence: do not mix these populations
+
+| Evidence | Population | Result | Classification |
+| --- | --- | --- | --- |
+| Production/current CT2 baseline in EXP-002 test | Fixed 17-case benchmark, 3x | mean 8.030 s; max 10.875 s; 1 case >10 s | AUTOMATED |
+| Chordic EXP-002 candidate | Same fixed 17-case benchmark, 3x | mean 6.794 s; max 8.400 s; 17/17 <=10 s | AUTOMATED |
+| Normal CT2 fallback runtime examples | Free-form real-model replies | ~14.07 s, 50.84 s, 35.06 s, 24.32 s | MANUAL / USER-OBSERVED |
+
+The long free-form CT2 observations are evidence that production fallback still needs improvement. They are **not** evidence that EXP-002 itself takes 14-51 seconds.
+
+## Manual, automated, and NOT RUN boundaries
+
+### Automated evidence that exists
+
+- PR #11 focused EXP-002 tests, including pinned snapshot, timing benchmark, registry uniqueness, Brain/Safety/Task traversal, and motion-disabled assertion.
+- Full CI matrix on run #45 and post-merge run #46.
+- Personality schema enforcement in `software/rocky/personality.py`.
+- Deterministic Dummy diagnostic regression containing `dummy test mode`.
+- `test_check_never_generates_or_opens_audio` invariant.
+- Windows launcher regression suite, including `test_valid_environment_and_broken_explicit_override`.
+
+### Manual/user-observed evidence
+
+- Broken local `.venv-1` referring to missing Python314.
+- Repair/use of `.venv-rocky` and corrected shortcut target.
+- `IndentationError: unexpected indent` during manual `providers.py` editing, followed by successful `py_compile`.
+- Personality schema failure during local profile experimentation and subsequent repair.
+- Temporary Dummy diagnostic and check-no-audio failures during the broken local state.
+- Temporary `No module named 'yaml'` local environment failure and eventual no-failure local suite after environment repair.
+- Real-model personality acceptance, including third-person/telegraphic output.
+- Long free-form CT2 runtime duration examples.
+
+### NOT RUN / do not claim
+
+- **Spoken-English TTS:** no claim that an English TTS voice feature was implemented or tested in this work.
+- **Contextual English prosody/inflection:** no claim that contextual prosody was implemented or tested.
+- **EXP-002 subjective listening:** the committed EXP-002 plan still lists candidate listening at 1x/3x as manual work to do.
+- **EXP-002 microphone/acoustic recognition:** not run; no human/listener/noise-tolerance claim.
+- **Physical robot hardware / Pi acceptance:** remains outside this evidence unless separately documented.
+- A successful headless audio request is not the same thing as a person hearing/approving acoustic output.
+
+## Lessons / regression protections
+
+- Do not identify personality as software unnecessarily. Keep truthful capability boundaries without forcing normal self-description to be "desktop program."
+- Personality never grants hardware authority. Profile/system wording cannot bypass Brain/SafetyValidator or enable motion.
+- Keep Dummy diagnostics deterministic; `dummy test mode` is a regression contract.
+- Validate personality length/schema before startup.
+- Run `py_compile` after manual provider edits.
+- Preserve the check-no-audio invariant.
+- Keep the desktop shortcut pointed at the current checkout.
+- Preserve CT2 compatibility while EXP-002 evolves.
+- Do not weaken safety tests to make experimental language work pass; the missing `TEXT_COMMUNICATION` rejection was correct.
+- Keep fixed benchmark timing separate from arbitrary free-form runtime timing.
+
+## Evidence sources used
+
+- `main` merge `58218d83774ae437c51ed23130ba03267e4946da` for PR #11.
+- PR #11 body/diff and final validation comment.
+- PR #11 commits:
+  - `8d9cd2bd94183c6fec4b9432902b0a8d51292af1` — EXP-002 timing/Brain-path tests.
+  - `b54d007111a104dd262d4a5bd75a7dc4da242c75` — communication-only Brain test backend.
+  - `45746ad2d74d4665370796648aa4c5c692671100` — documentation aligned with test-backend evidence.
+  - `fb226d5b35fcd9907f9a60ce79c969503998f300` — advertises conversational text capability.
+- GitHub Actions runs #42-#46, especially final PR run #45 and post-merge run #46.
+- `docs/test-plans/rocky-desktop-v1-1.md`.
+- `docs/test-plans/chordic-exp-002.md`.
+- `software/rocky/personality.py`.
+- `software/rocky/config/personality.json` on `main` and the current post-merge integration branch.
+- `software/rocky/providers.py`.
+- `software/rocky/tests/test_conversation.py`.
+- `software/rocky/tests/test_desktop_upgrade.py`.
+- `software/rocky/tests/test_windows_launcher.py`.
+- User-observed local Windows/debugging evidence supplied for this documentation update.
+
+## Could not independently verify from repository/Actions
+
+The following are preserved as manual evidence because the broken intermediate files/logs were not found in committed Git/Actions history inspected here:
+
+- exact stale `.venv-1` Python314 path and how it was originally created;
+- exact original wrong-shortcut creation command/target metadata;
+- broken `providers.py` intermediate file that produced the line-159 `IndentationError`;
+- exact overlength `speaking_style` intermediate text;
+- precise transient cause of the local `test_check_never_generates_or_opens_audio` failure;
+- exact PyYAML repair command after `No module named 'yaml'`;
+- real-model transcript beyond the user-supplied example;
+- raw logs for the four long free-form CT2 runtime duration examples.
+
+These gaps are deliberate: this document preserves the reported history without inventing commands, commits, or automated evidence.
