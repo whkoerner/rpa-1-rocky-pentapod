@@ -184,21 +184,17 @@ class PersistentTranslationTests(unittest.TestCase):
         wait_audio(self.hardware)
         return result
 
-    def test_translation_overlaps_chordic_after_actual_playback_start(self):
+    def test_translation_waits_for_chordic_then_finishes_after_source(self):
         handle_command("/translate on", self.conversation, self.settings, self.display)
         self.turn("one", "Rocky ready. Good.")
         text, delay, gated = self.voice.starts[-1]
         self.assertEqual(text, "Rocky ready. Good.")
-        self.assertEqual(delay, 0.75)
         self.assertTrue(gated)
+        self.assertAlmostEqual(delay, self.hardware.duration, places=3)
         self.voice.last_duration_seconds = 5.0
-        self.hardware.duration = 8.0
-        self.assertEqual(self.hardware.combined_duration, 8.0)
-        self.voice.last_duration_seconds = 9.0
-        self.assertEqual(self.hardware.combined_duration, 9.75)
-        self.assertEqual(self.hardware.translation_finish_margin, 1.75)
-        self.voice.last_duration_seconds = 5.0
-        self.assertEqual(self.hardware.translation_finish_margin, -2.25)
+        self.assertAlmostEqual(self.hardware.combined_duration, self.hardware.duration + 5.0, places=3)
+        self.assertAlmostEqual(self.hardware.translation_finish_margin, 5.0, places=3)
+        self.assertGreater(self.hardware.translation_finish_margin, 0)
 
     def test_explicit_session_name_capture_and_clear(self):
         self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")

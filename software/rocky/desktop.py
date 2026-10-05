@@ -20,7 +20,7 @@ class DesktopHardware:
         self.translation_enabled = False
         self.volume = volume
         self.duration_multiplier = duration_multiplier
-        self.translation_delay_seconds = 0.75
+        self.translation_delay_seconds = 0.0
         self.translation_tone_gain = 0.72
         if tone_style not in {"pure", "resonant", "contour-v1"}:
             raise ValueError("tone_style must be pure, resonant or contour-v1")
@@ -64,7 +64,7 @@ class DesktopHardware:
 
     @property
     def combined_duration(self):
-        """Approximate wall time with English starting after the Chordic lead-in."""
+        """Approximate wall time with strict source-first English translation."""
         return max(self.duration, self.translation_delay_seconds + self.speech_duration)
 
     @property
@@ -97,7 +97,7 @@ class DesktopHardware:
         return self.voice.check_available()
 
     def speak_translation(self, text):
-        """Queue validated English to begin with the current Chordic playback."""
+        """Queue validated English; audible translation begins after Chordic finishes."""
         with self._lock:
             if not self.translation_enabled or self.muted or self.stopped or not self.ready:
                 return False
@@ -121,6 +121,9 @@ class DesktopHardware:
             cancelled = self._cancel = threading.Event()
             self._playback_started = threading.Event()
             self.duration = duration
+            # Strict source-first translation: gate starts at actual playback request,
+            # then wait the complete deterministic WAV duration before English speaks.
+            self.translation_delay_seconds = duration
             self.error = None
             self.audio_status = "RENDERING"
             render_volume = self.volume * (self.translation_tone_gain if self.translation_enabled else 1.0)
