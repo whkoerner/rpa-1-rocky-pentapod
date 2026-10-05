@@ -143,3 +143,18 @@ The following are preserved as manual evidence because the broken intermediate f
 - raw logs for the four long free-form CT2 runtime duration examples.
 
 These gaps are deliberate: this document preserves the reported history without inventing commands, commits, or automated evidence.
+
+
+## Follow-up implementation on draft PR #14 — persistent translation / local voice / EXP-002 runtime
+
+The earlier **NOT RUN** statements above correctly describe the state of the documentation-only update on main at that time. Draft PR #14 later implements a candidate local spoken-English path and production-selectable EXP-002 runtime. Those old statements are preserved rather than rewritten.
+
+Current PR #14 status:
+- local Windows spoken-English implementation exists, but subjective acoustic quality remains **NOT RUN**;
+- persistent `/translate on|off|status` exists with `/clear` intentionally preserving the session preference;
+- EXP-002 is a selectable/default desktop profile through a pinned Chordic export, with exact CT2 fallback for unsupported spans;
+- CT2 remains available;
+- provider identity wording no longer requires Rocky to call himself a desktop program, while immutable no-hardware authority remains;
+- PR #14 CI failures #51 onward are preserved in `docs/test-plans/2026-10-04-persistent-translation-tts-exp002.md`, including the custom unittest-loader discovery regression and its fix.
+
+Do not treat the implementation as an acoustic PASS until the operator completes the manual Windows acceptance in that plan.
