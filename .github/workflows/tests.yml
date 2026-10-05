@@ -33,6 +33,18 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
+      - name: Diagnose memory touched module test_conversation
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p test_conversation.py -v
+      - name: Diagnose memory touched module test_memory
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p test_memory.py -v
+      - name: Diagnose memory touched module test_desktop_upgrade
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p test_desktop_upgrade.py -v
+      - name: Diagnose memory touched module test_webui
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p test_webui.py -v
       - name: Run Rocky Assistant tests and capture failures
         id: rocky_full_capture
         continue-on-error: true
