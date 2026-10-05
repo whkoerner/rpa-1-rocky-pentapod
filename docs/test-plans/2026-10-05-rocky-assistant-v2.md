@@ -33,7 +33,7 @@ Rocky PR #16 was verified live as a draft at `010034f2022bd2028ad08ae2e5048ebea6
 | 3 | Integrated dual response/tool route | Actions #96 failed Rocky suite | Same malformed validator source was still present in integration head | Replaced `assistant_contracts.py` with escape-safe source | Failure preserved; superseded |
 | 4 | Validator fixed | Actions #97 failed Rocky suite | Duplicate-speed regression pattern was over-escaped, so the intended observed paste form was not recognized | Corrected the regex backreference | Failure preserved; superseded |
 | 5 | No-op/incorrect regex attempt | Actions #98 failed Rocky suite | First regex edit produced no source-content change | Replaced the exact source line with a literal single backreference | Failure preserved; superseded |
-| 6 | Corrected Assistant V2 core | Actions #99 | All four software cells and Arduino Uno passed | No further fix required for this head | GREEN |
+| 6 | Corrected Assistant V2 core | Actions #99 | All four software cells and Arduino Uno passed | No further fix required for this head | GREEN |\n| 7 | Separated benchmark + semantic speech | Actions #100 failed the Rocky suite; Arduino stayed green | Benchmark correctly exposed that the LocalAI production arithmetic pre-router still used the non-semantic word `Answer` even though the dummy provider had been changed | Fixed the production pre-router rather than weakening the benchmark | Failure preserved; superseded |\n| 8 | Production exact-arithmetic speech + benchmark | Actions #101 | Windows 3.12/3.13, Ubuntu 3.12/3.13, and Arduino Uno all passed | No further fix required for this head | GREEN |
 
 ## Automated benchmark scope
 
