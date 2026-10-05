@@ -83,6 +83,26 @@ jobs:
       - name: Root discovery Windows launcher
         continue-on-error: true
         run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
+      - name: Root cumulative through conversation
+        continue-on-error: true
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation -v
+      - name: Root cumulative through learning
+        continue-on-error: true
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning -v
+      - name: Root cumulative through translation voice
+        continue-on-error: true
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 -v
+      - name: Root cumulative full module order
+        continue-on-error: true
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
       - name: Cumulative legacy through conversation
         continue-on-error: true
         working-directory: software/rocky/tests
