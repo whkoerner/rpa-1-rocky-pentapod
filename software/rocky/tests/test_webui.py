@@ -1,14 +1,28 @@
 """Security and behavior tests for the loopback Rocky browser UI."""
 
 import http.client
+from io import BytesIO
 import json
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import threading
 import unittest
+import wave
 
+from rocky.lecture import LectureSessionStore
 from rocky.webui import LocalWebUI, build_server
+
+
+def tiny_wav(seconds=0.1):
+    frames = max(1, round(16000 * seconds))
+    out = BytesIO()
+    with wave.open(out, "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(16000)
+        handle.writeframes(b"\x00\x00" * frames)
+    return out.getvalue()
 
 
 class FakeVoice:
@@ -194,7 +208,7 @@ class FakeConversation:
 
 
 class WebUITests(unittest.TestCase):
-    def app(self, path=None, transcriber=None):
+    def app(self, path=None, transcriber=None, lecture_store=None):
         settings = {
             "provider": "local",
             "model": "qwen3:8b",
@@ -209,9 +223,17 @@ class WebUITests(unittest.TestCase):
             "voice_rate": 0,
             "voice_pitch": 0,
             "voice_volume": 0,
+            "lecture_max_seconds": 10800,
+            "lecture_chunk_seconds": 30,
         }
         settings["stt_max_seconds"] = 30
-        return LocalWebUI(FakeConversation(), settings, settings_path=path, transcriber=transcriber)
+        return LocalWebUI(
+            FakeConversation(),
+            settings,
+            settings_path=path,
+            transcriber=transcriber,
+            lecture_store=lecture_store,
+        )
 
     def test_settings_are_bounded_and_no_physical_controls_exist(self):
         app = self.app()
@@ -256,6 +278,24 @@ class WebUITests(unittest.TestCase):
         )
         app.memory_action({"action": "clear"})
         self.assertEqual(app.memory()["items"], [])
+
+    def test_lecture_requires_permission_and_records_bounded_chunks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = LectureSessionStore(
+                Path(temp) / "lectures", max_seconds=600, chunk_max_seconds=10
+            )
+            app = self.app(lecture_store=store)
+            with self.assertRaisesRegex(ValueError, "permission/consent"):
+                app.lecture_start({"title": "Class", "consent_confirmed": False})
+            started = app.lecture_start(
+                {"title": "Class", "consent_confirmed": True}
+            )
+            self.assertTrue(app.status()["lecture"]["active"])
+            saved = app.lecture_chunk(tiny_wav())
+            self.assertEqual(saved["chunk_count"], 1)
+            stopped = app.lecture_stop({"session_id": started["session_id"]})
+            self.assertEqual(stopped["state"], "recorded")
+            self.assertFalse(app.status()["lecture"]["active"])
 
     def test_stt_endpoint_is_token_gated_and_never_auto_sends(self):
         transcriber = FakeTranscriber()

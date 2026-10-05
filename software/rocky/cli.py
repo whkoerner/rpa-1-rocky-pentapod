@@ -226,6 +226,12 @@ def configuration(args):
             raise ValueError(f"{key} must be a printable path string")
     if type(defaults["stt_max_seconds"]) not in (int, float) or not math.isfinite(defaults["stt_max_seconds"]) or not 1 <= defaults["stt_max_seconds"] <= 60:
         raise ValueError("stt_max_seconds must be between 1 and 60")
+    if type(defaults["lecture_max_seconds"]) not in (int, float) or not math.isfinite(defaults["lecture_max_seconds"]) or not 600 <= defaults["lecture_max_seconds"] <= 14400:
+        raise ValueError("lecture_max_seconds must be between 600 and 14400")
+    if type(defaults["lecture_chunk_seconds"]) not in (int, float) or not math.isfinite(defaults["lecture_chunk_seconds"]) or not 10 <= defaults["lecture_chunk_seconds"] <= 60:
+        raise ValueError("lecture_chunk_seconds must be between 10 and 60")
+    if defaults["lecture_chunk_seconds"] > defaults["stt_max_seconds"]:
+        raise ValueError("lecture_chunk_seconds may not exceed stt_max_seconds")
     if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
         raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
@@ -496,7 +502,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -522,6 +528,10 @@ def main(argv=None):
     parser.add_argument("--whisper-cli-path")
     parser.add_argument("--whisper-model-path")
     parser.add_argument("--stt-max-seconds", type=float)
+    parser.add_argument("--lecture-session")
+    parser.add_argument("--lecture-root", type=Path, default=Path.home() / ".rpa1" / "lectures")
+    parser.add_argument("--lecture-max-seconds", type=float)
+    parser.add_argument("--lecture-chunk-seconds", type=float)
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -539,6 +549,26 @@ def main(argv=None):
         if args.connected_mode is not None:
             settings["connected_enabled"] = args.connected_mode == "online"
         personality = load_personality(args.personality or Path(settings["personality_profile"]))
+        if args.command == "lecture-transcribe":
+            from .lecture import LectureSessionStore
+            from .stt import WhisperCppTranscriber
+            if not args.lecture_session:
+                raise ValueError("lecture-transcribe requires --lecture-session SESSION_ID")
+            transcriber = WhisperCppTranscriber.from_settings(settings)
+            if transcriber is None:
+                raise ValueError("lecture transcription requires configured local whisper.cpp")
+            store = LectureSessionStore(
+                args.lecture_root,
+                max_seconds=settings["lecture_max_seconds"],
+                chunk_max_seconds=settings["lecture_chunk_seconds"],
+            )
+            result = store.transcribe(args.lecture_session, transcriber)
+            directory = store.session_directory(args.lecture_session)
+            print(
+                f"Lecture transcript ready: {directory / result['text']}; "
+                f"segments={result['segments']}"
+            )
+            return 0
         if args.command == "backup":
             from .portability import export_user_backup
             output_path = args.backup_output or (
@@ -696,6 +726,12 @@ def main(argv=None):
             from .stt import WhisperCppTranscriber
             from .webui import serve_local_web_ui
             transcriber = WhisperCppTranscriber.from_settings(settings)
+            from .lecture import LectureSessionStore
+            lecture_store = LectureSessionStore(
+                args.lecture_root,
+                max_seconds=settings["lecture_max_seconds"],
+                chunk_max_seconds=settings["lecture_chunk_seconds"],
+            )
             serve_local_web_ui(
                 conversation,
                 settings,
@@ -704,6 +740,7 @@ def main(argv=None):
                 open_browser=not args.no_browser,
                 transcriber=transcriber,
                 connected_client=connected_client,
+                lecture_store=lecture_store,
             )
         else:
             terminal(conversation, settings)

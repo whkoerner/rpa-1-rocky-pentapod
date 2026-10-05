@@ -67,12 +67,14 @@ def _enum_value(value):
 
 
 class LocalWebUI:
-    def __init__(self, conversation, settings, *, settings_path: Path | None = None, transcriber=None, connected_client=None):
+    def __init__(self, conversation, settings, *, settings_path: Path | None = None, transcriber=None, connected_client=None, lecture_store=None):
         self.conversation = conversation
         self.settings = settings
         self.settings_path = settings_path
         self.transcriber = transcriber
         self.connected_client = connected_client
+        self.lecture_store = lecture_store
+        self.active_lecture_session = ""
         self.token = secrets.token_urlsafe(24)
         self.lock = threading.RLock()
 
@@ -115,6 +117,7 @@ class LocalWebUI:
                 "language": self.conversation.brain.task_controller.text_encoding,
                 "memory": self.conversation.memory_status(),
                 "connected": self.conversation.connected_status(),
+                "lecture": self.lecture_status(),
                 "stt": {
                     "enabled": self.transcriber is not None,
                     "status": self.transcriber.status if self.transcriber is not None else "DISABLED",
@@ -144,6 +147,52 @@ class LocalWebUI:
                 if isinstance(phrase, Exp003Phrase):
                     result["chordic_coverage"] = exp003_coverage(phrase)
             return result
+
+    def lecture_status(self):
+        if self.lecture_store is None:
+            return {"enabled": False, "active": False}
+        if not self.active_lecture_session:
+            return {
+                "enabled": True,
+                "active": False,
+                "max_seconds": float(self.settings.get("lecture_max_seconds", 10800)),
+                "chunk_seconds": float(self.settings.get("lecture_chunk_seconds", 30)),
+            }
+        status = self.lecture_store.status(self.active_lecture_session)
+        return {"enabled": True, "active": status["state"] == "recording", **status}
+
+    def lecture_start(self, payload):
+        if self.lecture_store is None:
+            raise RuntimeError("lecture recording store is unavailable")
+        if type(payload) is not dict or set(payload) != {"title", "consent_confirmed"}:
+            raise ValueError("lecture start requires title and consent_confirmed")
+        if self.active_lecture_session:
+            current = self.lecture_store.status(self.active_lecture_session)
+            if current["state"] == "recording":
+                raise ValueError("a lecture recording is already active")
+        status = self.lecture_store.start(
+            title=payload["title"],
+            consent_confirmed=payload["consent_confirmed"],
+        )
+        self.active_lecture_session = status["session_id"]
+        return status
+
+    def lecture_chunk(self, raw):
+        if self.lecture_store is None or not self.active_lecture_session:
+            raise ValueError("no active lecture recording")
+        return self.lecture_store.add_chunk(self.active_lecture_session, raw)
+
+    def lecture_stop(self, payload):
+        if self.lecture_store is None:
+            raise RuntimeError("lecture recording store is unavailable")
+        if type(payload) is not dict or set(payload) != {"session_id"}:
+            raise ValueError("lecture stop requires session_id")
+        session_id = payload["session_id"]
+        if session_id != self.active_lecture_session:
+            raise ValueError("lecture session does not match active recording")
+        status = self.lecture_store.stop(session_id)
+        self.active_lecture_session = ""
+        return status
 
     def chat(self, payload):
         if type(payload) is not dict or set(payload) != {"text"}:
@@ -267,6 +316,11 @@ class LocalWebUI:
             elif action == "stop":
                 if self.transcriber is not None:
                     self.transcriber.cancel()
+                if self.lecture_store is not None and self.active_lecture_session:
+                    try:
+                        self.lecture_store.stop(self.active_lecture_session)
+                    finally:
+                        self.active_lecture_session = ""
                 self.conversation.stop()
             elif action == "reset":
                 self.conversation.cancel()
@@ -473,6 +527,9 @@ class RockyWebHandler(BaseHTTPRequestHandler):
             if self.path == "/api/stt":
                 self._json(200, self.server.app.transcribe_voice(self._read_wav()))
                 return
+            if self.path == "/api/lecture/chunk":
+                self._json(200, self.server.app.lecture_chunk(self._read_wav()))
+                return
             payload = self._read_json()
             if self.path == "/api/chat":
                 self._json(202, self.server.app.chat(payload))
@@ -484,6 +541,10 @@ class RockyWebHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.import_settings(payload))
             elif self.path == "/api/memory":
                 self._json(200, self.server.app.memory_action(payload))
+            elif self.path == "/api/lecture/start":
+                self._json(200, self.server.app.lecture_start(payload))
+            elif self.path == "/api/lecture/stop":
+                self._json(200, self.server.app.lecture_stop(payload))
             else:
                 self._error(404, ValueError("not found"))
         except PermissionError as exc:
@@ -510,6 +571,7 @@ def serve_local_web_ui(
     open_browser=True,
     transcriber=None,
     connected_client=None,
+    lecture_store=None,
 ):
     app = LocalWebUI(
         conversation,
@@ -517,6 +579,7 @@ def serve_local_web_ui(
         settings_path=settings_path,
         transcriber=transcriber,
         connected_client=connected_client,
+        lecture_store=lecture_store,
     )
     server = build_server(app, port)
     host, actual_port = server.server_address
