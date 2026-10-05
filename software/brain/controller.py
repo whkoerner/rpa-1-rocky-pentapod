@@ -12,7 +12,8 @@ from uuid import uuid4
 from csp.core import CspCodec
 from csp.wire import INTENTS, WireMessage, canonical_text, chordic_token, encode
 from csp.conversation import Utterance, encode_text
-from csp.exp002 import encode_phrase as encode_exp002_phrase\nfrom csp.exp003 import encode_phrase as encode_exp003_phrase
+from csp.exp002 import encode_phrase as encode_exp002_phrase
+from csp.exp003 import encode_phrase as encode_exp003_phrase
 from csp.learning import encode_phrase
 from rpa_link.messages import Mode, monotonic_us
 
@@ -92,6 +93,8 @@ class TaskController:
                 return ConversationOutput(message, message.text, encode_text(message.text))
             if self.text_encoding == "exp002":
                 return ConversationOutput(message, message.text, (), encode_exp002_phrase(message.text))
+            if self.text_encoding == "exp003":
+                return ConversationOutput(message, message.text, (), encode_exp003_phrase(message.text))
             return ConversationOutput(message, message.text, (), encode_phrase(message.text))
         csp_line = encode(message)
         text = canonical_text(message)
