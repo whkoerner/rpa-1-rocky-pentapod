@@ -1,0 +1,1902 @@
+{
+  "schema_version": "0.3",
+  "export_id": "EXP-003-runtime-v1",
+  "candidate_id": "EXP-003",
+  "candidate": {
+    "schema_version": "0.3",
+    "candidate_id": "EXP-003",
+    "language_version": "0.2-experimental",
+    "status": "experimental-candidate",
+    "recognition_scope": "symbolic/renderer simulation only; microphone and human-produced acoustic recognition NOT RUN",
+    "semantic_model": {
+      "composition": "primitive tokens + grammar omission + digit composition; no sentence IDs",
+      "number_encoding": "decimal digits compose left-to-right",
+      "copula": "omitted when semantic relation remains clear"
+    },
+    "acoustics": {
+      "representation": "speaker-relative continuous contour gesture",
+      "pitch_offsets_semitones": {
+        "0": -4,
+        "1": -2,
+        "2": 0,
+        "3": 2,
+        "4": 4
+      },
+      "anchor_count": 4,
+      "baseline_hz_examples": [
+        110,
+        180,
+        260
+      ],
+      "timing_ms": {
+        "phrase_header": 220,
+        "profile_marker": 120,
+        "short_gesture": 130,
+        "root_gesture": 190,
+        "token_boundary": 45,
+        "fallback_marker": 100,
+        "fallback_byte": 65,
+        "fallback_default_gap": 15,
+        "fallback_space_gap": 100,
+        "fallback_minor_punctuation_gap": 150,
+        "fallback_sentence_punctuation_gap": 300,
+        "fallback_boundary": 100
+      },
+      "nominal_benchmark_multiplier": 3,
+      "boundary_cue": "45 ms amplitude dip with contour continuity; not a full silent note gap",
+      "transition": "continuous glide between four relative pitch anchors",
+      "vocalizability_claim": "computational range/slope feasibility only; human performance NOT RUN"
+    },
+    "code_family": {
+      "name": "q5 length-4 single parity",
+      "construction": "(a,b,c,-a-b-c mod 5)",
+      "minimum_hamming_distance": 2,
+      "capacity": 125
+    },
+    "tokens": [
+      {
+        "id": "SOCIAL.YES",
+        "contour_code": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.NO",
+        "contour_code": [
+          0,
+          0,
+          1,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.HELLO",
+        "contour_code": [
+          0,
+          0,
+          2,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.GOODBYE",
+        "contour_code": [
+          0,
+          0,
+          3,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.THANK_YOU",
+        "contour_code": [
+          0,
+          0,
+          4,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.PLEASE",
+        "contour_code": [
+          0,
+          1,
+          0,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.SORRY",
+        "contour_code": [
+          0,
+          1,
+          1,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "SOCIAL.FIST_BUMP",
+        "contour_code": [
+          0,
+          1,
+          2,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.Q",
+        "contour_code": [
+          0,
+          1,
+          3,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.NEG",
+        "contour_code": [
+          0,
+          1,
+          4,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.IMP",
+        "contour_code": [
+          0,
+          2,
+          0,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.PAST",
+        "contour_code": [
+          0,
+          2,
+          1,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.FUT",
+        "contour_code": [
+          0,
+          2,
+          2,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.VERY",
+        "contour_code": [
+          0,
+          2,
+          3,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.SHOULD",
+        "contour_code": [
+          0,
+          2,
+          4,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.POSS",
+        "contour_code": [
+          0,
+          3,
+          0,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.AND",
+        "contour_code": [
+          0,
+          3,
+          1,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.IF",
+        "contour_code": [
+          0,
+          3,
+          2,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "GRAM.MILD",
+        "contour_code": [
+          0,
+          3,
+          3,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.I",
+        "contour_code": [
+          0,
+          3,
+          4,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.YOU",
+        "contour_code": [
+          0,
+          4,
+          0,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.WE",
+        "contour_code": [
+          0,
+          4,
+          1,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.IT",
+        "contour_code": [
+          0,
+          4,
+          2,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.THIS",
+        "contour_code": [
+          0,
+          4,
+          3,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "PRON.THAT",
+        "contour_code": [
+          0,
+          4,
+          4,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUESTION.WHAT",
+        "contour_code": [
+          1,
+          0,
+          0,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUESTION.WHO",
+        "contour_code": [
+          1,
+          0,
+          1,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUESTION.WHY",
+        "contour_code": [
+          1,
+          0,
+          2,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUESTION.HOW",
+        "contour_code": [
+          1,
+          0,
+          3,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "LOC.HERE",
+        "contour_code": [
+          1,
+          0,
+          4,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "LOC.WHERE",
+        "contour_code": [
+          1,
+          1,
+          0,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "TIME.NOW",
+        "contour_code": [
+          1,
+          1,
+          1,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUALITY.GOOD",
+        "contour_code": [
+          1,
+          1,
+          2,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "QUALITY.BAD",
+        "contour_code": [
+          1,
+          1,
+          3,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "QUALITY.READY",
+        "contour_code": [
+          1,
+          1,
+          4,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.LIKE",
+        "contour_code": [
+          1,
+          2,
+          0,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.UNDERSTAND",
+        "contour_code": [
+          1,
+          2,
+          1,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.THINK",
+        "contour_code": [
+          1,
+          2,
+          2,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.PREFER",
+        "contour_code": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.LEARN",
+        "contour_code": [
+          1,
+          2,
+          4,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.KNOW",
+        "contour_code": [
+          1,
+          3,
+          0,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "MENTAL.REMEMBER",
+        "contour_code": [
+          1,
+          3,
+          1,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.HELP",
+        "contour_code": [
+          1,
+          3,
+          2,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.STOP",
+        "contour_code": [
+          1,
+          3,
+          3,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.WAIT",
+        "contour_code": [
+          1,
+          3,
+          4,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.COME",
+        "contour_code": [
+          1,
+          4,
+          0,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.GO",
+        "contour_code": [
+          1,
+          4,
+          1,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.FIND",
+        "contour_code": [
+          1,
+          4,
+          2,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.FIX",
+        "contour_code": [
+          1,
+          4,
+          3,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.REPEAT",
+        "contour_code": [
+          1,
+          4,
+          4,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.WATCH",
+        "contour_code": [
+          2,
+          0,
+          0,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.SAY",
+        "contour_code": [
+          2,
+          0,
+          1,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.EAT",
+        "contour_code": [
+          2,
+          0,
+          2,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.USE",
+        "contour_code": [
+          2,
+          0,
+          3,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.BUILD",
+        "contour_code": [
+          2,
+          0,
+          4,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.CALCULATE",
+        "contour_code": [
+          2,
+          1,
+          0,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.MAKE",
+        "contour_code": [
+          2,
+          1,
+          1,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.SPEAK",
+        "contour_code": [
+          2,
+          1,
+          2,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.HEAR",
+        "contour_code": [
+          2,
+          1,
+          3,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.SEE",
+        "contour_code": [
+          2,
+          1,
+          4,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "EVENT.HAPPEN",
+        "contour_code": [
+          2,
+          2,
+          0,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "EVENT.DIE",
+        "contour_code": [
+          2,
+          2,
+          1,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "EVENT.CHANGE",
+        "contour_code": [
+          2,
+          2,
+          2,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "STATE.NEED",
+        "contour_code": [
+          2,
+          2,
+          3,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "EMOTION.AMAZE",
+        "contour_code": [
+          2,
+          2,
+          4,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "EMOTION.FEAR",
+        "contour_code": [
+          2,
+          3,
+          0,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.VOICE",
+        "contour_code": [
+          2,
+          3,
+          1,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.ROBOT",
+        "contour_code": [
+          2,
+          3,
+          2,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.MUSIC",
+        "contour_code": [
+          2,
+          3,
+          3,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.COMPUTER",
+        "contour_code": [
+          2,
+          3,
+          4,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.PROJECT",
+        "contour_code": [
+          2,
+          4,
+          0,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.CREW",
+        "contour_code": [
+          2,
+          4,
+          1,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.ROCKY",
+        "contour_code": [
+          2,
+          4,
+          2,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.GRACE",
+        "contour_code": [
+          2,
+          4,
+          3,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.EARTH",
+        "contour_code": [
+          2,
+          4,
+          4,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.SPACE",
+        "contour_code": [
+          3,
+          0,
+          0,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.FOOD",
+        "contour_code": [
+          3,
+          0,
+          1,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.ENERGY",
+        "contour_code": [
+          3,
+          0,
+          2,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.COLOR",
+        "contour_code": [
+          3,
+          0,
+          3,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.CHICKEN",
+        "contour_code": [
+          3,
+          0,
+          4,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.ALFREDO",
+        "contour_code": [
+          3,
+          1,
+          0,
+          1
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.FRIEND",
+        "contour_code": [
+          3,
+          1,
+          1,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.NAME",
+        "contour_code": [
+          3,
+          1,
+          2,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.MATH",
+        "contour_code": [
+          3,
+          1,
+          3,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.DERIVATIVE",
+        "contour_code": [
+          3,
+          1,
+          4,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.PERSON",
+        "contour_code": [
+          3,
+          2,
+          0,
+          0
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ENTITY.WYATT",
+        "contour_code": [
+          3,
+          2,
+          1,
+          4
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "QUALITY.BLUE",
+        "contour_code": [
+          3,
+          2,
+          2,
+          3
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "ACTION.MEASURE",
+        "contour_code": [
+          3,
+          2,
+          3,
+          2
+        ],
+        "duration_class": "root"
+      },
+      {
+        "id": "REL.EQUAL",
+        "contour_code": [
+          3,
+          2,
+          4,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "OP.MUL",
+        "contour_code": [
+          3,
+          3,
+          0,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "OP.ADD",
+        "contour_code": [
+          3,
+          3,
+          1,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "OP.SUB",
+        "contour_code": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "OP.DIV",
+        "contour_code": [
+          3,
+          3,
+          3,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUANT.MORE",
+        "contour_code": [
+          3,
+          3,
+          4,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "QUANT.LESS",
+        "contour_code": [
+          3,
+          4,
+          0,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.0",
+        "contour_code": [
+          3,
+          4,
+          1,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.1",
+        "contour_code": [
+          3,
+          4,
+          2,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.2",
+        "contour_code": [
+          3,
+          4,
+          3,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.3",
+        "contour_code": [
+          3,
+          4,
+          4,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.4",
+        "contour_code": [
+          4,
+          0,
+          0,
+          1
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.5",
+        "contour_code": [
+          4,
+          0,
+          1,
+          0
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.6",
+        "contour_code": [
+          4,
+          0,
+          2,
+          4
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.7",
+        "contour_code": [
+          4,
+          0,
+          3,
+          3
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.8",
+        "contour_code": [
+          4,
+          0,
+          4,
+          2
+        ],
+        "duration_class": "short"
+      },
+      {
+        "id": "NUM.9",
+        "contour_code": [
+          4,
+          1,
+          0,
+          0
+        ],
+        "duration_class": "short"
+      }
+    ],
+    "grammar": [
+      "Present/default time is unmarked.",
+      "Copula/articles/English auxiliaries in ignore_forms may be omitted when meaning remains clear.",
+      "Possessive pronouns compose PRON + GRAM.POSS.",
+      "Questions use QUESTION roots; GRAM.Q is available when needed.",
+      "Decimal numbers compose from NUM.0..NUM.9.",
+      "Arithmetic composes operands with OP.* and REL.EQUAL; no whole-expression IDs.",
+      "Repeated topic omission is allowed in authored Chordic but the runtime parser does not currently infer it from free English."
+    ]
+  },
+  "surface_forms": [
+    {
+      "text": "fist my bump",
+      "tokens": [
+        "SOCIAL.FIST_BUMP"
+      ]
+    },
+    {
+      "text": "not half bad",
+      "tokens": [
+        "GRAM.MILD",
+        "QUALITY.GOOD"
+      ]
+    },
+    {
+      "text": "derivative",
+      "tokens": [
+        "ENTITY.DERIVATIVE"
+      ]
+    },
+    {
+      "text": "multiplied",
+      "tokens": [
+        "OP.MUL"
+      ]
+    },
+    {
+      "text": "understand",
+      "tokens": [
+        "MENTAL.UNDERSTAND"
+      ]
+    },
+    {
+      "text": "calculate",
+      "tokens": [
+        "ACTION.CALCULATE"
+      ]
+    },
+    {
+      "text": "remembers",
+      "tokens": [
+        "MENTAL.REMEMBER"
+      ]
+    },
+    {
+      "text": "thank you",
+      "tokens": [
+        "SOCIAL.THANK_YOU"
+      ]
+    },
+    {
+      "text": "computer",
+      "tokens": [
+        "ENTITY.COMPUTER"
+      ]
+    },
+    {
+      "text": "favorite",
+      "tokens": [
+        "MENTAL.PREFER"
+      ]
+    },
+    {
+      "text": "happened",
+      "tokens": [
+        "GRAM.PAST",
+        "EVENT.HAPPEN"
+      ]
+    },
+    {
+      "text": "learning",
+      "tokens": [
+        "MENTAL.LEARN"
+      ]
+    },
+    {
+      "text": "measures",
+      "tokens": [
+        "ACTION.MEASURE"
+      ]
+    },
+    {
+      "text": "remember",
+      "tokens": [
+        "MENTAL.REMEMBER"
+      ]
+    },
+    {
+      "text": "alfredo",
+      "tokens": [
+        "ENTITY.ALFREDO"
+      ]
+    },
+    {
+      "text": "changes",
+      "tokens": [
+        "EVENT.CHANGE"
+      ]
+    },
+    {
+      "text": "chicken",
+      "tokens": [
+        "ENTITY.CHICKEN"
+      ]
+    },
+    {
+      "text": "divided",
+      "tokens": [
+        "OP.DIV"
+      ]
+    },
+    {
+      "text": "goodbye",
+      "tokens": [
+        "SOCIAL.GOODBYE"
+      ]
+    },
+    {
+      "text": "measure",
+      "tokens": [
+        "ACTION.MEASURE"
+      ]
+    },
+    {
+      "text": "project",
+      "tokens": [
+        "ENTITY.PROJECT"
+      ]
+    },
+    {
+      "text": "watched",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.WATCH"
+      ]
+    },
+    {
+      "text": "change",
+      "tokens": [
+        "EVENT.CHANGE"
+      ]
+    },
+    {
+      "text": "do not",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "energy",
+      "tokens": [
+        "ENTITY.ENERGY"
+      ]
+    },
+    {
+      "text": "equals",
+      "tokens": [
+        "REL.EQUAL"
+      ]
+    },
+    {
+      "text": "friend",
+      "tokens": [
+        "ENTITY.FRIEND"
+      ]
+    },
+    {
+      "text": "happen",
+      "tokens": [
+        "EVENT.HAPPEN"
+      ]
+    },
+    {
+      "text": "person",
+      "tokens": [
+        "ENTITY.PERSON"
+      ]
+    },
+    {
+      "text": "please",
+      "tokens": [
+        "SOCIAL.PLEASE"
+      ]
+    },
+    {
+      "text": "prefer",
+      "tokens": [
+        "MENTAL.PREFER"
+      ]
+    },
+    {
+      "text": "repeat",
+      "tokens": [
+        "ACTION.REPEAT"
+      ]
+    },
+    {
+      "text": "should",
+      "tokens": [
+        "GRAM.SHOULD"
+      ]
+    },
+    {
+      "text": "thanks",
+      "tokens": [
+        "SOCIAL.THANK_YOU"
+      ]
+    },
+    {
+      "text": "that's",
+      "tokens": [
+        "PRON.THAT"
+      ]
+    },
+    {
+      "text": "thinks",
+      "tokens": [
+        "MENTAL.THINK"
+      ]
+    },
+    {
+      "text": "amaze",
+      "tokens": [
+        "EMOTION.AMAZE"
+      ]
+    },
+    {
+      "text": "build",
+      "tokens": [
+        "ACTION.BUILD"
+      ]
+    },
+    {
+      "text": "color",
+      "tokens": [
+        "ENTITY.COLOR"
+      ]
+    },
+    {
+      "text": "don't",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "earth",
+      "tokens": [
+        "ENTITY.EARTH"
+      ]
+    },
+    {
+      "text": "equal",
+      "tokens": [
+        "REL.EQUAL"
+      ]
+    },
+    {
+      "text": "found",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.FIND"
+      ]
+    },
+    {
+      "text": "grace",
+      "tokens": [
+        "ENTITY.GRACE"
+      ]
+    },
+    {
+      "text": "hello",
+      "tokens": [
+        "SOCIAL.HELLO"
+      ]
+    },
+    {
+      "text": "learn",
+      "tokens": [
+        "MENTAL.LEARN"
+      ]
+    },
+    {
+      "text": "likes",
+      "tokens": [
+        "MENTAL.LIKE"
+      ]
+    },
+    {
+      "text": "minus",
+      "tokens": [
+        "OP.SUB"
+      ]
+    },
+    {
+      "text": "music",
+      "tokens": [
+        "ENTITY.MUSIC"
+      ]
+    },
+    {
+      "text": "ready",
+      "tokens": [
+        "QUALITY.READY"
+      ]
+    },
+    {
+      "text": "robot",
+      "tokens": [
+        "ENTITY.ROBOT"
+      ]
+    },
+    {
+      "text": "rocky",
+      "tokens": [
+        "ENTITY.ROCKY"
+      ]
+    },
+    {
+      "text": "scary",
+      "tokens": [
+        "GRAM.VERY",
+        "EMOTION.FEAR"
+      ]
+    },
+    {
+      "text": "sorry",
+      "tokens": [
+        "SOCIAL.SORRY"
+      ]
+    },
+    {
+      "text": "space",
+      "tokens": [
+        "ENTITY.SPACE"
+      ]
+    },
+    {
+      "text": "speak",
+      "tokens": [
+        "ACTION.SPEAK"
+      ]
+    },
+    {
+      "text": "think",
+      "tokens": [
+        "MENTAL.THINK"
+      ]
+    },
+    {
+      "text": "times",
+      "tokens": [
+        "OP.MUL"
+      ]
+    },
+    {
+      "text": "voice",
+      "tokens": [
+        "ENTITY.VOICE"
+      ]
+    },
+    {
+      "text": "watch",
+      "tokens": [
+        "ACTION.WATCH"
+      ]
+    },
+    {
+      "text": "where",
+      "tokens": [
+        "LOC.WHERE"
+      ]
+    },
+    {
+      "text": "wyatt",
+      "tokens": [
+        "ENTITY.WYATT"
+      ]
+    },
+    {
+      "text": "blue",
+      "tokens": [
+        "QUALITY.BLUE"
+      ]
+    },
+    {
+      "text": "come",
+      "tokens": [
+        "ACTION.COME"
+      ]
+    },
+    {
+      "text": "crew",
+      "tokens": [
+        "ENTITY.CREW"
+      ]
+    },
+    {
+      "text": "died",
+      "tokens": [
+        "GRAM.PAST",
+        "EVENT.DIE"
+      ]
+    },
+    {
+      "text": "eats",
+      "tokens": [
+        "ACTION.EAT"
+      ]
+    },
+    {
+      "text": "fear",
+      "tokens": [
+        "EMOTION.FEAR"
+      ]
+    },
+    {
+      "text": "find",
+      "tokens": [
+        "ACTION.FIND"
+      ]
+    },
+    {
+      "text": "food",
+      "tokens": [
+        "ENTITY.FOOD"
+      ]
+    },
+    {
+      "text": "good",
+      "tokens": [
+        "QUALITY.GOOD"
+      ]
+    },
+    {
+      "text": "half",
+      "tokens": [
+        "GRAM.MILD"
+      ]
+    },
+    {
+      "text": "hear",
+      "tokens": [
+        "ACTION.HEAR"
+      ]
+    },
+    {
+      "text": "help",
+      "tokens": [
+        "ACTION.HELP"
+      ]
+    },
+    {
+      "text": "here",
+      "tokens": [
+        "LOC.HERE"
+      ]
+    },
+    {
+      "text": "it's",
+      "tokens": [
+        "PRON.IT"
+      ]
+    },
+    {
+      "text": "know",
+      "tokens": [
+        "MENTAL.KNOW"
+      ]
+    },
+    {
+      "text": "less",
+      "tokens": [
+        "QUANT.LESS"
+      ]
+    },
+    {
+      "text": "like",
+      "tokens": [
+        "MENTAL.LIKE"
+      ]
+    },
+    {
+      "text": "make",
+      "tokens": [
+        "ACTION.MAKE"
+      ]
+    },
+    {
+      "text": "math",
+      "tokens": [
+        "ENTITY.MATH"
+      ]
+    },
+    {
+      "text": "mild",
+      "tokens": [
+        "GRAM.MILD"
+      ]
+    },
+    {
+      "text": "more",
+      "tokens": [
+        "QUANT.MORE"
+      ]
+    },
+    {
+      "text": "name",
+      "tokens": [
+        "ENTITY.NAME"
+      ]
+    },
+    {
+      "text": "need",
+      "tokens": [
+        "STATE.NEED"
+      ]
+    },
+    {
+      "text": "plus",
+      "tokens": [
+        "OP.ADD"
+      ]
+    },
+    {
+      "text": "said",
+      "tokens": [
+        "GRAM.PAST",
+        "ACTION.SAY"
+      ]
+    },
+    {
+      "text": "stop",
+      "tokens": [
+        "ACTION.STOP"
+      ]
+    },
+    {
+      "text": "that",
+      "tokens": [
+        "PRON.THAT"
+      ]
+    },
+    {
+      "text": "this",
+      "tokens": [
+        "PRON.THIS"
+      ]
+    },
+    {
+      "text": "time",
+      "tokens": [
+        "TIME.NOW"
+      ]
+    },
+    {
+      "text": "uses",
+      "tokens": [
+        "ACTION.USE"
+      ]
+    },
+    {
+      "text": "very",
+      "tokens": [
+        "GRAM.VERY"
+      ]
+    },
+    {
+      "text": "wait",
+      "tokens": [
+        "ACTION.WAIT"
+      ]
+    },
+    {
+      "text": "what",
+      "tokens": [
+        "QUESTION.WHAT"
+      ]
+    },
+    {
+      "text": "will",
+      "tokens": [
+        "GRAM.FUT"
+      ]
+    },
+    {
+      "text": "your",
+      "tokens": [
+        "PRON.YOU",
+        "GRAM.POSS"
+      ]
+    },
+    {
+      "text": "and",
+      "tokens": [
+        "GRAM.AND"
+      ]
+    },
+    {
+      "text": "bad",
+      "tokens": [
+        "QUALITY.BAD"
+      ]
+    },
+    {
+      "text": "die",
+      "tokens": [
+        "EVENT.DIE"
+      ]
+    },
+    {
+      "text": "eat",
+      "tokens": [
+        "ACTION.EAT"
+      ]
+    },
+    {
+      "text": "fix",
+      "tokens": [
+        "ACTION.FIX"
+      ]
+    },
+    {
+      "text": "how",
+      "tokens": [
+        "QUESTION.HOW"
+      ]
+    },
+    {
+      "text": "not",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "now",
+      "tokens": [
+        "TIME.NOW"
+      ]
+    },
+    {
+      "text": "our",
+      "tokens": [
+        "PRON.WE",
+        "GRAM.POSS"
+      ]
+    },
+    {
+      "text": "say",
+      "tokens": [
+        "ACTION.SAY"
+      ]
+    },
+    {
+      "text": "see",
+      "tokens": [
+        "ACTION.SEE"
+      ]
+    },
+    {
+      "text": "use",
+      "tokens": [
+        "ACTION.USE"
+      ]
+    },
+    {
+      "text": "who",
+      "tokens": [
+        "QUESTION.WHO"
+      ]
+    },
+    {
+      "text": "why",
+      "tokens": [
+        "QUESTION.WHY"
+      ]
+    },
+    {
+      "text": "yes",
+      "tokens": [
+        "SOCIAL.YES"
+      ]
+    },
+    {
+      "text": "you",
+      "tokens": [
+        "PRON.YOU"
+      ]
+    },
+    {
+      "text": "go",
+      "tokens": [
+        "ACTION.GO"
+      ]
+    },
+    {
+      "text": "if",
+      "tokens": [
+        "GRAM.IF"
+      ]
+    },
+    {
+      "text": "it",
+      "tokens": [
+        "PRON.IT"
+      ]
+    },
+    {
+      "text": "me",
+      "tokens": [
+        "PRON.I"
+      ]
+    },
+    {
+      "text": "my",
+      "tokens": [
+        "PRON.I",
+        "GRAM.POSS"
+      ]
+    },
+    {
+      "text": "no",
+      "tokens": [
+        "GRAM.NEG"
+      ]
+    },
+    {
+      "text": "we",
+      "tokens": [
+        "PRON.WE"
+      ]
+    },
+    {
+      "text": "i",
+      "tokens": [
+        "PRON.I"
+      ]
+    }
+  ],
+  "ignore_forms": [
+    "a",
+    "an",
+    "the",
+    "is",
+    "am",
+    "are",
+    "was",
+    "were",
+    "be",
+    "being",
+    "been",
+    "do",
+    "does",
+    "did",
+    "to",
+    "of",
+    "for",
+    "as",
+    "at",
+    "in",
+    "on",
+    "with",
+    "than",
+    "full",
+    "could"
+  ],
+  "number_rule": {
+    "pattern": "[0-9]+",
+    "tokens": "NUM.<digit>",
+    "max_digits": 6
+  },
+  "fallback": {
+    "mode": "exact-utf8-lexical-span",
+    "note": "Whitespace/punctuation separators are non-semantic framing and are not counted as fallback bytes."
+  }
+}
