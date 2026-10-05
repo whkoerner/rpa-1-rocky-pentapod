@@ -30,7 +30,7 @@ def explicit_user_name(text):
 
 
 class ConversationController:
-    def __init__(self, brain, provider, personality, *, timeout=120, worker=None):
+    def __init__(self, brain, provider, personality, *, timeout=120, worker=None, memory_store=None):
         self.brain = brain
         self.worker = worker or InferenceWorker(provider, timeout)
         self.personality = personality
@@ -162,7 +162,7 @@ class ConversationController:
         if response.detail_text:
             assistant_history += "\nDetail:\n" + response.detail_text
         self.history.extend((("user", text), ("assistant", assistant_history)))
-        # Bounded, complete turn pairs. No persistent personal memory in V1.
+        # Bounded, complete turn pairs. Persistent memory is separate, opt-in user data.
         while len(self.history) > 24 or sum(len(v.encode("utf-8")) for _, v in self.history) > 12000:
             del self.history[:2]
         spoken = False
