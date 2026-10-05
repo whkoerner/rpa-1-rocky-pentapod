@@ -92,6 +92,36 @@ jobs:
       - name: Diagnose test windows launcher
         continue-on-error: true
         run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
+      - name: Diagnose combined suite without memory module
+        continue-on-error: true
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          loader = unittest.defaultTestLoader
+          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
+          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+      - name: Diagnose pre-memory modules plus memory
+        continue-on-error: true
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          loader = unittest.defaultTestLoader
+          modules = ["test_assistant_v2_benchmark","test_assistant_v2_core","test_benchmark_runner","test_chordic_exp002","test_conversation","test_desktop_upgrade","test_exp003_runtime","test_learning","test_memory"]
+          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+      - name: Diagnose memory followed by later modules
+        continue-on-error: true
+        shell: python
+        run: |
+          import sys, unittest
+          sys.path.insert(0, 'software/rocky/tests')
+          loader = unittest.defaultTestLoader
+          modules = ["test_memory","test_symbolic_math","test_translation_voice_exp002","test_webui","test_windows_launcher"]
+          suite = unittest.TestSuite(loader.loadTestsFromName(module) for module in modules)
+          sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
       - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
