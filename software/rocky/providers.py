@@ -200,6 +200,8 @@ class LocalAIProvider:
                 spoken = f"Rocky calculate. {value}. Good."
             elif call.name == "symbolic_math":
                 spoken = "Rocky calculate. Ready. Good."
+            elif call.name.startswith("connected_"):
+                spoken = "Rocky use. Ready. Good."
             else:
                 spoken = f"Rocky use. {value}. Good."
         elif successful and len(successful) == len(results):

@@ -13,12 +13,17 @@
   "voice_rate": 0,
   "voice_pitch": 0,
   "voice_volume": 0,
-  "defaults_profile_version": 5,
+  "defaults_profile_version": 6,
   "translation_enabled": true,
   "assistant_mode": "normal",
   "memory_enabled": false,
   "stt_backend": "disabled",
   "whisper_cli_path": "",
   "whisper_model_path": "",
-  "stt_max_seconds": 30
+  "stt_max_seconds": 30,
+  "connected_enabled": false,
+  "connected_gateway_port": 8787,
+  "connected_gateway_token_path": "",
+  "connected_audit_path": "~/.rpa1/connected/audit.jsonl",
+  "connected_timeout_seconds": 15
 }

@@ -62,6 +62,7 @@ pre { white-space:pre-wrap; word-break:break-word; }
 <label>English pitch<input id="vpitch" type="number" min="-2" max="2" step="1"></label>
 <label>English volume<input id="vvolume" type="number" min="-2" max="2" step="1"></label>
 <label>Translation<input id="translation" type="checkbox"></label>
+<label>Connected mode<input id="connectedenabled" type="checkbox"></label>
 <label>Persistent memory<input id="memoryenabled" type="checkbox"></label>
 </div>
 <div class="actions">
@@ -136,6 +137,7 @@ function tune(s) {
   el("volumev").textContent=el("volume").value;
   el("translation").checked=!!t.translation_enabled;
   el("memoryenabled").checked=!!t.memory_enabled;
+  el("connectedenabled").checked=!!t.connected_enabled;
   el("voice").value=t.translation_voice||"";
   el("vrate").value=t.voice_rate===undefined?0:t.voice_rate;
   el("vpitch").value=t.voice_pitch===undefined?0:t.voice_pitch;
@@ -156,7 +158,8 @@ function showStatus(s) {
     audio:s.audio_status,
     voice:s.voice_status,
     representation:s.representation||"",
-    stt:s.stt||{}
+    stt:s.stt||{},
+    connected:s.connected||{}
   },null,2);
   const stt=s.stt||{};
   el("micstart").disabled=!stt.enabled || !!mic.recording;
@@ -354,6 +357,7 @@ el("apply").onclick=async function() {
       volume:Number(el("volume").value),
       translation_enabled:el("translation").checked,
       memory_enabled:el("memoryenabled").checked,
+      connected_enabled:el("connectedenabled").checked,
       translation_voice:el("voice").value,
       voice_rate:Number(el("vrate").value),
       voice_pitch:Number(el("vpitch").value),

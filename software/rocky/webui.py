@@ -33,6 +33,7 @@ RECOMMENDED_TUNING = {
     "voice_pitch": 0,
     "voice_volume": 0,
     "memory_enabled": False,
+    "connected_enabled": False,
 }
 
 _ALLOWED_TUNING = frozenset(
@@ -47,6 +48,7 @@ _ALLOWED_TUNING = frozenset(
         "voice_pitch",
         "voice_volume",
         "memory_enabled",
+        "connected_enabled",
     }
 )
 
@@ -65,11 +67,12 @@ def _enum_value(value):
 
 
 class LocalWebUI:
-    def __init__(self, conversation, settings, *, settings_path: Path | None = None, transcriber=None):
+    def __init__(self, conversation, settings, *, settings_path: Path | None = None, transcriber=None, connected_client=None):
         self.conversation = conversation
         self.settings = settings
         self.settings_path = settings_path
         self.transcriber = transcriber
+        self.connected_client = connected_client
         self.token = secrets.token_urlsafe(24)
         self.lock = threading.RLock()
 
@@ -91,6 +94,7 @@ class LocalWebUI:
             "voice_pitch": int(getattr(voice, "pitch_offset", 0)) if voice else 0,
             "voice_volume": int(getattr(voice, "volume_offset", 0)) if voice else 0,
             "memory_enabled": bool(self.conversation.memory_status()["enabled"]),
+            "connected_enabled": bool(self.conversation.connected_status()["enabled"]),
         }
 
     def status(self):
@@ -110,6 +114,7 @@ class LocalWebUI:
                 "model": self.settings.get("model", ""),
                 "language": self.conversation.brain.task_controller.text_encoding,
                 "memory": self.conversation.memory_status(),
+                "connected": self.conversation.connected_status(),
                 "stt": {
                     "enabled": self.transcriber is not None,
                     "status": self.transcriber.status if self.transcriber is not None else "DISABLED",
@@ -208,6 +213,12 @@ class LocalWebUI:
                     raise ValueError("memory_enabled must be boolean")
                 self.conversation.set_memory_enabled(value)
                 self.settings["memory_enabled"] = value
+            if "connected_enabled" in payload:
+                value = payload["connected_enabled"]
+                if type(value) is not bool:
+                    raise ValueError("connected_enabled must be boolean")
+                self.conversation.set_connected_enabled(value)
+                self.settings["connected_enabled"] = value
             voice_kwargs = {}
             for field in ("voice_rate", "voice_pitch", "voice_volume"):
                 if field in payload:
@@ -498,9 +509,14 @@ def serve_local_web_ui(
     settings_path: Path | None = None,
     open_browser=True,
     transcriber=None,
+    connected_client=None,
 ):
     app = LocalWebUI(
-        conversation, settings, settings_path=settings_path, transcriber=transcriber
+        conversation,
+        settings,
+        settings_path=settings_path,
+        transcriber=transcriber,
+        connected_client=connected_client,
     )
     server = build_server(app, port)
     host, actual_port = server.server_address

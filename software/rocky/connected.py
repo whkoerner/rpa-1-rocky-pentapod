@@ -14,7 +14,6 @@ import http.client
 import json
 from pathlib import Path
 import secrets
-import threading
 
 
 CAPABILITY_BY_TOOL = {
@@ -89,7 +88,6 @@ class ConnectedGatewayClient:
         ):
             raise ConnectedGatewayError("connected timeout must be 1-60 seconds")
         self.timeout_seconds = float(self.timeout_seconds)
-        self._audit_lock = threading.RLock()
 
     def set_enabled(self, enabled: bool):
         if type(enabled) is not bool:
@@ -126,9 +124,8 @@ class ConnectedGatewayClient:
         record = json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n"
         if len(record.encode("utf-8")) > 4096:
             raise ConnectedGatewayError("connected audit record exceeds safe size")
-        with self._audit_lock:
-            with self.audit_path.open("a", encoding="utf-8") as handle:
-                handle.write(record)
+        with self.audit_path.open("a", encoding="utf-8") as handle:
+            handle.write(record)
 
     def execute(self, tool_name: str, arguments: object) -> str:
         if not self.enabled:
