@@ -329,7 +329,6 @@ class PiperSidecarSpeechRenderer:
         if os.name == "nt":
             path_b64 = base64.b64encode(path.encode("utf-8")).decode("ascii")
             script = (
-                "Add-Type -AssemblyName System.Windows.Forms;"
                 f"$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{path_b64}'));"
                 "$s=New-Object System.Media.SoundPlayer $p;"
                 "try {$s.Load();$s.PlaySync()} finally {$s.Dispose()}"

@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import secrets
 import sys
+import threading
 import wave
 
 
@@ -59,6 +60,7 @@ class PiperHandler(BaseHTTPRequestHandler):
     token = ""
     voice_id = ""
     SynthesisConfig = None
+    synthesis_lock = threading.Lock()
 
     def log_message(self, format, *args):
         return
@@ -156,10 +158,11 @@ class PiperHandler(BaseHTTPRequestHandler):
                 volume=float(volume),
             )
             output = BytesIO()
-            with wave.open(output, "wb") as wav_file:
-                type(self).voice.synthesize_wav(
-                    text.strip(), wav_file, syn_config=config
-                )
+            with type(self).synthesis_lock:
+                with wave.open(output, "wb") as wav_file:
+                    type(self).voice.synthesize_wav(
+                        text.strip(), wav_file, syn_config=config
+                    )
             audio = output.getvalue()
             if not audio or len(audio) > MAX_RESPONSE_BYTES:
                 raise SidecarError("generated Piper audio exceeds safe size")
