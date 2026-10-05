@@ -9,9 +9,9 @@ import re
 from .conversation import validate_text
 from .learning import Phrase, Unit, byte_symbols, unit_text
 
-PROFILE_PATH = Path(__file__).resolve().parents[2] / "experiments" / "chordic" / "exp-003-runtime.json"
+PROFILE_PATH = Path(__file__).resolve().parents[2] / "experiments" / "chordic" / "exp-003-runtime-v2.json"
 VERSION = "EXP-003"
-SOURCE_COMMIT = "654deaa0ab7c77efe4d36876936a73ec0890065c"
+SOURCE_COMMIT = "e618b39150c7f318b7a0da51408062ca9eb43ad9"
 _WORD = re.compile(r"[A-Za-z0-9]+(?:['’][A-Za-z]+)?")
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ def load_profile():
         profile = json.load(handle)
     if type(profile) is not dict or profile.get("schema_version") != "0.3":
         raise ValueError("invalid EXP-003 runtime profile")
-    if profile.get("candidate_id") != VERSION or profile.get("export_id") != "EXP-003-runtime-v1":
+    if profile.get("candidate_id") != VERSION or profile.get("export_id") != "EXP-003-runtime-v2":
         raise ValueError("wrong EXP-003 runtime export")
     candidate = profile.get("candidate", {})
     if candidate.get("candidate_id") != VERSION:
@@ -62,6 +62,9 @@ def surface_registry():
             raise ValueError("invalid EXP-003 surface mapping")
         result[key] = tokens
     return result
+
+def _digit_tokens(value):
+    return tuple("NUM." + digit for digit in str(value))
 
 def _encode_ct2_fragment(text):
     return Phrase((Unit("utf8", byte_symbols(text.encode("utf-8"))),))
@@ -102,8 +105,30 @@ def encode_phrase(text):
             continue
         surface = word.group()
         lower = surface.lower()
-        if surface.isdigit() and len(surface) <= profile["number_rule"]["max_digits"]:
+        number_rule = profile["number_rule"]
+        spoken_units = number_rule.get("spoken_units", {})
+        spoken_tens = number_rule.get("spoken_tens", {})
+        if surface.isdigit() and len(surface) <= number_rule["max_digits"]:
             units.append(Exp003Unit("tokens", surface, tokens=tuple("NUM." + digit for digit in surface)))
+            cursor = word.end()
+            i += 1
+            continue
+        if lower in spoken_tens:
+            value = spoken_tens[lower]
+            end_index = i
+            if i + 1 < len(words):
+                next_lower = words[i + 1].group().lower()
+                if next_lower in spoken_units and 1 <= spoken_units[next_lower] <= 9:
+                    value += spoken_units[next_lower]
+                    end_index = i + 1
+            end = words[end_index].end()
+            number_text = text[word.start():end]
+            units.append(Exp003Unit("tokens", number_text, tokens=_digit_tokens(value)))
+            cursor = end
+            i = end_index + 1
+            continue
+        if lower in spoken_units:
+            units.append(Exp003Unit("tokens", surface, tokens=_digit_tokens(spoken_units[lower])))
         elif lower in ignored:
             units.append(Exp003Unit("grammar", surface))
         else:
