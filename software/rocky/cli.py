@@ -19,6 +19,7 @@ from brain.contracts import BrainConfig, BrainOutcome, ConnectionState
 from brain.controller import BrainController, JsonlEventLogger, TaskController
 from .audio import SAMPLE_RATE
 from .conversation import ConversationController
+from .memory import MemoryStore
 from .desktop import DesktopHardware
 from .providers import DummyConversationProvider, LocalAIProvider, strict_json
 from .personality import load_personality
@@ -31,6 +32,8 @@ HELP = """Type a message to Rocky. Commands:
 /translate  decode the last reply once (backward compatible)
 /language [exp003|exp002|ct2|ct1]  show/change future Chordic conversation profile
 /mode [normal|study|coding|project]  choose assistant response mode
+/memory status|on|off|list|clear  inspect/manage opt-in persistent memory
+/remember KEY=VALUE  explicitly save a user-stated fact; /forget KEY deletes it
 /replay     replay last tones; also voice when persistent translation is on
 /mute       stop/silence tones + voice /unmute    enable future playback
 /clear      forget history; translation mode persists
@@ -203,6 +206,8 @@ def configuration(args):
         raise ValueError("tone_style must be pure, resonant, contour-v1 or vocal-v1")
     if type(defaults["translation_enabled"]) is not bool:
         raise ValueError("translation_enabled must be true or false")
+    if type(defaults["memory_enabled"]) is not bool:
+        raise ValueError("memory_enabled must be true or false")
     if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
         raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
@@ -230,7 +235,8 @@ def handle_command(line, conversation, settings, display):
         print(HELP)
     elif line == "/status":
         state = brain.state
-        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; mode={conversation.assistant_mode}; name={conversation.user_name or 'unknown'}; tone={hardware.tone_style}; duration_multiplier={hardware.duration_multiplier}")
+        memory = conversation.memory_status()
+        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; mode={conversation.assistant_mode}; memory={'ON' if memory['enabled'] else 'OFF'}({memory['count']}); name={conversation.user_name or 'unknown'}; tone={hardware.tone_style}; duration_multiplier={hardware.duration_multiplier}")
     elif line in {"/translate on", "/translate off", "/translate status"}:
         if line == "/translate status":
             print("Persistent translation: " + ("ON" if conversation.translation_enabled else "OFF") + f"; voice={hardware.voice_status}")
@@ -267,6 +273,47 @@ def handle_command(line, conversation, settings, display):
             conversation.set_mode(mode)
             settings["assistant_mode"] = mode
             print("Assistant mode: " + mode + ". Spoken replies stay short; detail appears in the UI/terminal when useful.")
+    elif line == "/memory" or line.startswith("/memory "):
+        command = line[len("/memory"):].strip().lower() or "status"
+        if command == "status":
+            status = conversation.memory_status()
+            print(
+                f"Persistent memory: {'ON' if status['enabled'] else 'OFF'}; "
+                f"items={status['count']}; revision={status['revision']}; "
+                f"path={status['path'] or '[unavailable]'}"
+            )
+        elif command in {"on", "off"}:
+            enabled = command == "on"
+            conversation.set_memory_enabled(enabled)
+            settings["memory_enabled"] = enabled
+            print(
+                "Persistent memory " + ("ON." if enabled else "OFF.")
+                + " Model cannot write it; use /remember explicitly."
+            )
+        elif command == "list":
+            items = conversation.memory_items()
+            if not items:
+                print("No enabled persistent memory items.")
+            else:
+                for item in items:
+                    print(f"{item.key} = {item.value} [{item.provenance}]")
+        elif command == "clear":
+            conversation.clear_memory()
+            print("Persistent memory cleared by explicit user command.")
+        else:
+            raise ValueError("memory command must be status, on, off, list or clear")
+    elif line.startswith("/remember "):
+        raw = line[len("/remember "):].strip()
+        if "=" not in raw:
+            raise ValueError("use /remember KEY=VALUE")
+        key, value = raw.split("=", 1)
+        item = conversation.remember(key.strip(), value.strip())
+        print(f"Remembered {item.key} as explicit user_statement.")
+    elif line.startswith("/forget "):
+        key = line[len("/forget "):].strip()
+        if not key:
+            raise ValueError("use /forget KEY")
+        print("Forgot." if conversation.forget(key) else "No matching memory item.")
     elif line == "/tone" or line.startswith("/tone "):
         if line == "/tone":
             print("Chordic tone style: " + hardware.tone_style)
@@ -325,7 +372,7 @@ def handle_command(line, conversation, settings, display):
     elif line == "/clear":
         conversation.clear()
         hardware.cancel_audio()
-        print("Session history cleared; pending inference/audio cancelled. Persistent translation remains " + ("ON." if conversation.translation_enabled else "OFF.") + " Local WAV remains until replaced.")
+        print("Session history cleared; pending inference/audio cancelled. Persistent memory is unchanged. Persistent translation remains " + ("ON." if conversation.translation_enabled else "OFF.") + " Local WAV remains until replaced.")
     elif line == "/model":
         print(f"provider={settings['provider']}; model={settings['model'] if settings['provider'] == 'local' else 'none (deterministic diagnostic)'}")
     elif line == "/offline":
@@ -425,6 +472,7 @@ def main(argv=None):
     parser.add_argument("--ui-port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--benchmark-output", type=Path)
+    parser.add_argument("--memory-path", type=Path, default=Path.home() / ".rpa1" / "memory-v1.json")
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -508,7 +556,8 @@ def main(argv=None):
                 time.sleep(duration + 0.1)
             return 0
         provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
-        conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"])
+        memory_store = MemoryStore(args.memory_path, enabled=settings["memory_enabled"])
+        conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"], memory_store=memory_store)
         conversation.set_mode(settings["assistant_mode"])
         if settings["translation_enabled"]:
             if sys.platform == "win32" and hardware.player.backend != "wav":
