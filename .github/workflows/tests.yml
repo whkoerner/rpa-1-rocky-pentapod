@@ -123,6 +123,19 @@ jobs:
         continue-on-error: true
         working-directory: software/rocky/tests
         run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning test_translation_voice_exp002 test_windows_launcher -v
+      - name: Standard full Rocky discovery diagnostic
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -v
+      - name: Fresh-loader full Rocky discovery diagnostic
+        continue-on-error: true
+        shell: python
+        run: |
+          import sys
+          import unittest
+          if __name__ == '__main__':
+              suite = unittest.TestLoader().discover('software/rocky/tests')
+              result = unittest.TextTestRunner(verbosity=2).run(suite)
+              sys.exit(0 if result.wasSuccessful() else 1)
       - name: Run Conversational Brain V1 tests (no model or speakers)
         shell: python
         run: |
