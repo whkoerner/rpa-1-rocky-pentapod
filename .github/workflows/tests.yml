@@ -45,6 +45,26 @@ jobs:
         continue-on-error: true
         working-directory: software/rocky/tests
         run: python -m unittest test_translation_voice_exp002.PersistentTranslationTests -v
+      - name: Legacy conversation regression tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_conversation -v
+      - name: Legacy desktop-upgrade regression tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_desktop_upgrade -v
+      - name: Legacy learning regression tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_learning -v
+      - name: Legacy Chordic EXP-002 regression tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 -v
+      - name: Legacy Windows-launcher regression tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_windows_launcher -v
       - name: Run Conversational Brain V1 tests (no model or speakers)
         shell: python
         run: |
