@@ -10,6 +10,7 @@ from rocky.symbolic_math import (
     SymbolicMathError,
     derivative,
     detect_symbolic_request,
+    explain_symbolic_operation,
     integral,
     simplify_expression,
     solve_equation,
@@ -87,6 +88,25 @@ class SymbolicMathTests(unittest.TestCase):
                     expected,
                 )
 
+    def test_deterministic_explanations_are_study_ready_and_checked(self):
+        derivative_steps = explain_symbolic_operation(
+            "derivative", "x² + 3x", "x"
+        )
+        self.assertIn("d/dx(x**2) = 2*x", derivative_steps)
+        self.assertIn("d/dx(3*x) = 3", derivative_steps)
+        self.assertIn("Result: 2*x + 3", derivative_steps)
+
+        solve_steps = explain_symbolic_operation(
+            "solve", "2x + 5 = 17", "x"
+        )
+        self.assertIn("Exact solution: [6]", solve_steps)
+        self.assertIn("left = 17, right = 17", solve_steps)
+
+        integral_steps = explain_symbolic_operation(
+            "integral", "2x + 3", "x"
+        )
+        self.assertIn("Antiderivative: x**2 + 3*x + C", integral_steps)
+
     def test_code_filesystem_attribute_and_collection_attacks_are_rejected(self):
         attacks = (
             "__import__('os').system('whoami')",
@@ -145,7 +165,7 @@ class SymbolicMathTests(unittest.TestCase):
             )
         post.assert_not_called()
         self.assertEqual(result["spoken_text"], "Rocky calculate. Ready. Good.")
-        self.assertIn("= 2*x + 3", result["detail_text"])
+        self.assertIn("Result: 2*x + 3", result["detail_text"])
 
     def test_model_requested_symbolic_tool_is_executed_by_application(self):
         candidate = json.dumps(

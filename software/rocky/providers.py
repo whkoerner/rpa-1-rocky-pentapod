@@ -15,7 +15,7 @@ from .tools import (
     calculate_expression,
     detect_arithmetic_expression,
 )
-from .symbolic_math import detect_symbolic_request, symbolic_operation
+from .symbolic_math import detect_symbolic_request, explain_symbolic_operation, symbolic_operation
 
 
 @dataclass(frozen=True)
@@ -168,9 +168,19 @@ class LocalAIProvider:
                     display = f"{result.output} days"
                 else:
                     display = result.output
-                lines.append(
-                    f"{call.name} {json.dumps(call.arguments, sort_keys=True)} -> {display}"
-                )
+                if call.name == "symbolic_math":
+                    explanation = explain_symbolic_operation(
+                        call.arguments["operation"],
+                        call.arguments["expression"],
+                        call.arguments["variable"],
+                    )
+                    lines.append(
+                        f"{call.name} {json.dumps(call.arguments, sort_keys=True)} -> {display}\n{explanation}"
+                    )
+                else:
+                    lines.append(
+                        f"{call.name} {json.dumps(call.arguments, sort_keys=True)} -> {display}"
+                    )
             else:
                 lines.append(
                     f"{call.name} {json.dumps(call.arguments, sort_keys=True)} -> ERROR {result.error}"
@@ -237,9 +247,10 @@ class LocalAIProvider:
             }
         return {
             "spoken_text": "Rocky calculate. Ready. Good.",
-            "detail_text": (
-                "Deterministic symbolic math: "
-                f'{request["operation"]}({request["expression"]}, {request["variable"]}) = {result}'
+            "detail_text": explain_symbolic_operation(
+                request["operation"],
+                request["expression"],
+                request["variable"],
             ),
             "tool_calls": [],
         }

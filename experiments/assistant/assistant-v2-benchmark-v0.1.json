@@ -108,7 +108,7 @@
       "route": "symbolic_prompt",
       "prompt": "Explain how to find the derivative of x² + 3x.",
       "expected_spoken": "Rocky calculate. Ready. Good.",
-      "expected_detail_contains": "= 2*x + 3",
+      "expected_detail_contains": "Result: 2*x + 3",
       "expected_chordic_semantic_percent": 100,
       "expected_fallback_spans": 0
     },
@@ -118,7 +118,7 @@
       "route": "symbolic_prompt",
       "prompt": "Solve 2x + 5 = 17 and explain the steps.",
       "expected_spoken": "Rocky calculate. Ready. Good.",
-      "expected_detail_contains": "= [6]",
+      "expected_detail_contains": "Exact solution: [6]",
       "expected_chordic_semantic_percent": 100,
       "expected_fallback_spans": 0
     },
@@ -128,7 +128,7 @@
       "route": "symbolic_prompt",
       "prompt": "Find the integral of 2x + 3 with respect to x.",
       "expected_spoken": "Rocky calculate. Ready. Good.",
-      "expected_detail_contains": "= x**2 + 3*x",
+      "expected_detail_contains": "Antiderivative: x**2 + 3*x + C",
       "expected_chordic_semantic_percent": 100,
       "expected_fallback_spans": 0
     },

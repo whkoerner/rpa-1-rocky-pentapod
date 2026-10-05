@@ -209,6 +209,71 @@ def solve_equation(equation: object, variable: object = "x") -> str:
     return _format(result)
 
 
+def explain_symbolic_operation(
+    operation: object,
+    expression: object,
+    variable: object = "x",
+) -> str:
+    """Return deterministic, study-ready steps tied to the exact symbolic result."""
+    result = symbolic_operation(operation, expression, variable)
+    if operation == "solve":
+        normalized = normalize_symbolic_text(expression)
+        left_text, right_text = normalized.split("=", 1)
+        left, left_symbols = parse_symbolic_expression(left_text)
+        right, right_symbols = parse_symbolic_expression(right_text)
+        symbols = {**left_symbols, **right_symbols}
+        symbol = _variable(variable, symbols)
+        solutions = sp.solve(sp.Eq(left, right), symbol)
+        lines = [
+            f"Equation: {left} = {right}",
+            f"Solve for {symbol}.",
+            f"Exact solution: {result}",
+        ]
+        for solution in solutions[:4]:
+            checked_left = sp.simplify(left.subs(symbol, solution))
+            checked_right = sp.simplify(right.subs(symbol, solution))
+            lines.append(
+                f"Check {symbol} = {solution}: left = {checked_left}, right = {checked_right}."
+            )
+        return "\n".join(lines)
+    value, symbols = parse_symbolic_expression(expression)
+    symbol = _variable(variable, symbols)
+    if operation == "derivative":
+        lines = [
+            f"Expression: {value}",
+            f"Differentiate with respect to {symbol}.",
+        ]
+        terms = value.as_ordered_terms() if isinstance(value, sp.Add) else [value]
+        if len(terms) <= 12:
+            for term in terms:
+                lines.append(f"d/d{symbol}({term}) = {sp.diff(term, symbol)}")
+        lines.append(f"Result: {result}")
+        return "\n".join(lines)
+    if operation == "integral":
+        lines = [
+            f"Expression: {value}",
+            f"Integrate with respect to {symbol}.",
+        ]
+        terms = value.as_ordered_terms() if isinstance(value, sp.Add) else [value]
+        if len(terms) <= 12:
+            for term in terms:
+                part = sp.integrate(term, symbol)
+                if isinstance(part, sp.Integral):
+                    raise SymbolicMathError("integral step was not resolved exactly")
+                lines.append(f"∫({term}) d{symbol} = {part}")
+        lines.append(f"Antiderivative: {result} + C")
+        return "\n".join(lines)
+    if operation == "simplify":
+        return "\n".join(
+            (
+                f"Expression: {value}",
+                "Apply exact algebraic simplification.",
+                f"Result: {result}",
+            )
+        )
+    raise SymbolicMathError("unsupported symbolic operation")
+
+
 def symbolic_operation(
     operation: object,
     expression: object,
