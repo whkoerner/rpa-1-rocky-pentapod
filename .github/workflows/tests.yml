@@ -86,6 +86,33 @@ jobs:
         env:
           PYTHONPATH: software/rocky/tests
         run: ${{ matrix.command }}
+  rocky-translation-diagnostic:
+    name: rocky-translation-diagnostic (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: exp002-class
+            suffix: test_translation_voice_exp002.Exp002RuntimeTests
+          - label: prosody-class
+            suffix: test_translation_voice_exp002.ProsodyTests
+          - label: persistent-class
+            suffix: test_translation_voice_exp002.PersistentTranslationTests
+          - label: module-only
+            suffix: test_translation_voice_exp002
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run translation interaction diagnostic
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning ${{ matrix.suffix }} -v
   arduino-uno:
     runs-on: ubuntu-latest
     steps:
