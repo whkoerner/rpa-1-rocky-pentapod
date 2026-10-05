@@ -397,7 +397,7 @@ class WorkerTests(unittest.TestCase):
                 os.write(master, b"/quit\n")
                 output, error = process.communicate(timeout=5)
                 self.assertEqual(process.returncode, 0, error)
-                self.assertIn("Rocky Conversational Brain V1", output)
+                self.assertIn("Rocky Assistant V2", output)
             finally:
                 if process.poll() is None:
                     process.kill()
