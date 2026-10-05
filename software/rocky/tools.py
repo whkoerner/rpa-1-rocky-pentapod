@@ -18,6 +18,7 @@ from typing import Callable
 from brain.constitution import ActionDomain, AuthorityRequest, RockySafetyConstitution
 
 from .assistant_contracts import ToolCall, ToolResult
+from .connected import ConnectedGatewayClient, ConnectedGatewayError
 from .symbolic_math import SymbolicMathError, symbolic_operation
 
 
@@ -252,9 +253,13 @@ def date_difference(start: object, end: object) -> str:
 @dataclass(frozen=True)
 class AssistantToolRegistry:
     constitution: RockySafetyConstitution = RockySafetyConstitution()
+    connected_client: ConnectedGatewayClient | None = None
 
     def names(self) -> tuple[str, ...]:
-        return ("calculator", "date_difference", "symbolic_math", "unit_convert")
+        core = ("calculator", "date_difference", "symbolic_math", "unit_convert")
+        if self.connected_client is None:
+            return core
+        return core + self.connected_client.tool_names()
 
     def execute(self, call: ToolCall) -> ToolResult:
         decision = self.constitution.validate_authority_request(
@@ -265,7 +270,11 @@ class AssistantToolRegistry:
         if call.name not in self.names():
             return ToolResult(call.call_id, call.name, False, error="TOOL_NOT_ALLOWED")
         try:
-            if call.name == "calculator":
+            if call.name.startswith("connected_"):
+                if self.connected_client is None:
+                    raise ToolExecutionError("connected gateway is unavailable")
+                output = self.connected_client.execute(call.name, call.arguments)
+            elif call.name == "calculator":
                 if set(call.arguments) != {"expression"}:
                     raise ToolExecutionError("calculator requires exactly expression")
                 output = calculate_expression(call.arguments["expression"])
@@ -298,7 +307,7 @@ class AssistantToolRegistry:
                     call.arguments["variable"],
                 )
             return ToolResult(call.call_id, call.name, True, output=output)
-        except (ToolExecutionError, SymbolicMathError, ZeroDivisionError, OverflowError) as exc:
+        except (ToolExecutionError, ConnectedGatewayError, SymbolicMathError, ZeroDivisionError, OverflowError) as exc:
             return ToolResult(
                 call.call_id,
                 call.name,
