@@ -33,6 +33,18 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
+      - name: Focused EXP-002 runtime tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_translation_voice_exp002.Exp002RuntimeTests -v
+      - name: Focused translation prosody tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_translation_voice_exp002.ProsodyTests -v
+      - name: Focused persistent translation tests
+        continue-on-error: true
+        working-directory: software/rocky/tests
+        run: python -m unittest test_translation_voice_exp002.PersistentTranslationTests -v
       - name: Run Conversational Brain V1 tests (no model or speakers)
         shell: python
         run: |
