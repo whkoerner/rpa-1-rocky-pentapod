@@ -502,7 +502,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "lecture-notes", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -567,6 +567,32 @@ def main(argv=None):
             print(
                 f"Lecture transcript ready: {directory / result['text']}; "
                 f"segments={result['segments']}"
+            )
+            return 0
+        if args.command == "lecture-notes":
+            from .lecture import LectureSessionStore
+            from .lecture_notes import LectureNotesGenerator
+            if not args.lecture_session:
+                raise ValueError("lecture-notes requires --lecture-session SESSION_ID")
+            if settings["provider"] != "local":
+                raise ValueError("lecture notes require provider=local")
+            store = LectureSessionStore(
+                args.lecture_root,
+                max_seconds=settings["lecture_max_seconds"],
+                chunk_max_seconds=settings["lecture_chunk_seconds"],
+            )
+            directory = store.session_directory(args.lecture_session)
+            transcript_path = directory / "transcript.json"
+            provider = LocalAIProvider(
+                settings["model"], settings["port"], settings["timeout"]
+            )
+            provider.check_available()
+            manifest = LectureNotesGenerator(provider, personality).generate(
+                transcript_path, directory / "study-notes"
+            )
+            print(
+                f"Lecture study notes ready: {directory / 'study-notes' / manifest['overall_review']}; "
+                f"sections={manifest['section_count']}; grounding=lecture transcript only"
             )
             return 0
         if args.command == "backup":
