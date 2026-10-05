@@ -341,6 +341,12 @@ class RockyWebHandler(BaseHTTPRequestHandler):
         if not self._host_ok():
             self._error(400, ValueError("loopback Host required"))
             return
+        if (
+            self.path not in {"/", "/favicon.ico"}
+            and self.headers.get("X-Rocky-Token") != self.server.app.token
+        ):
+            self._error(403, PermissionError("missing or invalid local UI token"))
+            return
         try:
             if self.path == "/":
                 page = (

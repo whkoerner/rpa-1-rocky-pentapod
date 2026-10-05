@@ -182,6 +182,20 @@ class WebUITests(unittest.TestCase):
             self.assertNotIn("https://", page)
             self.assertNotIn("http://", page)
 
+            connection.request("GET", "/api/status")
+            response = connection.getresponse()
+            response.read()
+            self.assertEqual(response.status, 403)
+
+            connection.request(
+                "GET",
+                "/api/status",
+                headers={"X-Rocky-Token": app.token},
+            )
+            response = connection.getresponse()
+            response.read()
+            self.assertEqual(response.status, 200)
+
             body = json.dumps({"text": "hello"})
             connection.request(
                 "POST",

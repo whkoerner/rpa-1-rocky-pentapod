@@ -82,9 +82,9 @@ async function api(path, opts) {
   opts=opts||{};
   const init=Object.assign({},opts);
   init.headers=Object.assign({},opts.headers||{});
+  init.headers["X-Rocky-Token"]=TOKEN;
   if(init.method && init.method!=="GET") {
     init.headers["Content-Type"]="application/json";
-    init.headers["X-Rocky-Token"]=TOKEN;
   }
   const r=await fetch(path,init);
   const text=await r.text();
