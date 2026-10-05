@@ -113,6 +113,47 @@ jobs:
         env:
           PYTHONPATH: software/rocky/tests
         run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning ${{ matrix.suffix }} -v
+  rocky-method-diagnostic:
+    name: rocky-method-diagnostic (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: exp-pin
+            test: test_translation_voice_exp002.Exp002RuntimeTests.test_runtime_export_is_pinned_to_chordic_main_and_collision_free
+          - label: exp-roundtrip
+            test: test_translation_voice_exp002.Exp002RuntimeTests.test_all_registered_benchmark_meanings_round_trip
+          - label: exp-freeform
+            test: test_translation_voice_exp002.Exp002RuntimeTests.test_free_form_uses_composition_plus_explicit_exact_ct2_fallback
+          - label: exp-timing
+            test: test_translation_voice_exp002.Exp002RuntimeTests.test_normal_benchmark_reproduces_exp002_speed_target_at_unchanged_3x
+          - label: exp-legacy-ct2
+            test: test_translation_voice_exp002.Exp002RuntimeTests.test_ct2_remains_available_as_legacy_profile
+          - label: persist-on-off
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_translation_on_persists_two_turns_then_off_stops_voice
+          - label: persist-clear
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_status_and_clear_preserve_session_mode
+          - label: persist-controls
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_mute_cancel_stop_reset_and_unmute_control_voice
+          - label: persist-replay
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_replay_replays_voice_only_when_translation_is_on
+          - label: persist-error
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_voice_error_is_surfaced_and_latches_stop
+          - label: persist-language
+            test: test_translation_voice_exp002.PersistentTranslationTests.test_language_command_switches_future_profile_without_deleting_ct2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Run isolated method after passing legacy base
+        env:
+          PYTHONPATH: software/rocky/tests
+        run: python -m unittest test_chordic_exp002 test_conversation test_desktop_upgrade test_learning ${{ matrix.test }} -v
   arduino-uno:
     runs-on: ubuntu-latest
     steps:
