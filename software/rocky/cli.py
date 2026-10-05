@@ -21,7 +21,7 @@ from .conversation import ConversationController
 from .desktop import DesktopHardware
 from .providers import DummyConversationProvider, LocalAIProvider, strict_json
 from .personality import load_personality
-from .translation import decoded_text, learning_rows
+from .translation import decoded_text, learning_rows, representation_summary
 from csp.learning import WORDS
 
 HELP = """Type a message to Rocky. Commands:
@@ -328,6 +328,7 @@ def terminal(conversation, settings):
             else:
                 show_english = conversation.translation_enabled or display.get("automatic", False)
                 print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
+                print("Representation: " + representation_summary(conversation.last_output))
                 print("Audio: " + result["delivery"])
                 if conversation.translation_enabled:
                     print("English voice: " + ("queued about 0.75s after Chordic starts" if result.get("spoken") else "suppressed by mute"))
