@@ -79,7 +79,7 @@ def surface_registry():
 def _surface_pattern():
     surfaces = surface_registry()
     return re.compile(
-        r"(?<![\\w'’])(" + "|".join(re.escape(x) for x in sorted(surfaces, key=len, reverse=True)) + r")(?![\\w'’])",
+        r"(?<![\w'’])(" + "|".join(re.escape(x) for x in sorted(surfaces, key=len, reverse=True)) + r")(?![\w'’])",
         re.IGNORECASE,
     )
 
@@ -108,7 +108,8 @@ def encode_phrase(text: str) -> Exp002Phrase:
         return Exp002Phrase((Exp002Unit("tokens", text, tokens=tokens),), profile["source_commit"])
     units = []
     position = 0
-    surfaces = surface_registry()\n    for match in _surface_pattern().finditer(text):
+    surfaces = surface_registry()
+    for match in _surface_pattern().finditer(text):
         surface = match.group()
         tokens = surfaces[surface.lower()]
         if any(token not in patterns for token in tokens):
