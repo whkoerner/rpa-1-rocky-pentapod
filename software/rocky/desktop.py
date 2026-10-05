@@ -13,13 +13,16 @@ from .speech import WindowsSystemSpeechRenderer
 class DesktopHardware:
     backend_id = "desktop-audio"
 
-    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, player=None, speech_renderer=None):
+    def __init__(self, directory: Path, *, backend="auto", volume=0.12, duration_multiplier=1, tone_style="pure", translation_voice="", voice_rate=0, voice_pitch=0, voice_volume=0, player=None, speech_renderer=None):
         self.directory = directory
         self.player = player or AudioPlayer(backend)
-        self.voice = speech_renderer or WindowsSystemSpeechRenderer()
+        self.voice = speech_renderer or WindowsSystemSpeechRenderer(translation_voice, voice_rate, voice_pitch, voice_volume)
         self.translation_enabled = False
         self.volume = volume
         self.duration_multiplier = duration_multiplier
+        if tone_style not in {"pure", "resonant"}:
+            raise ValueError("tone_style must be pure or resonant")
+        self.tone_style = tone_style
         self._muted = False
         self.ready = self.stopped = False
         self.last_wav = None
@@ -119,7 +122,7 @@ class DesktopHardware:
     def _render(self, command, cancelled, generation, volume, multiplier):
         temporary = self.directory / f"render-{generation}.tmp.wav"
         try:
-            render_wav(temporary, command.communication, self.codec, volume, multiplier, cancelled.is_set)
+            render_wav(temporary, command.communication, self.codec, volume, multiplier, cancelled.is_set, self.tone_style)
             with self._lock:
                 if cancelled.is_set() or self.stopped or not self.ready:
                     return
