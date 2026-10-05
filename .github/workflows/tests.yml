@@ -33,158 +33,20 @@ jobs:
         run: python -m unittest discover -s software/simulation/tests -v
       - name: Run Brain v0.2 tests
         run: python -m unittest discover -s software/brain/tests -v
-      - name: Diagnose memory touched module test_conversation
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p test_conversation.py -v
-      - name: Diagnose memory touched module test_memory
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p test_memory.py -v
-      - name: Diagnose memory touched module test_desktop_upgrade
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p test_desktop_upgrade.py -v
-      - name: Diagnose memory touched module test_webui
-        continue-on-error: true
-        run: python -m unittest discover -s software/rocky/tests -p test_webui.py -v
-      - name: Run Rocky Assistant tests and capture failures
-        id: rocky_full_capture
-        continue-on-error: true
+      - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
-          import pathlib
           import sys
           import unittest
-          suite = unittest.TestLoader().discover('software/rocky/tests')
-          result = unittest.TextTestRunner(verbosity=2).run(suite)
-          failures = [test.id() for test, _ in result.errors + result.failures]
-          pathlib.Path('rocky-final-failures.txt').write_text('\n'.join(failures), encoding='utf-8')
-          for test, traceback in result.errors + result.failures:
-              message = f'{test}\n{traceback}'
-              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              print(f'::error::{message}', flush=True)
-          sys.exit(0 if result.wasSuccessful() else 1)
-      - name: Final failure marker test_assistant_v2_benchmark
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_assistant_v2_benchmark' in row for row in rows)
-          print('test_assistant_v2_benchmark:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_assistant_v2_core
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_assistant_v2_core' in row for row in rows)
-          print('test_assistant_v2_core:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_benchmark_runner
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_benchmark_runner' in row for row in rows)
-          print('test_benchmark_runner:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_chordic_exp002
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_chordic_exp002' in row for row in rows)
-          print('test_chordic_exp002:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_conversation
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_conversation' in row for row in rows)
-          print('test_conversation:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_desktop_upgrade
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_desktop_upgrade' in row for row in rows)
-          print('test_desktop_upgrade:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_exp003_runtime
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_exp003_runtime' in row for row in rows)
-          print('test_exp003_runtime:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_learning
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_learning' in row for row in rows)
-          print('test_learning:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_memory
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_memory' in row for row in rows)
-          print('test_memory:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_symbolic_math
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_symbolic_math' in row for row in rows)
-          print('test_symbolic_math:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_translation_voice_exp002
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_translation_voice_exp002' in row for row in rows)
-          print('test_translation_voice_exp002:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_webui
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_webui' in row for row in rows)
-          print('test_webui:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Final failure marker test_windows_launcher
-        continue-on-error: true
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          hit = any('test_windows_launcher' in row for row in rows)
-          print('test_windows_launcher:', 'FAILURE_PRESENT' if hit else 'clear')
-          sys.exit(1 if hit else 0)
-      - name: Enforce Rocky Assistant test result
-        shell: python
-        run: |
-          import pathlib, sys
-          rows = pathlib.Path('rocky-final-failures.txt').read_text(encoding='utf-8').splitlines()
-          sys.exit(1 if rows else 0)
+          if __name__ == '__main__':
+              suite = unittest.TestLoader().discover('software/rocky/tests')
+              result = unittest.TextTestRunner(verbosity=2).run(suite)
+              # Preserve tracebacks in check annotations as well as authenticated logs.
+              for test, traceback in result.errors + result.failures:
+                  message = f'{test}\n{traceback}'
+                  message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print(f'::error::{message}', flush=True)
+              sys.exit(0 if result.wasSuccessful() else 1)
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
