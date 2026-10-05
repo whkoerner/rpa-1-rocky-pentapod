@@ -91,7 +91,9 @@ class ConversationController:
         registry = getattr(provider, "tool_registry", None)
         client = getattr(registry, "connected_client", None)
         if client is None:
-            raise ValueError("connected gateway is unavailable for this provider")
+            if enabled:
+                raise ValueError("connected gateway is unavailable for this provider")
+            return
         client.set_enabled(enabled)
 
     def memory_status(self):

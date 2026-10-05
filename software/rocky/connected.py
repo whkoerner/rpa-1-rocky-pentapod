@@ -124,8 +124,11 @@ class ConnectedGatewayClient:
         record = json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n"
         if len(record.encode("utf-8")) > 4096:
             raise ConnectedGatewayError("connected audit record exceeds safe size")
-        with self.audit_path.open("a", encoding="utf-8") as handle:
-            handle.write(record)
+        try:
+            with self.audit_path.open("a", encoding="utf-8") as handle:
+                handle.write(record)
+        except OSError as exc:
+            raise ConnectedGatewayError("connected audit write failed") from exc
 
     def execute(self, tool_name: str, arguments: object) -> str:
         if not self.enabled:
@@ -244,7 +247,4 @@ class ConnectedGatewayClient:
             ) from exc
         finally:
             connection.close()
-            try:
-                self._audit(audit)
-            except OSError:
-                pass
+            self._audit(audit)

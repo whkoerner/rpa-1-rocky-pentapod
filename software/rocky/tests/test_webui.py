@@ -156,6 +156,18 @@ class FakeConversation:
     def poll(self):
         return None
 
+    def connected_status(self):
+        return {
+            "available": True,
+            "enabled": bool(getattr(self, "connected_enabled", False)),
+            "tools": ("connected_web_search",) if getattr(self, "connected_enabled", False) else (),
+        }
+
+    def set_connected_enabled(self, enabled):
+        if type(enabled) is not bool:
+            raise ValueError("bad connected mode")
+        self.connected_enabled = enabled
+
     def set_mode(self, mode):
         if mode not in {"normal", "study", "coding", "project"}:
             raise ValueError("bad mode")
@@ -192,6 +204,7 @@ class WebUITests(unittest.TestCase):
             "volume": 0.12,
             "translation_enabled": False,
             "memory_enabled": False,
+            "connected_enabled": False,
             "translation_voice": "",
             "voice_rate": 0,
             "voice_pitch": 0,
