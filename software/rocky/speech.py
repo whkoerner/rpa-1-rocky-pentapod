@@ -149,6 +149,8 @@ class WindowsSystemSpeechRenderer:
         ssml = build_ssml(text, profile)
         with self._lock:
             self.cancel()
+            if self._executor is None:
+                self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rocky-voice")
             self._cancel = threading.Event()
             self.status = "QUEUED"
             self.last_profile = profile.name
@@ -229,4 +231,6 @@ class WindowsSystemSpeechRenderer:
 
     def close(self) -> None:
         self.cancel()
-        self._executor.shutdown(wait=True, cancel_futures=True)
+        if self._executor is not None:
+            self._executor.shutdown(wait=True, cancel_futures=True)
+            self._executor = None
