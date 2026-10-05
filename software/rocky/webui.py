@@ -20,6 +20,7 @@ from csp.exp003 import Exp003Phrase, coverage as exp003_coverage
 
 from .providers import strict_json
 from .translation import representation_summary
+from .stt import MAX_WAV_BYTES, SpeechToTextError
 
 
 RECOMMENDED_TUNING = {
@@ -64,10 +65,11 @@ def _enum_value(value):
 
 
 class LocalWebUI:
-    def __init__(self, conversation, settings, *, settings_path: Path | None = None):
+    def __init__(self, conversation, settings, *, settings_path: Path | None = None, transcriber=None):
         self.conversation = conversation
         self.settings = settings
         self.settings_path = settings_path
+        self.transcriber = transcriber
         self.token = secrets.token_urlsafe(24)
         self.lock = threading.RLock()
 
@@ -108,6 +110,12 @@ class LocalWebUI:
                 "model": self.settings.get("model", ""),
                 "language": self.conversation.brain.task_controller.text_encoding,
                 "memory": self.conversation.memory_status(),
+                "stt": {
+                    "enabled": self.transcriber is not None,
+                    "status": self.transcriber.status if self.transcriber is not None else "DISABLED",
+                    "max_seconds": float(self.settings.get("stt_max_seconds", 30)),
+                    "confidence_available": False,
+                },
                 "tuning": self._tuning(),
                 "timing": {
                     "chordic_seconds": float(getattr(hardware, "duration", 0.0)),
@@ -243,7 +251,11 @@ class LocalWebUI:
             elif action == "cancel":
                 self.conversation.cancel()
                 self.hardware.cancel_audio()
+                if self.transcriber is not None:
+                    self.transcriber.cancel()
             elif action == "stop":
+                if self.transcriber is not None:
+                    self.transcriber.cancel()
                 self.conversation.stop()
             elif action == "reset":
                 self.conversation.cancel()
@@ -298,6 +310,13 @@ class LocalWebUI:
             else:
                 raise ValueError("memory action must be remember, forget or clear")
             return {**result, **self.memory()}
+
+    def transcribe_voice(self, raw):
+        if self.transcriber is None:
+            raise SpeechToTextError(
+                "local speech recognition is disabled; configure whisper.cpp explicitly"
+            )
+        return self.transcriber.transcribe_wav(raw)
 
     def export_settings(self):
         with self.lock:
@@ -386,6 +405,19 @@ class RockyWebHandler(BaseHTTPRequestHandler):
             raise ValueError("request body must be 1-8192 bytes")
         return strict_json(self.rfile.read(length).decode("utf-8"))
 
+    def _read_wav(self):
+        if self.headers.get("X-Rocky-Token") != self.server.app.token:
+            raise PermissionError("missing or invalid local UI token")
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "audio/wav":
+            raise ValueError("Content-Type must be audio/wav")
+        raw_length = self.headers.get("Content-Length")
+        if raw_length is None:
+            raise ValueError("Content-Length required")
+        length = int(raw_length)
+        if not 0 < length <= MAX_WAV_BYTES:
+            raise ValueError("voice WAV body exceeds safe byte limit")
+        return self.rfile.read(length)
+
     def do_GET(self):
         if not self._host_ok():
             self._error(400, ValueError("loopback Host required"))
@@ -427,6 +459,9 @@ class RockyWebHandler(BaseHTTPRequestHandler):
             self._error(400, ValueError("loopback Host required"))
             return
         try:
+            if self.path == "/api/stt":
+                self._json(200, self.server.app.transcribe_voice(self._read_wav()))
+                return
             payload = self._read_json()
             if self.path == "/api/chat":
                 self._json(202, self.server.app.chat(payload))
@@ -462,8 +497,11 @@ def serve_local_web_ui(
     port=8765,
     settings_path: Path | None = None,
     open_browser=True,
+    transcriber=None,
 ):
-    app = LocalWebUI(conversation, settings, settings_path=settings_path)
+    app = LocalWebUI(
+        conversation, settings, settings_path=settings_path, transcriber=transcriber
+    )
     server = build_server(app, port)
     host, actual_port = server.server_address
     url = f"http://{host}:{actual_port}/"

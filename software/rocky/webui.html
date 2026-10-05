@@ -40,13 +40,15 @@ pre { white-space:pre-wrap; word-break:break-word; }
 <textarea id="input" maxlength="1024" placeholder="Talk to Rocky…"></textarea>
 <div class="actions">
 <button id="send">Send</button>
+<button id="micstart">Start microphone</button>
+<button id="micstop" disabled>Stop & transcribe</button>
 <button data-action="replay">Replay</button>
 <button data-action="cancel">Cancel</button>
 <button data-action="stop">STOP</button>
 <button data-action="reset">Reset</button>
 <button data-action="clear">Clear session</button>
 </div>
-<small>Spoken text becomes Chordic and audible English. Detail text stays on screen.</small>
+<small>Spoken text becomes Chordic and audible English. Detail text stays on screen. Microphone capture is explicit push-to-talk; transcription is placed in the text box for review and is never auto-sent.</small><div id="micstatus" class="badge">microphone: checking</div>
 </section>
 <aside class="card">
 <h2>Tuning</h2>
@@ -153,8 +155,13 @@ function showStatus(s) {
     renderer:s.tuning?s.tuning.tone_style:"",
     audio:s.audio_status,
     voice:s.voice_status,
-    representation:s.representation||""
+    representation:s.representation||"",
+    stt:s.stt||{}
   },null,2);
+  const stt=s.stt||{};
+  el("micstart").disabled=!stt.enabled || !!mic.recording;
+  if(!mic.recording) el("micstop").disabled=true;
+  if(!stt.enabled && !mic.recording) el("micstatus").textContent="microphone: STT disabled";
 }
 
 async function refreshMemory() {
@@ -192,6 +199,121 @@ async function poll() {
   }
   setTimeout(poll,300);
 }
+
+const mic={
+  recording:false,
+  stream:null,
+  context:null,
+  source:null,
+  processor:null,
+  silent:null,
+  chunks:[],
+  sampleRate:0,
+  startedAt:0,
+  stopTimer:null,
+  tickTimer:null,
+  maxSeconds:30
+};
+
+function mergeFloat32(chunks) {
+  let length=0;
+  for(const chunk of chunks) length+=chunk.length;
+  const merged=new Float32Array(length);
+  let offset=0;
+  for(const chunk of chunks){merged.set(chunk,offset);offset+=chunk.length;}
+  return merged;
+}
+
+function resampleMono(input, sourceRate, targetRate) {
+  if(sourceRate===targetRate) return input;
+  const ratio=sourceRate/targetRate;
+  const length=Math.max(1,Math.floor(input.length/ratio));
+  const output=new Float32Array(length);
+  for(let i=0;i<length;i++) {
+    const start=Math.floor(i*ratio);
+    const end=Math.min(input.length,Math.max(start+1,Math.floor((i+1)*ratio)));
+    let sum=0;
+    for(let j=start;j<end;j++) sum+=input[j];
+    output[i]=sum/(end-start);
+  }
+  return output;
+}
+
+function pcmWav(samples, sampleRate) {
+  const buffer=new ArrayBuffer(44+samples.length*2);
+  const view=new DataView(buffer);
+  function text(offset,value){for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));}
+  text(0,"RIFF"); view.setUint32(4,36+samples.length*2,true); text(8,"WAVE");
+  text(12,"fmt "); view.setUint32(16,16,true); view.setUint16(20,1,true);
+  view.setUint16(22,1,true); view.setUint32(24,sampleRate,true);
+  view.setUint32(28,sampleRate*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  text(36,"data"); view.setUint32(40,samples.length*2,true);
+  let offset=44;
+  for(let i=0;i<samples.length;i++,offset+=2) {
+    const x=Math.max(-1,Math.min(1,samples[i]));
+    view.setInt16(offset,x<0?x*32768:x*32767,true);
+  }
+  return new Blob([buffer],{type:"audio/wav"});
+}
+
+async function startMic() {
+  if(mic.recording) return;
+  const status=await api("/api/status");
+  if(!status.stt || !status.stt.enabled) throw new Error("Local STT is disabled. Configure whisper.cpp paths first.");
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("This browser does not expose microphone capture.");
+  mic.maxSeconds=Math.min(60,Math.max(1,Number(status.stt.max_seconds||30)));
+  const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  const Context=window.AudioContext||window.webkitAudioContext;
+  if(!Context){stream.getTracks().forEach(t=>t.stop());throw new Error("Web Audio is unavailable.");}
+  const context=new Context();
+  const source=context.createMediaStreamSource(stream);
+  const processor=context.createScriptProcessor(4096,1,1);
+  const silent=context.createGain(); silent.gain.value=0;
+  mic.recording=true; mic.stream=stream; mic.context=context; mic.source=source; mic.processor=processor; mic.silent=silent;
+  mic.chunks=[]; mic.sampleRate=context.sampleRate; mic.startedAt=Date.now();
+  processor.onaudioprocess=function(event){
+    if(!mic.recording)return;
+    mic.chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+  };
+  source.connect(processor); processor.connect(silent); silent.connect(context.destination);
+  el("micstart").disabled=true; el("micstop").disabled=false;
+  el("micstatus").textContent="microphone: RECORDING";
+  mic.tickTimer=setInterval(function(){
+    const elapsed=(Date.now()-mic.startedAt)/1000;
+    el("micstatus").textContent="microphone: RECORDING "+elapsed.toFixed(1)+"s / "+mic.maxSeconds+"s";
+  },250);
+  mic.stopTimer=setTimeout(function(){stopMic().catch(e=>add("Error",e.message,""));},mic.maxSeconds*1000);
+}
+
+async function stopMic() {
+  if(!mic.recording)return;
+  mic.recording=false;
+  clearTimeout(mic.stopTimer); clearInterval(mic.tickTimer);
+  if(mic.processor){mic.processor.onaudioprocess=null;mic.processor.disconnect();}
+  if(mic.source)mic.source.disconnect();
+  if(mic.silent)mic.silent.disconnect();
+  if(mic.stream)mic.stream.getTracks().forEach(t=>t.stop());
+  const sourceRate=mic.sampleRate;
+  const chunks=mic.chunks;
+  const context=mic.context;
+  mic.stream=mic.context=mic.source=mic.processor=mic.silent=null; mic.chunks=[];
+  if(context) await context.close();
+  el("micstop").disabled=true; el("micstatus").textContent="microphone: transcribing locally";
+  const samples=resampleMono(mergeFloat32(chunks),sourceRate,16000);
+  const wav=pcmWav(samples,16000);
+  const response=await fetch("/api/stt",{method:"POST",headers:{"X-Rocky-Token":TOKEN,"Content-Type":"audio/wav"},body:wav});
+  const text=await response.text();
+  const result=text?JSON.parse(text):{};
+  if(!response.ok) throw new Error(result.error||("HTTP "+response.status));
+  el("input").value=result.text||"";
+  el("input").focus();
+  el("micstatus").textContent="microphone: transcript ready ("+Number(result.audio_seconds||0).toFixed(1)+"s). Review/edit, then Send.";
+  const status=await api("/api/status");
+  el("micstart").disabled=!status.stt || !status.stt.enabled;
+}
+
+el("micstart").onclick=function(){startMic().catch(e=>{el("micstatus").textContent="microphone: error";add("Error",e.message,"");});};
+el("micstop").onclick=function(){stopMic().catch(e=>{el("micstatus").textContent="microphone: error";add("Error",e.message,"");});};
 
 el("send").onclick=async function() {
   const text=el("input").value.trim();
