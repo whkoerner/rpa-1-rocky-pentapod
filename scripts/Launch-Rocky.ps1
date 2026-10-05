@@ -5,6 +5,7 @@ Set-Location -LiteralPath $Root
 $SettingsDir = Join-Path $env:USERPROFILE '.rpa1\settings'
 $OutputDir = Join-Path $env:USERPROFILE '.rpa1\conversation-v1'
 $Config = Join-Path $SettingsDir 'rocky.json'
+$Assets = Join-Path $SettingsDir 'assets.json'
 $Pointer = Join-Path $Root '.rocky-python-path.txt'
 
 function Repair-Message {
@@ -33,7 +34,7 @@ function Find-Python {
     return $null
 }
 function Setup-Rocky {
-    Write-Host 'Explicit setup: installs this checkout and PyYAML. Internet may be needed for Python packages.'
+    Write-Host 'Explicit setup: installs this checkout and its pinned Python dependencies. Internet may be needed for Python packages.'
     Write-Host 'It will not download a model, update Git, or replace your configuration files.'
     $python = Find-Python
     if (-not $python) {
@@ -66,6 +67,9 @@ function Setup-Rocky {
             Copy-Item -LiteralPath (Join-Path $Root "software\rocky\config\$name") -Destination $destination
         }
     }
+    if (-not (Test-Path -LiteralPath $Assets)) {
+        Copy-Item -LiteralPath (Join-Path $Root 'software\rocky\config\assets.example.json') -Destination $Assets
+    }
     Write-Host "Ready. Settings: $SettingsDir"
 }
 function Create-Shortcut {
@@ -94,6 +98,19 @@ function Run-Rocky($choice) {
     $arguments = @()
     if (Test-Path -LiteralPath $Config) { $arguments += @('--config', $Config) }
     if ($choice -eq '10') { & $python -m rocky benchmark @arguments --provider local; return }
+    if ($choice -eq '11') {
+        $backupDir = Join-Path $env:USERPROFILE '.rpa1\backups'
+        New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $target = Join-Path $backupDir "rocky-user-backup-$stamp.zip"
+        & $python -m rocky backup @arguments --backup-output $target
+        return
+    }
+    if ($choice -eq '12') {
+        if (-not (Test-Path -LiteralPath $Assets)) { throw 'Run setup/repair first to create the editable asset manifest.' }
+        & $python -m rocky verify-assets --asset-manifest $Assets
+        return
+    }
     if ($choice -eq '1' -or $choice -eq '9') {
         Write-Host 'Local model availability check only; this does not establish GPU stability.'
         & $python -m rocky check @arguments --provider local
@@ -114,7 +131,7 @@ try {
     if ($Action -eq 'shortcut') { Create-Shortcut; Read-Host 'Press Enter to close'; exit 0 }
     if ($Action -eq 'tests') { Run-Rocky '4'; Read-Host 'Press Enter to close'; exit 0 }
     while ($true) {
-        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n0 Exit"
+        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n11 Export portable user backup`n12 Verify external asset manifest`n0 Exit"
         $choice = Read-Host 'Choose'
         try {
             switch ($choice) {
@@ -131,8 +148,8 @@ try {
                 }
                 '7' { Setup-Rocky }
                 '8' { Create-Shortcut }
-                { $_ -in '1','2','3','4','9','10' } { Run-Rocky $choice }
-                default { Write-Host 'Choose 0 through 10.' }
+                { $_ -in '1','2','3','4','9','10','11','12' } { Run-Rocky $choice }
+                default { Write-Host 'Choose 0 through 12.' }
             }
         } catch { Write-Host "ERROR: $_" -ForegroundColor Red }
     }

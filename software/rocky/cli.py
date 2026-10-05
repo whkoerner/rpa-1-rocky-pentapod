@@ -466,7 +466,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -479,6 +479,9 @@ def main(argv=None):
     parser.add_argument("--ui-port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--benchmark-output", type=Path)
+    parser.add_argument("--backup-output", type=Path)
+    parser.add_argument("--backup-input", type=Path)
+    parser.add_argument("--asset-manifest", type=Path)
     parser.add_argument("--memory-path", type=Path, default=Path.home() / ".rpa1" / "memory-v1.json")
     parser.add_argument("--stt-backend", choices=("disabled", "whisper-cpp"))
     parser.add_argument("--whisper-cli-path")
@@ -499,6 +502,57 @@ def main(argv=None):
     try:
         settings = configuration(args)
         personality = load_personality(args.personality or Path(settings["personality_profile"]))
+        if args.command == "backup":
+            from .portability import export_user_backup
+            output_path = args.backup_output or (
+                Path.home()
+                / ".rpa1"
+                / "backups"
+                / ("rocky-user-backup-" + time.strftime("%Y%m%d-%H%M%S") + ".zip")
+            )
+            settings_source = (
+                args.config
+                if args.config is not None
+                else Path(str(resources.files("rocky").joinpath("config", "rocky.json")))
+            )
+            report = export_user_backup(
+                settings_path=settings_source,
+                personality_path=args.personality or Path(settings["personality_profile"]),
+                memory_path=args.memory_path,
+                output_path=output_path,
+            )
+            print(
+                f"Rocky user backup verified: {output_path}; "
+                f"files={len(report['files'])}. "
+                "Model weights, voice/STT models and virtual environments are excluded."
+            )
+            return 0
+        if args.command == "verify-backup":
+            from .portability import verify_user_backup
+            if args.backup_input is None:
+                raise ValueError("verify-backup requires --backup-input FILE.zip")
+            report = verify_user_backup(args.backup_input)
+            print(
+                f"Rocky user backup verified: {args.backup_input}; "
+                f"files={len(report['files'])}"
+            )
+            return 0
+        if args.command == "verify-assets":
+            from .portability import verify_asset_manifest
+            manifest_path = args.asset_manifest or Path(
+                str(resources.files("rocky").joinpath("config", "assets.example.json"))
+            )
+            report = verify_asset_manifest(manifest_path)
+            for row in report["assets"]:
+                print(
+                    f"{row['id']}: {row['status']}"
+                    + (f"; sha256={row['sha256']}" if row.get("sha256") else "")
+                )
+            print(
+                "Asset manifest verification "
+                + ("FAILED" if report["failed"] else "completed without file failures")
+            )
+            return 2 if report["failed"] else 0
         if args.command == "check":
             if settings["provider"] == "local":
                 LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()

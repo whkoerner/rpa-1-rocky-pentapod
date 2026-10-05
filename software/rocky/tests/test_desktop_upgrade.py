@@ -91,6 +91,12 @@ class SettingsTests(unittest.TestCase):
         for name in ('rocky-pi-standalone.example.json', 'rocky-pc-assisted.example.json'):
             settings = configuration(Namespace(config=CONFIG / name))
             self.assertEqual(settings['audio_backend'], 'pygame')
+            self.assertEqual(settings['text_encoding'], 'exp003')
+            self.assertEqual(settings['tone_style'], 'vocal-v1')
+            self.assertEqual(settings['duration_multiplier'], 2)
+            self.assertFalse(settings['translation_enabled'])
+            self.assertFalse(settings['memory_enabled'])
+            self.assertEqual(settings['stt_backend'], 'disabled')
             self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
     def test_check_never_generates_or_opens_audio(self):

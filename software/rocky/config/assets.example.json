@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "manifest_id": "rocky-assets-v1",
+  "assets": [
+    {
+      "id": "assistant_model",
+      "kind": "ollama_model",
+      "required": true,
+      "reference": "qwen3:8b",
+      "path": "",
+      "sha256": ""
+    },
+    {
+      "id": "english_voice",
+      "kind": "windows_voice",
+      "required": false,
+      "reference": "Windows default installed voice",
+      "path": "",
+      "sha256": ""
+    },
+    {
+      "id": "whisper_cli",
+      "kind": "file",
+      "required": false,
+      "reference": "whisper.cpp whisper-cli executable",
+      "path": "",
+      "sha256": ""
+    },
+    {
+      "id": "whisper_model",
+      "kind": "file",
+      "required": false,
+      "reference": "local Whisper model file",
+      "path": "",
+      "sha256": ""
+    }
+  ]
+}

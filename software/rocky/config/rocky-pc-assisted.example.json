@@ -5,7 +5,20 @@
   "timeout": 120,
   "audio_backend": "pygame",
   "volume": 0.12,
-  "duration_multiplier": 3,
-  "text_encoding": "ct2",
-  "personality_profile": "personality.json"
+  "duration_multiplier": 2,
+  "text_encoding": "exp003",
+  "personality_profile": "personality.json",
+  "tone_style": "vocal-v1",
+  "translation_voice": "",
+  "voice_rate": 0,
+  "voice_pitch": 0,
+  "voice_volume": 0,
+  "defaults_profile_version": 5,
+  "translation_enabled": false,
+  "assistant_mode": "normal",
+  "memory_enabled": false,
+  "stt_backend": "disabled",
+  "whisper_cli_path": "",
+  "whisper_model_path": "",
+  "stt_max_seconds": 30
 }
