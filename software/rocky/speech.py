@@ -25,6 +25,10 @@ class ProsodyProfile:
     volume: str
 
 
+RATE_LEVELS = ("x-slow", "slow", "medium", "fast", "x-fast")
+PITCH_LEVELS = ("x-low", "low", "medium", "high", "x-high")
+VOLUME_LEVELS = ("x-soft", "soft", "medium", "loud", "x-loud")
+
 PROSODY = {
     "question": ProsodyProfile("question", "medium", "high", "medium"),
     "excitement": ProsodyProfile("excitement", "fast", "high", "loud"),
@@ -48,6 +52,25 @@ def classify_prosody(text: str) -> ProsodyProfile:
     if any(word in lower for word in ("derivative", "calculus", "equation", "voltage", "current", "circuit", "resistance", "integral", "engineering")):
         return PROSODY["technical"]
     return PROSODY["neutral"]
+
+
+def _shift(levels, value, offset):
+    if type(offset) is not int or not -2 <= offset <= 2:
+        raise ValueError("voice tuning offset must be an integer from -2 to 2")
+    try:
+        index = levels.index(value)
+    except ValueError as exc:
+        raise ValueError("unsupported prosody level") from exc
+    return levels[max(0, min(len(levels) - 1, index + offset))]
+
+
+def tuned_profile(profile: ProsodyProfile, rate_offset=0, pitch_offset=0, volume_offset=0) -> ProsodyProfile:
+    return ProsodyProfile(
+        profile.name,
+        _shift(RATE_LEVELS, profile.rate, rate_offset),
+        _shift(PITCH_LEVELS, profile.pitch, pitch_offset),
+        _shift(VOLUME_LEVELS, profile.volume, volume_offset),
+    )
 
 
 def build_ssml(text: str, profile: ProsodyProfile | None = None) -> str:
@@ -95,10 +118,16 @@ class WindowsSystemSpeechRenderer:
     specific voice may be configured, but it must already exist locally.
     """
 
-    def __init__(self, voice_name: str = ""):
+    def __init__(self, voice_name: str = "", rate_offset=0, pitch_offset=0, volume_offset=0):
         if type(voice_name) is not str or len(voice_name) > 200 or any(ord(c) < 32 for c in voice_name):
             raise ValueError("translation voice must be a printable string up to 200 characters")
         self.voice_name = voice_name
+        for value in (rate_offset, pitch_offset, volume_offset):
+            if type(value) is not int or not -2 <= value <= 2:
+                raise ValueError("voice tuning offsets must be integers from -2 to 2")
+        self.rate_offset = rate_offset
+        self.pitch_offset = pitch_offset
+        self.volume_offset = volume_offset
         self.status = "IDLE"
         self.last_profile = ""
         self.last_duration_seconds = 0.0
@@ -142,10 +171,24 @@ class WindowsSystemSpeechRenderer:
             raise RuntimeError(f"configured local voice is not installed: {self.voice_name}")
         return names
 
+    def configure(self, *, voice_name=None, rate_offset=None, pitch_offset=None, volume_offset=None):
+        if voice_name is not None:
+            if type(voice_name) is not str or len(voice_name) > 200 or any(ord(c) < 32 for c in voice_name):
+                raise ValueError("translation voice must be a printable string up to 200 characters")
+            names = self.check_available()
+            if voice_name and voice_name not in names:
+                raise ValueError("voice is not installed locally")
+            self.voice_name = voice_name
+        for attr, value in (("rate_offset", rate_offset), ("pitch_offset", pitch_offset), ("volume_offset", volume_offset)):
+            if value is not None:
+                if type(value) is not int or not -2 <= value <= 2:
+                    raise ValueError("voice tuning offsets must be integers from -2 to 2")
+                setattr(self, attr, value)
+
     def start(self, text: str, *, gate=None, delay_seconds=0) -> None:
         if type(delay_seconds) not in (int, float) or not 0 <= delay_seconds <= 600:
             raise ValueError("invalid speech delay")
-        profile = classify_prosody(text)
+        profile = tuned_profile(classify_prosody(text), self.rate_offset, self.pitch_offset, self.volume_offset)
         ssml = build_ssml(text, profile)
         with self._lock:
             self.cancel()
