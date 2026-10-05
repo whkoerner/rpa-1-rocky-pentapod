@@ -56,6 +56,42 @@ jobs:
           sys.path.insert(0, 'software/rocky/tests')
           suite = unittest.defaultTestLoader.loadTestsFromName('test_webui.WebUITests.test_memory_requires_opt_in_and_is_manageable')
           sys.exit(0 if unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful() else 1)
+      - name: Diagnose test assistant v2 benchmark
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_assistant_v2_benchmark.py" -v
+      - name: Diagnose test assistant v2 core
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_assistant_v2_core.py" -v
+      - name: Diagnose test benchmark runner
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_benchmark_runner.py" -v
+      - name: Diagnose test chordic exp002
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_chordic_exp002.py" -v
+      - name: Diagnose test conversation
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_conversation.py" -v
+      - name: Diagnose test desktop upgrade
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_desktop_upgrade.py" -v
+      - name: Diagnose test exp003 runtime
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_exp003_runtime.py" -v
+      - name: Diagnose test learning
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_learning.py" -v
+      - name: Diagnose test symbolic math
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_symbolic_math.py" -v
+      - name: Diagnose test translation voice exp002
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_translation_voice_exp002.py" -v
+      - name: Diagnose test webui
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_webui.py" -v
+      - name: Diagnose test windows launcher
+        continue-on-error: true
+        run: python -m unittest discover -s software/rocky/tests -p "test_windows_launcher.py" -v
       - name: Run Rocky Assistant tests (no model or speakers)
         shell: python
         run: |
