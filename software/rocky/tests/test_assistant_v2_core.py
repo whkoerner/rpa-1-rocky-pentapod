@@ -10,6 +10,7 @@ from brain.constitution import (
     RockySafetyConstitution,
 )
 from rocky.assistant_contracts import ToolCall, validate_assistant_candidate
+from rocky.cli import parse_speed_command
 from rocky.tools import (
     AssistantToolRegistry,
     calculate_expression,
@@ -162,6 +163,12 @@ class ToolTests(unittest.TestCase):
 
     def test_date_difference(self):
         self.assertEqual(date_difference("2026-10-01", "2026-10-05"), "4")
+
+    def test_terminal_duplicate_speed_regression(self):
+        self.assertEqual(parse_speed_command("/speed 2"), 2.0)
+        self.assertEqual(parse_speed_command("/speed 2/speed 2"), 2.0)
+        with self.assertRaises(ValueError):
+            parse_speed_command("/speed 2/stop")
 
     def test_registry_rejects_unallowlisted_physical_style_tool(self):
         registry = AssistantToolRegistry()

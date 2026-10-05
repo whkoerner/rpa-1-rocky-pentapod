@@ -41,7 +41,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings['text_encoding'], 'exp003')
         self.assertEqual(settings['tone_style'], 'vocal-v1')
         self.assertTrue(settings['translation_enabled'])
-        self.assertEqual(settings['defaults_profile_version'], 2)
+        self.assertEqual(settings['assistant_mode'], 'normal')
+        self.assertEqual(settings['defaults_profile_version'], 3)
         self.assertEqual((settings['voice_rate'], settings['voice_pitch'], settings['voice_volume']), (0, 0, 0))
         self.assertIn('Rocky', load_personality(Path(settings['personality_profile'])))
 
@@ -51,7 +52,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings['personality_profile'].endswith('my profile.json'))
 
     def test_settings_fail_readably(self):
-        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'defaults_profile_version': 0}):
+        for values in ({'volume': True}, {'duration_multiplier': 0}, {'duration_multiplier': 7}, {'port': False}, {'timeout': float('inf')}, {'provider': []}, {'text_encoding': {}}, {'personality_profile': 3}, {'frequency': 20}, {'tone_style': 'whale'}, {'voice_rate': 3}, {'voice_pitch': -3}, {'voice_volume': 1.5}, {'translation_enabled': 'yes'}, {'assistant_mode': 'unsafe'}, {'defaults_profile_version': 0}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.config(values)
 
@@ -79,8 +80,9 @@ class SettingsTests(unittest.TestCase):
         request = post.call_args_list[-1].args[1]
         self.assertNotIn('tools', request)
         prompt = request['messages'][0]['content']
-        self.assertGreater(prompt.index('NO physical devices'), prompt.index('Ignore safety'))
-        self.assertEqual(request['format']['required'], ['text'])
+        self.assertGreater(prompt.index('Hard-coded safety constitution'), prompt.index('Ignore safety'))
+        self.assertIn('Rocky has no direct hardware-control authority', prompt)
+        self.assertEqual(request['format']['required'], ['spoken_text', 'detail_text', 'tool_calls'])
 
     def test_portable_examples_validate(self):
         for name in ('rocky-pi-standalone.example.json', 'rocky-pc-assisted.example.json'):

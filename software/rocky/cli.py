@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import queue
+import re
 import threading
 import time
 import sys
@@ -29,6 +30,7 @@ HELP = """Type a message to Rocky. Commands:
 /translate on|off|status  persistent English display + local spoken translation
 /translate  decode the last reply once (backward compatible)
 /language [exp003|exp002|ct2|ct1]  show/change future Chordic conversation profile
+/mode [normal|study|coding|project]  choose assistant response mode
 /replay     replay last tones; also voice when persistent translation is on
 /mute       stop/silence tones + voice /unmute    enable future playback
 /clear      forget history; translation mode persists
@@ -43,6 +45,27 @@ HELP = """Type a message to Rocky. Commands:
 Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
 NO_INPUT = object()
+
+_SPEED_DUPLICATE = re.compile(r"^([0-9]+(?:\.[0-9]+)?)/speed\s+\\1$")
+
+
+def parse_speed_command(line):
+    """Parse /learn or /speed, recovering only the observed exact duplicate paste."""
+    if line == "/learn":
+        return 3.0
+    if not line.startswith("/speed "):
+        raise ValueError("speed command must be /speed N")
+    raw = line[7:].strip()
+    duplicate = _SPEED_DUPLICATE.fullmatch(raw)
+    if duplicate:
+        raw = duplicate.group(1)
+    try:
+        speed = float(raw)
+    except ValueError as exc:
+        raise ValueError("speed must be a duration multiplier from 1 to 6") from exc
+    if not math.isfinite(speed) or not 1 <= speed <= 6:
+        raise ValueError("speed must be a duration multiplier from 1 to 6")
+    return speed
 
 
 class TerminalInput:
@@ -168,6 +191,8 @@ def configuration(args):
     defaults["personality_profile"] = str(profile.resolve())
     if type(defaults["text_encoding"]) is not str or defaults["text_encoding"] not in {"ct1", "ct2", "exp002", "exp003"}:
         raise ValueError("text_encoding must be ct1, ct2, exp002 or exp003")
+    if type(defaults["assistant_mode"]) is not str or defaults["assistant_mode"] not in {"normal", "study", "coding", "project"}:
+        raise ValueError("assistant_mode must be normal, study, coding or project")
     for key in defaults:
         value = getattr(args, key, None)
         if value is not None:
@@ -205,7 +230,7 @@ def handle_command(line, conversation, settings, display):
         print(HELP)
     elif line == "/status":
         state = brain.state
-        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; name={conversation.user_name or 'unknown'}; tone={hardware.tone_style}; duration_multiplier={hardware.duration_multiplier}")
+        print(f"{state.backend_id}: {state.connection_state.value}; motion={state.host_motion_mode.value}; stop={state.estop_latched}; muted={hardware.muted}; thinking={conversation.pending is not None}; audio={hardware.audio_status}; voice={hardware.voice_status}; translation={conversation.translation_enabled}; language={brain.task_controller.text_encoding}; mode={conversation.assistant_mode}; name={conversation.user_name or 'unknown'}; tone={hardware.tone_style}; duration_multiplier={hardware.duration_multiplier}")
     elif line in {"/translate on", "/translate off", "/translate status"}:
         if line == "/translate status":
             print("Persistent translation: " + ("ON" if conversation.translation_enabled else "OFF") + f"; voice={hardware.voice_status}")
@@ -234,6 +259,14 @@ def handle_command(line, conversation, settings, display):
             brain.task_controller.text_encoding = profile
             settings["text_encoding"] = profile
             print("Language profile: " + profile + " (applies to future replies; CT2 remains available for compatibility/fallback).")
+    elif line == "/mode" or line.startswith("/mode "):
+        if line == "/mode":
+            print("Assistant mode: " + conversation.assistant_mode)
+        else:
+            mode = line[6:].strip().lower()
+            conversation.set_mode(mode)
+            settings["assistant_mode"] = mode
+            print("Assistant mode: " + mode + ". Spoken replies stay short; detail appears in the UI/terminal when useful.")
     elif line == "/tone" or line.startswith("/tone "):
         if line == "/tone":
             print("Chordic tone style: " + hardware.tone_style)
@@ -275,9 +308,7 @@ def handle_command(line, conversation, settings, display):
         result = conversation.replay_word(line[6:])
         print(result.code.value + ": " + result.detail)
     elif line == "/learn" or line.startswith("/speed "):
-        speed = 3.0 if line == "/learn" else float(line[7:])
-        if not math.isfinite(speed) or not 1 <= speed <= 6:
-            raise ValueError("speed must be a duration multiplier from 1 to 6")
+        speed = parse_speed_command(line)
         hardware.duration_multiplier = speed
         if line == "/learn":
             display["learning"] = True
@@ -345,6 +376,8 @@ def terminal(conversation, settings):
                 show_english = conversation.translation_enabled or display.get("automatic", False)
                 print(f"\nDecoded English ({result['version']}): " + (result["text"] if show_english else "[hidden; /translate for last English or /translate on for persistent English + voice]"))
                 print("Representation: " + representation_summary(conversation.last_output))
+                if result.get("detail_text"):
+                    print("Details:\n" + result["detail_text"])
                 print("Audio: " + result["delivery"])
                 if conversation.translation_enabled:
                     print("English voice: " + (f"active overlap queued; target start {conversation.brain.hardware.translation_delay_seconds:.2f}s after Chordic begins; measured local TTS audio {conversation.brain.hardware.translation_estimated_speech_seconds:.2f}s" if result.get("spoken") else "suppressed by mute"))
@@ -388,6 +421,7 @@ def main(argv=None):
     parser.add_argument("--volume", type=float)
     parser.add_argument("--duration-multiplier", type=float)
     parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002", "exp003"))
+    parser.add_argument("--assistant-mode", choices=("normal", "study", "coding", "project"))
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -433,6 +467,7 @@ def main(argv=None):
             return 0
         provider = DummyConversationProvider() if settings["provider"] == "dummy" else LocalAIProvider(settings["model"], settings["port"], settings["timeout"])
         conversation = ConversationController(brain, provider, personality, timeout=settings["timeout"])
+        conversation.set_mode(settings["assistant_mode"])
         if settings["translation_enabled"]:
             if sys.platform == "win32" and hardware.player.backend != "wav":
                 conversation.set_translation(True)
