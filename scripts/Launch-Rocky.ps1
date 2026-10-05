@@ -93,11 +93,12 @@ function Run-Rocky($choice) {
     if ($choice -eq '4') { Run-Tests $python; return }
     $arguments = @()
     if (Test-Path -LiteralPath $Config) { $arguments += @('--config', $Config) }
-    if ($choice -eq '1') {
+    if ($choice -eq '1' -or $choice -eq '9') {
         Write-Host 'Local model availability check only; this does not establish GPU stability.'
         & $python -m rocky check @arguments --provider local
         if ($LASTEXITCODE -ne 0) { throw 'Start Ollama. Run ollama list. Set model in your rocky.json to an already downloaded local model, then try again. No download was attempted.' }
-        & $python -m rocky chat @arguments --provider local
+        if ($choice -eq '9') { & $python -m rocky web @arguments --provider local }
+        else { & $python -m rocky chat @arguments --provider local }
     } elseif ($choice -eq '2') {
         & $python -m rocky chat @arguments --provider dummy
     } elseif ($choice -eq '3') {
@@ -112,7 +113,7 @@ try {
     if ($Action -eq 'shortcut') { Create-Shortcut; Read-Host 'Press Enter to close'; exit 0 }
     if ($Action -eq 'tests') { Run-Rocky '4'; Read-Host 'Press Enter to close'; exit 0 }
     while ($true) {
-        Write-Host "`nRocky desktop menu`n1 Talk with real local model`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n0 Exit"
+        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n0 Exit"
         $choice = Read-Host 'Choose'
         try {
             switch ($choice) {
@@ -129,8 +130,8 @@ try {
                 }
                 '7' { Setup-Rocky }
                 '8' { Create-Shortcut }
-                { $_ -in '1','2','3','4' } { Run-Rocky $choice }
-                default { Write-Host 'Choose 0 through 8.' }
+                { $_ -in '1','2','3','4','9' } { Run-Rocky $choice }
+                default { Write-Host 'Choose 0 through 9.' }
             }
         } catch { Write-Host "ERROR: $_" -ForegroundColor Red }
     }

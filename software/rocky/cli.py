@@ -411,8 +411,8 @@ def terminal(conversation, settings):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Rocky Conversational Brain V1.1")
-    parser.add_argument("command", nargs="?", choices=("chat", "audio-test", "check"), default="chat")
+    parser = argparse.ArgumentParser(description="Rocky Assistant V2")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -422,6 +422,8 @@ def main(argv=None):
     parser.add_argument("--duration-multiplier", type=float)
     parser.add_argument("--text-encoding", choices=("ct1", "ct2", "exp002", "exp003"))
     parser.add_argument("--assistant-mode", choices=("normal", "study", "coding", "project"))
+    parser.add_argument("--ui-port", type=int, default=8765)
+    parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--voice-rate", type=int)
@@ -473,9 +475,19 @@ def main(argv=None):
                 conversation.set_translation(True)
             elif sys.platform != "win32":
                 print("Persistent spoken translation default is ON for Windows; this platform has no supported local speech backend, so translation remains OFF.")
-        print(f"Rocky Conversational Brain V1.1 | provider={settings['provider']} | audio={hardware.player.backend}")
+        print(f"Rocky Assistant V2 | provider={settings['provider']} | audio={hardware.player.backend}")
         print(f"Local output: {args.data_dir}")
-        terminal(conversation, settings)
+        if args.command == "web":
+            from .webui import serve_local_web_ui
+            serve_local_web_ui(
+                conversation,
+                settings,
+                port=args.ui_port,
+                settings_path=args.config or user_config,
+                open_browser=not args.no_browser,
+            )
+        else:
+            terminal(conversation, settings)
         return 0
     except KeyboardInterrupt:
         if conversation:

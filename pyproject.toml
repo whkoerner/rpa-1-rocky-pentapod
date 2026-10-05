@@ -21,4 +21,4 @@ where = ["software"]
 
 [tool.setuptools.package-data]
 simulation = ["config/*.json"]
-rocky = ["config/*.json", "config/*.txt"]
+rocky = ["config/*.json", "config/*.txt", "webui.html"]
