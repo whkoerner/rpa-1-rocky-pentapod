@@ -53,7 +53,7 @@ class DummyConversationProvider:
                     "tool_calls": [],
                 }
             return {
-                "spoken_text": f"Rocky calculate. Answer {result}. Good.",
+                "spoken_text": f"Rocky calculate. {result}. Good.",
                 "detail_text": f"Deterministic calculator: {expression} = {result}",
                 "tool_calls": [],
             }
@@ -184,11 +184,11 @@ class LocalAIProvider:
                 value = f"{result.output} days"
             else:
                 value = result.output
-            spoken = f"Rocky use exact tool. Answer {value}. Good."
+            spoken = f"Rocky calculate. {value}. Good." if call.name == "calculator" else f"Rocky use. {value}. Good."
         elif successful and len(successful) == len(results):
-            spoken = "Rocky use exact tools. Results ready below. Good."
+            spoken = "Rocky use. Ready. Good."
         else:
-            spoken = "Rocky tool problem. Details below."
+            spoken = "Rocky problem. Bad."
         return {
             "spoken_text": spoken,
             "detail_text": "Trusted deterministic tool results:\n" + "\n".join(lines),
