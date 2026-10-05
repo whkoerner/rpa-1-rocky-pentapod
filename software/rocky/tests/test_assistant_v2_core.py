@@ -167,7 +167,7 @@ class ToolTests(unittest.TestCase):
         registry = AssistantToolRegistry()
         result = registry.execute(ToolCall("x1", "raw_motor", {"power": 1}))
         self.assertFalse(result.ok)
-        self.assertEqual(result.error, "TOOL_NOT_ALLOWED")
+        self.assertEqual(result.error, "MODEL_AUTHORITY_FORBIDDEN")
 
 
 if __name__ == "__main__":
