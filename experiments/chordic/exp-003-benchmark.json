@@ -1,0 +1,350 @@
+{
+  "schema_version": "0.3",
+  "candidate_id": "EXP-003",
+  "playback_multiplier": 3,
+  "goal": "Every real conversational sample reports both semantic coverage and timing; a candidate does not pass merely because fully supported phrases are fast.",
+  "results": [
+    {
+      "id": "R001",
+      "class": "social",
+      "english": "hello rocky",
+      "semantic_token_count": 2,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.25,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.25
+    },
+    {
+      "id": "R002",
+      "class": "names",
+      "english": "my name is Wyatt",
+      "semantic_token_count": 4,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 3.48,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 3.48
+    },
+    {
+      "id": "R003",
+      "class": "math",
+      "english": "8 times 8 is 64. Rocky calculate. Good.",
+      "semantic_token_count": 8,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 5.76,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 5.76
+    },
+    {
+      "id": "R004",
+      "class": "preferences",
+      "english": "my favorite color is blue",
+      "semantic_token_count": 5,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 4.185,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 4.185
+    },
+    {
+      "id": "R005",
+      "class": "food",
+      "english": "does Rocky like chicken Alfredo?",
+      "semantic_token_count": 5,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 4.365,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 4.365
+    },
+    {
+      "id": "R006",
+      "class": "social",
+      "english": "yes",
+      "semantic_token_count": 1,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 1.545,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 1.545
+    },
+    {
+      "id": "R007",
+      "class": "question",
+      "english": "are you ready?",
+      "semantic_token_count": 3,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.775,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.775
+    },
+    {
+      "id": "R008",
+      "class": "reassurance",
+      "english": "Rocky here. You friend. Good.",
+      "semantic_token_count": 5,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 4.185,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 4.185
+    },
+    {
+      "id": "R009",
+      "class": "technical",
+      "english": "Derivative measures change. Rocky use math to calculate.",
+      "semantic_token_count": 7,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 5.955,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 5.955
+    },
+    {
+      "id": "R010",
+      "class": "food",
+      "english": "Rocky no eat. Rocky think food is energy. Rocky use energy to think and build.",
+      "semantic_token_count": 13,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 9.825,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 9.825
+    },
+    {
+      "id": "R011",
+      "class": "question",
+      "english": "what is your favorite food?",
+      "semantic_token_count": 6,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 4.53,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 4.53
+    },
+    {
+      "id": "S001",
+      "class": "seed",
+      "english": "amaze amaze amaze",
+      "semantic_token_count": 3,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 3.135,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 3.135
+    },
+    {
+      "id": "S002",
+      "class": "seed",
+      "english": "fist my bump",
+      "semantic_token_count": 1,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 1.545,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 1.545
+    },
+    {
+      "id": "S003",
+      "class": "seed",
+      "english": "I DON'T LIKE THAT VOICE! SCARY!",
+      "semantic_token_count": 7,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 5.235,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 5.235
+    },
+    {
+      "id": "S004",
+      "class": "seed",
+      "english": "That's not half bad",
+      "semantic_token_count": 3,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.775,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.775
+    },
+    {
+      "id": "S005",
+      "class": "seed",
+      "english": "It's full good",
+      "semantic_token_count": 2,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.25,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.25
+    },
+    {
+      "id": "S006",
+      "class": "seed",
+      "english": "It is time go",
+      "semantic_token_count": 3,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.775,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.775
+    },
+    {
+      "id": "S007",
+      "class": "seed",
+      "english": "I like Earth.",
+      "semantic_token_count": 3,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 2.955,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 2.955
+    },
+    {
+      "id": "S008",
+      "class": "seed",
+      "english": "Rocky watch crew die. Could not fix. Grace say Grace will die, Rocky fix.",
+      "semantic_token_count": 13,
+      "unsupported_spans": [],
+      "fallback_span_count": 0,
+      "fallback_bytes": 0,
+      "semantic_coverage_percent": 100,
+      "fallback_percent": 0,
+      "semantic_duration_seconds": 9.825,
+      "fallback_duration_seconds": 0,
+      "total_duration_seconds": 9.825
+    }
+  ],
+  "summary": {
+    "all": {
+      "count": 19,
+      "mean_seconds": 4.176,
+      "median_seconds": 3.48,
+      "max_seconds": 9.825,
+      "count_over_10_seconds": 0,
+      "mean_semantic_coverage_percent": 100,
+      "total_fallback_spans": 0,
+      "total_fallback_bytes": 0
+    },
+    "non_seed": {
+      "count": 11,
+      "mean_seconds": 4.441,
+      "median_seconds": 4.185,
+      "max_seconds": 9.825,
+      "count_over_10_seconds": 0,
+      "mean_semantic_coverage_percent": 100,
+      "total_fallback_spans": 0,
+      "total_fallback_bytes": 0
+    }
+  },
+  "collision_summary": {
+    "entry_count": 106,
+    "exact_collision_count": 0,
+    "minimum_hamming_distance": 2,
+    "minimum_acoustic_anchor_distance_semitones": 4
+  },
+  "vocal_range_simulation": [
+    {
+      "baseline_hz": 110,
+      "min_hz": 87.3,
+      "max_hz": 138.6,
+      "span_semitones": 8
+    },
+    {
+      "baseline_hz": 180,
+      "min_hz": 142.9,
+      "max_hz": 226.8,
+      "span_semitones": 8
+    },
+    {
+      "baseline_hz": 260,
+      "min_hz": 206.4,
+      "max_hz": 327.6,
+      "span_semitones": 8
+    }
+  ],
+  "rejected_acoustic_candidates": [
+    {
+      "id": "discrete-4-note",
+      "non_seed_mean_seconds": 13.33,
+      "non_seed_max_seconds": 30.855,
+      "decision": "reject: too slow and preserves isolated beep packets"
+    },
+    {
+      "id": "contour-fast",
+      "non_seed_mean_seconds": 3.858,
+      "non_seed_max_seconds": 8.325,
+      "worst_short_gesture_slope_semitones_per_second": 80,
+      "decision": "reject for now: speed trades away vocal-production margin"
+    },
+    {
+      "id": "contour-slow",
+      "non_seed_mean_seconds": 5.025,
+      "non_seed_max_seconds": 11.325,
+      "worst_short_gesture_slope_semitones_per_second": 50,
+      "decision": "reject for now: routine sample exceeds 10 seconds"
+    }
+  ],
+  "selected_candidate": {
+    "id": "contour-v1",
+    "non_seed_mean_seconds": 4.441,
+    "non_seed_max_seconds": 9.825,
+    "worst_short_gesture_slope_semitones_per_second": 61.5
+  }
+}
