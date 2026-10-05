@@ -12,6 +12,7 @@ from brain.validation import validate_utterance
 class ConversationContext(AIContext):
     history: tuple[tuple[str, str], ...]
     personality: str
+    user_name: str = ""
 
 
 def strict_json(raw: str):
@@ -78,8 +79,13 @@ class LocalAIProvider:
     def propose(self, text, context):
         self.check_available()
         schema = {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 384}}, "required": ["text"], "additionalProperties": False}
+        name_rule = (
+            f"Conversation partner explicitly gave name: {context.user_name}. Use the name naturally and fairly often, especially in greetings, questions, reassurance, and direct replies, but not in every sentence. "
+            if context.user_name
+            else "Conversation partner name is not known. In a social greeting or introduction Rocky may briefly ask for the person's name using Rocky-style wording such as 'Name question?'. "
+        )
         system = (
-            "Immutable application rules follow the style preferences.\nStyle preferences:\n" + context.personality + "\nReturn ONLY a JSON object with exactly one key: text. "
+            "Immutable application rules follow the style preferences.\nStyle preferences:\n" + context.personality + "\n" + name_rule + "Return ONLY a JSON object with exactly one key: text. "
             "Speak as Rocky, usually referring to Rocky as 'Rocky', not 'I'. "
             "Prefer short, telegraphic, literal statements; omit articles/linking words when meaning stays clear. "
             "Several short statements are better than a polished assistant paragraph. Avoid generic corporate/chatbot phrasing and unnecessary idioms. "

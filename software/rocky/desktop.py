@@ -59,7 +59,8 @@ class DesktopHardware:
 
     @property
     def combined_duration(self):
-        return self.duration + self.speech_duration
+        """Approximate wall time when Chordic and English start together."""
+        return max(self.duration, self.speech_duration)
 
     def open(self):
         self.player.open()
@@ -86,13 +87,13 @@ class DesktopHardware:
         return self.voice.check_available()
 
     def speak_translation(self, text):
-        """Queue validated English after the current Chordic playback."""
+        """Queue validated English to begin with the current Chordic playback."""
         with self._lock:
             if not self.translation_enabled or self.muted or self.stopped or not self.ready:
                 return False
             if self.player.backend == "wav":
                 return False
-            self.voice.start(text, gate=self._playback_started, delay_seconds=self.duration)
+            self.voice.start(text, gate=self._playback_started, delay_seconds=0)
             return True
 
     def dispatch(self, command):

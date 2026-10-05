@@ -13,7 +13,7 @@ from csp.exp002 import Exp002Phrase, decode_phrase, encode_phrase, load_profile,
 from csp.conversation import Utterance
 from rocky.audio import estimated_duration
 from rocky.cli import handle_command
-from rocky.conversation import ConversationController
+from rocky.conversation import ConversationController, explicit_user_name
 from rocky.desktop import DesktopHardware
 from rocky.speech import PROSODY, build_ssml, classify_prosody
 from test_conversation import FakePlayer, ReadyWorker, wait_audio
@@ -159,6 +159,28 @@ class PersistentTranslationTests(unittest.TestCase):
         self.assertNotIn("error", result)
         wait_audio(self.hardware)
         return result
+
+    def test_translation_overlaps_chordic_after_actual_playback_start(self):
+        handle_command("/translate on", self.conversation, self.settings, self.display)
+        self.turn("one", "Rocky ready. Good.")
+        text, delay, gated = self.voice.starts[-1]
+        self.assertEqual(text, "Rocky ready. Good.")
+        self.assertEqual(delay, 0)
+        self.assertTrue(gated)
+        self.voice.last_duration_seconds = 5.0
+        self.hardware.duration = 8.0
+        self.assertEqual(self.hardware.combined_duration, 8.0)
+
+    def test_explicit_session_name_capture_and_clear(self):
+        self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
+        self.assertEqual(explicit_user_name("Call me Wyatt."), "Wyatt")
+        self.assertEqual(explicit_user_name("I am sad"), "")
+        self.conversation.start("My name is wyatt")
+        self.assertEqual(self.conversation.user_name, "Wyatt")
+        self.assertEqual(self.worker.ctx.user_name, "Wyatt")
+        self.conversation.poll()
+        self.conversation.clear()
+        self.assertEqual(self.conversation.user_name, "")
 
     def test_translation_on_persists_two_turns_then_off_stops_voice(self):
         handle_command("/translate on", self.conversation, self.settings, self.display)
