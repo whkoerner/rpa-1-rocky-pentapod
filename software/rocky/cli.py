@@ -46,7 +46,7 @@ Ctrl+C stops and exits. /listen is reserved for V2; typed input always works."""
 
 NO_INPUT = object()
 
-_SPEED_DUPLICATE = re.compile(r"^([0-9]+(?:\.[0-9]+)?)/speed\s+\\1$")
+_SPEED_DUPLICATE = re.compile(r"^([0-9]+(?:\.[0-9]+)?)/speed\s+\1$")
 
 
 def parse_speed_command(line):
