@@ -4,6 +4,7 @@ import re
 
 from brain.contracts import BrainOutcome, ConnectionState
 from brain.validation import validate_utterance
+from .assistant_contracts import AssistantMode, validate_assistant_candidate
 from .providers import ConversationContext
 from .worker import InferenceWorker
 from .translation import decoded_text
@@ -36,9 +37,11 @@ class ConversationController:
         self.history = []
         self.pending = None
         self.last_text = None
+        self.last_detail_text = ""
         self.last_output = None
         self.translation_enabled = False
         self.user_name = ""
+        self.assistant_mode = AssistantMode.NORMAL.value
         if hasattr(self.brain.hardware, "translation_enabled"):
             self.brain.hardware.translation_enabled = False
 
@@ -59,6 +62,15 @@ class ConversationController:
             if voice is not None:
                 voice.cancel()
 
+    def set_mode(self, mode):
+        try:
+            selected = AssistantMode(mode)
+        except ValueError as exc:
+            raise ValueError("assistant mode must be normal, study, coding or project") from exc
+        if self.pending is not None:
+            raise ValueError("BUSY: wait or /cancel before changing assistant mode")
+        self.assistant_mode = selected.value
+
     def start(self, text):
         if self.pending is not None:
             raise ValueError("BUSY: wait, or use /cancel")
@@ -70,7 +82,7 @@ class ConversationController:
         supplied_name = explicit_user_name(text)
         if supplied_name:
             self.user_name = supplied_name
-        context = ConversationContext("rocky-text-v1", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality, self.user_name)
+        context = ConversationContext("rocky-text-v2", (), state.backend_id, state.connection_state.value, state.host_motion_mode.value, state.estop_latched, tuple(self.history), self.personality, self.user_name, self.assistant_mode)
         self.worker.start(text, context)
         self.pending = (text, state.session_id, state.revision)
 
@@ -98,19 +110,26 @@ class ConversationController:
         if "error" in result:
             return result
         try:
-            utterance = validate_utterance(result["candidate"])
+            response = validate_assistant_candidate(
+                result["candidate"], allow_tool_calls=False
+            )
+            utterance = validate_utterance({"text": response.spoken_text})
         except ValueError as exc:
             return {"error": f"INVALID_RESPONSE: {exc}"}
-        accepted = self.brain.submit_utterance(result["candidate"])
+        accepted = self.brain.submit_utterance({"text": response.spoken_text})
         if accepted.outcome not in {BrainOutcome.ACCEPTED, BrainOutcome.COMPLETED}:
             return {"error": accepted.code.value + ": " + accepted.detail}
         translated, version = decoded_text(accepted.communication)
-        if translated != utterance.text:
+        if translated != response.spoken_text:
             self.stop()
             return {"error": "TRANSLATION_MISMATCH; stopped"}
         self.last_text = translated
+        self.last_detail_text = response.detail_text
         self.last_output = accepted.communication
-        self.history.extend((("user", text), ("assistant", utterance.text)))
+        assistant_history = response.spoken_text
+        if response.detail_text:
+            assistant_history += "\nDetail:\n" + response.detail_text
+        self.history.extend((("user", text), ("assistant", assistant_history)))
         # Bounded, complete turn pairs. No persistent personal memory in V1.
         while len(self.history) > 24 or sum(len(v.encode("utf-8")) for _, v in self.history) > 12000:
             del self.history[:2]
@@ -126,7 +145,7 @@ class ConversationController:
                 return {"error": f"TRANSLATION_VOICE_FAILED: {type(exc).__name__}: {exc}"}
             if not spoken and not self.brain.hardware.muted:
                 return {"error": "TRANSLATION_VOICE_NOT_QUEUED"}
-        return {"text": translated, "version": version, "delivery": accepted.detail, "spoken": spoken}
+        return {"text": translated, "detail_text": response.detail_text, "version": version, "delivery": accepted.detail, "spoken": spoken}
 
     def replay(self):
         if self.pending is not None:
@@ -155,6 +174,7 @@ class ConversationController:
         self.cancel()
         self.history.clear()
         self.last_text = None
+        self.last_detail_text = ""
         self.last_output = None
         self.user_name = ""
         # Translation is a session mode, not conversation history, so /clear

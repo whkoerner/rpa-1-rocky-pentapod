@@ -151,6 +151,28 @@ class PipelineTests(unittest.TestCase):
         self.conversation.close()
         self.tmp.cleanup()
 
+    def test_dual_response_detail_never_enters_spoken_brain_path(self):
+        self.conversation.worker = ReadyWorker({
+            "spoken_text": "Rocky answer short.",
+            "detail_text": "Long homework explanation stays on screen only.",
+            "tool_calls": [],
+        })
+        self.conversation.start("explain")
+        result = self.conversation.poll()
+        wait_audio(self.hardware)
+        self.assertEqual(result["text"], "Rocky answer short.")
+        self.assertEqual(result["detail_text"], "Long homework explanation stays on screen only.")
+        self.assertEqual(self.conversation.last_text, "Rocky answer short.")
+        self.assertEqual(self.conversation.last_detail_text, "Long homework explanation stays on screen only.")
+        self.assertEqual(self.conversation.last_output.canonical_text, "Rocky answer short.")
+
+    def test_mode_is_bounded_and_passed_to_provider_context(self):
+        self.conversation.set_mode("study")
+        self.conversation.start("explain")
+        self.assertEqual(self.conversation.worker.ctx.assistant_mode, "study")
+        with self.assertRaises(ValueError):
+            self.conversation.set_mode("unbounded-super-mode")
+
     def test_typed_response_translation_and_wav(self):
         self.conversation.start("Hello")
         result = self.conversation.poll()
@@ -270,6 +292,32 @@ class PipelineTests(unittest.TestCase):
 
 
 class ProviderTests(unittest.TestCase):
+    def test_unambiguous_arithmetic_bypasses_model_and_is_exact(self):
+        provider = LocalAIProvider()
+        with patch.object(LocalAIProvider, "_post") as post:
+            result = provider.propose("what is 8 times 8?", context())
+        post.assert_not_called()
+        self.assertIn("64", result["spoken_text"])
+        self.assertIn("= 64", result["detail_text"])
+
+    def test_model_requested_calculator_is_executed_by_application(self):
+        provider = LocalAIProvider()
+        candidate = json.dumps({
+            "spoken_text": "Rocky calculate.",
+            "detail_text": "",
+            "tool_calls": [{"id": "m1", "name": "calculator", "arguments": {"expression": "8*12"}}],
+        })
+        responses = [
+            {"details": {"format": "gguf"}},
+            {"done": True, "message": {"content": candidate}},
+        ]
+        with patch.object(LocalAIProvider, "_post", side_effect=responses):
+            result = provider.propose("multiply eight by twelve", context())
+        self.assertEqual(result["tool_calls"], [])
+        self.assertIn("96", result["spoken_text"])
+        self.assertIn("8*12", result["detail_text"])
+        self.assertIn("96", result["detail_text"])
+
     def test_mocked_local_schema_and_history(self):
         provider = LocalAIProvider()
         responses = [{"details": {"format": "gguf"}}, {"done": True, "message": {"content": '{"text":"Let us build something."}'}}]

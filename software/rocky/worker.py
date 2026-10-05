@@ -9,7 +9,7 @@ def _run(sender, provider, text, context):
     try:
         value = {"candidate": provider.propose(text, context)}
         raw = json.dumps(value, ensure_ascii=True).encode("utf-8")
-        if len(raw) > 8192:
+        if len(raw) > 65536:
             raise ValueError("provider result exceeds worker limit")
     except Exception as exc:
         raw = json.dumps({"error": f"{type(exc).__name__}: {str(exc)[:300]}"}).encode("utf-8")
@@ -51,7 +51,7 @@ class InferenceWorker:
             return {"error": "PROVIDER_TIMEOUT: local inference exceeded the configured deadline"}
         if self.receiver.poll():
             try:
-                result = json.loads(self.receiver.recv_bytes(8192))
+                result = json.loads(self.receiver.recv_bytes(65536))
             except (EOFError, OSError, ValueError):
                 result = {"error": "PROVIDER_FAILED: invalid worker reply"}
             self.cancel()

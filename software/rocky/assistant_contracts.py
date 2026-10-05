@@ -1,0 +1,148 @@
+"""Validated Assistant V2 response and software-tool contracts."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+import re
+
+
+_TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
+_CALL_ID = re.compile(r"^[A-Za-z0-9_-]{1,48}$")
+
+
+class AssistantMode(str, Enum):
+    NORMAL = "normal"
+    STUDY = "study"
+    CODING = "coding"
+    PROJECT = "project"
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    call_id: str
+    name: str
+    arguments: dict[str, object]
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    call_id: str
+    name: str
+    ok: bool
+    output: str = ""
+    error: str = ""
+
+
+@dataclass(frozen=True)
+class AssistantResponse:
+    spoken_text: str
+    detail_text: str
+    tool_calls: tuple[ToolCall, ...] = ()
+    tool_results: tuple[ToolResult, ...] = ()
+
+
+def _validate_text(value: object, *, field: str, max_bytes: int, single_line: bool) -> str:
+    if type(value) is not str or not value.strip():
+        raise ValueError(f"{field} must be a nonempty string")
+    if len(value.encode("utf-8")) > max_bytes:
+        raise ValueError(f"{field} exceeds {max_bytes} UTF-8 bytes")
+    if "\x00" in value or any(ord(c) < 32 and c not in ("\n", "\t") for c in value):
+        raise ValueError(f"{field} contains control characters")
+    if single_line and ("\n" in value or "\r" in value):
+        raise ValueError(f"{field} must be one line")
+    return value.strip()
+
+
+def validate_assistant_candidate(
+    candidate: object,
+    *,
+    allow_tool_calls: bool = True,
+) -> AssistantResponse:
+    """Validate untrusted model JSON.
+
+    Tool results and evidence are deliberately not accepted from the model.
+    They can only be attached by trusted application code after tool execution.
+
+    Legacy {"text": "..."} remains accepted so older deterministic fixtures and
+    providers can migrate without weakening the boundary.
+    """
+
+    if type(candidate) is not dict:
+        raise ValueError("assistant response must be a JSON object")
+
+    if set(candidate) == {"text"}:
+        return AssistantResponse(
+            spoken_text=_validate_text(
+                candidate["text"], field="text", max_bytes=384, single_line=True
+            ),
+            detail_text="",
+        )
+
+    expected = {"spoken_text", "detail_text", "tool_calls"}
+    if set(candidate) != expected:
+        missing = sorted(expected - set(candidate))
+        unknown = sorted(set(candidate) - expected)
+        raise ValueError(f"assistant fields invalid: missing={missing}, unknown={unknown}")
+
+    spoken = _validate_text(
+        candidate["spoken_text"],
+        field="spoken_text",
+        max_bytes=384,
+        single_line=True,
+    )
+    detail_raw = candidate["detail_text"]
+    if type(detail_raw) is not str:
+        raise ValueError("detail_text must be a string")
+    if len(detail_raw.encode("utf-8")) > 6144:
+        raise ValueError("detail_text exceeds 6144 UTF-8 bytes")
+    if "\x00" in detail_raw or any(
+        ord(c) < 32 and c not in ("\n", "\r", "\t") for c in detail_raw
+    ):
+        raise ValueError("detail_text contains control characters")
+
+    raw_calls = candidate["tool_calls"]
+    if type(raw_calls) is not list or len(raw_calls) > 4:
+        raise ValueError("tool_calls must be a list of at most four calls")
+    if raw_calls and not allow_tool_calls:
+        raise ValueError("final assistant response must not contain tool calls")
+
+    calls: list[ToolCall] = []
+    seen: set[str] = set()
+    for raw in raw_calls:
+        if type(raw) is not dict or set(raw) != {"id", "name", "arguments"}:
+            raise ValueError("tool call must contain exactly id, name, arguments")
+        call_id = raw["id"]
+        name = raw["name"]
+        arguments = raw["arguments"]
+        if type(call_id) is not str or not _CALL_ID.fullmatch(call_id):
+            raise ValueError("invalid tool call id")
+        if call_id in seen:
+            raise ValueError("duplicate tool call id")
+        seen.add(call_id)
+        if type(name) is not str or not _TOOL_NAME.fullmatch(name):
+            raise ValueError("invalid tool name")
+        if type(arguments) is not dict or len(arguments) > 12:
+            raise ValueError("tool arguments must be a small JSON object")
+        calls.append(ToolCall(call_id, name, dict(arguments)))
+
+    return AssistantResponse(spoken, detail_raw.strip(), tuple(calls))
+
+
+def with_tool_results(
+    response: AssistantResponse,
+    results: tuple[ToolResult, ...],
+) -> AssistantResponse:
+    if response.tool_calls:
+        expected = tuple(call.call_id for call in response.tool_calls)
+        actual = tuple(result.call_id for result in results)
+        if expected != actual:
+            raise ValueError("tool results do not correlate with requested calls")
+    elif results:
+        raise ValueError("cannot attach tool results without calls")
+    return AssistantResponse(
+        response.spoken_text,
+        response.detail_text,
+        response.tool_calls,
+        results,
+    )

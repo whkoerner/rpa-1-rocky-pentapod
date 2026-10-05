@@ -13,6 +13,7 @@
   "voice_rate": 0,
   "voice_pitch": 0,
   "voice_volume": 0,
-  "defaults_profile_version": 2,
-  "translation_enabled": true
+  "defaults_profile_version": 3,
+  "translation_enabled": true,
+  "assistant_mode": "normal"
 }
