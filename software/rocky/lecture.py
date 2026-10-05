@@ -234,6 +234,8 @@ class LectureSessionStore:
             raise LectureError("stop lecture recording before transcription")
         if manifest["state"] == "transcribed" and manifest.get("transcript"):
             return dict(manifest["transcript"])
+        if not manifest["chunks"]:
+            raise LectureError("lecture session has no recorded audio chunks")
         segments = []
         text_lines = []
         for row in manifest["chunks"]:

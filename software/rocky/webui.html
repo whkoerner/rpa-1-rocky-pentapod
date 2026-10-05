@@ -386,11 +386,17 @@ async function startLecture() {
   const status=await api("/api/status");
   if(!status.lecture || !status.lecture.enabled) throw new Error("Lecture recording store is unavailable.");
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("This browser does not expose microphone capture.");
-  const started=await api("/api/lecture/start",{
-    method:"POST",
-    body:JSON.stringify({title:el("lecturetitle").value.trim(),consent_confirmed:true})
-  });
   const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  let started;
+  try {
+    started=await api("/api/lecture/start",{
+      method:"POST",
+      body:JSON.stringify({title:el("lecturetitle").value.trim(),consent_confirmed:true})
+    });
+  } catch(e) {
+    stream.getTracks().forEach(t=>t.stop());
+    throw e;
+  }
   const Context=window.AudioContext||window.webkitAudioContext;
   if(!Context){
     stream.getTracks().forEach(t=>t.stop());
@@ -441,15 +447,28 @@ async function stopLecture() {
   lecture.stream=lecture.context=lecture.source=lecture.processor=lecture.silent=null;
   el("lecturestop").disabled=true;
   el("lecturestatus").textContent="lecture: saving final local chunk";
-  await uploadLectureChunk();
-  await lecture.uploadChain;
-  const stopped=await api("/api/lecture/stop",{
-    method:"POST",
-    body:JSON.stringify({session_id:lecture.sessionId})
-  });
+  let uploadFailure=null;
+  try {
+    await uploadLectureChunk();
+    await lecture.uploadChain;
+  } catch(e) {
+    uploadFailure=e;
+  }
+  let stopped=null;
   const finishedId=lecture.sessionId;
-  lecture.sessionId="";
-  el("lecturestart").disabled=false;
+  try {
+    stopped=await api("/api/lecture/stop",{
+      method:"POST",
+      body:JSON.stringify({session_id:finishedId})
+    });
+  } finally {
+    lecture.sessionId="";
+    el("lecturestart").disabled=false;
+  }
+  if(uploadFailure) {
+    el("lecturestatus").textContent="lecture: STOPPED with chunk upload error • "+finishedId;
+    throw uploadFailure;
+  }
   el("lecturestatus").textContent="lecture: RECORDED • "+Number(stopped.total_seconds||0).toFixed(1)+"s • "+finishedId+" • deferred transcription ready";
 }
 

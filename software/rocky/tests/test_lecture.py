@@ -106,6 +106,12 @@ class LectureTests(unittest.TestCase):
         with self.assertRaisesRegex(LectureError, "checksum mismatch"):
             self.store.transcribe(session, FakeTranscriber())
 
+    def test_empty_recording_is_not_falsely_transcribed(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        self.store.stop(session)
+        with self.assertRaisesRegex(LectureError, "no recorded audio"):
+            self.store.transcribe(session, FakeTranscriber())
+
     def test_recording_must_stop_before_transcription(self):
         session = self.store.start(consent_confirmed=True)["session_id"]
         self.store.add_chunk(session, wav_bytes())
