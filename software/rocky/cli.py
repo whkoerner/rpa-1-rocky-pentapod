@@ -230,6 +230,8 @@ def configuration(args):
         raise ValueError("lecture_max_seconds must be between 600 and 14400")
     if type(defaults["lecture_chunk_seconds"]) not in (int, float) or not math.isfinite(defaults["lecture_chunk_seconds"]) or not 10 <= defaults["lecture_chunk_seconds"] <= 60:
         raise ValueError("lecture_chunk_seconds must be between 10 and 60")
+    if defaults["lecture_chunk_seconds"] > defaults["stt_max_seconds"]:
+        raise ValueError("lecture_chunk_seconds may not exceed stt_max_seconds")
     if type(defaults["defaults_profile_version"]) is not int or defaults["defaults_profile_version"] < 1:
         raise ValueError("defaults_profile_version must be a positive integer")
     if type(defaults["translation_voice"]) is not str or len(defaults["translation_voice"]) > 200 or any(ord(c) < 32 for c in defaults["translation_voice"]):
