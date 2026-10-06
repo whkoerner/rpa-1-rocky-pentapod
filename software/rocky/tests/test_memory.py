@@ -3,6 +3,7 @@
 from dataclasses import replace
 from pathlib import Path
 import json
+import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -49,6 +50,64 @@ class MemoryStoreTests(unittest.TestCase):
             self.assertEqual(loaded.items(), ())
             reloaded = MemoryStore(path, enabled=True)
             self.assertEqual(reloaded.items(), ())
+
+    def test_value_limit_case_collisions_and_unsupported_schema_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "memory.json"
+            store = MemoryStore(path, enabled=True)
+            with self.assertRaisesRegex(MemoryError, "exceeds"):
+                store.remember("note", "x" * 513)
+            first = store.remember("Favorite_Color", "blue")
+            second = store.remember("favorite_color", "green")
+            self.assertEqual(store.status()["count"], 1)
+            self.assertEqual(first.created_at, second.created_at)
+            self.assertEqual(store.items()[0].value, "green")
+
+            path.write_text(
+                json.dumps({"schema_version": 99, "revision": 0, "items": []}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(MemoryError, "schema version"):
+                MemoryStore(path, enabled=True)
+
+    def test_duplicate_case_insensitive_keys_in_file_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "memory.json"
+            row = {
+                "value": "x",
+                "provenance": "user_statement",
+                "created_at": "now",
+                "updated_at": "now",
+            }
+            path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "revision": 1,
+                        "items": [
+                            dict(row, key="Class"),
+                            dict(row, key="class"),
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(MemoryError, "duplicate memory key"):
+                MemoryStore(path, enabled=True)
+
+    @unittest.skipIf(os.name == "nt", "symlink fixture is not reliable on Windows CI")
+    def test_memory_file_symlink_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            target = root / "target.json"
+            target.write_text(
+                json.dumps({"schema_version": 1, "revision": 0, "items": []}),
+                encoding="utf-8",
+            )
+            link = root / "memory.json"
+            os.symlink(target, link)
+            with self.assertRaisesRegex(MemoryError, "symbolic link"):
+                MemoryStore(link, enabled=True)
 
     def test_secret_like_keys_and_control_characters_are_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
