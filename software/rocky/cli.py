@@ -588,7 +588,7 @@ def main(argv=None):
             from .stt import WhisperCppTranscriber
             if not args.lecture_session:
                 raise ValueError("lecture-transcribe requires --lecture-session SESSION_ID")
-            transcriber = WhisperCppTranscriber.from_settings(settings)
+            transcriber = WhisperCppTranscriber.from_settings(settings, asset_manifest=args.asset_manifest)
             if transcriber is None:
                 raise ValueError("lecture transcription requires configured local whisper.cpp")
             store = LectureSessionStore(
@@ -685,7 +685,7 @@ def main(argv=None):
                 LocalAIProvider(settings["model"], settings["port"], min(settings["timeout"], 5)).check_available()
             if settings["stt_backend"] != "disabled":
                 from .stt import WhisperCppTranscriber
-                WhisperCppTranscriber.from_settings(settings).check_available()
+                WhisperCppTranscriber.from_settings(settings, asset_manifest=args.asset_manifest).check_available()
             print("Configuration and selected provider checks passed; no inference/audio/microphone acceptance implied.")
             return 0
         if args.command == "benchmark":
@@ -815,7 +815,7 @@ def main(argv=None):
         if args.command == "web":
             from .stt import WhisperCppTranscriber
             from .webui import serve_local_web_ui
-            transcriber = WhisperCppTranscriber.from_settings(settings)
+            transcriber = WhisperCppTranscriber.from_settings(settings, asset_manifest=args.asset_manifest)
             from .lecture import LectureSessionStore
             lecture_store = LectureSessionStore(
                 args.lecture_root,

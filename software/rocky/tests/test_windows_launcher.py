@@ -1,6 +1,8 @@
 """Real cmd/PowerShell/environment checks on Windows CI; listening remains manual."""
 import os
 from pathlib import Path
+import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -45,6 +47,49 @@ class WindowsLauncherTests(unittest.TestCase):
         self.assertIn('-Action setup', result.stdout)
         self.assertIn(str(self.root / 'Rocky.bat'), result.stdout)
         self.assertFalse((self.root / '.venv-rocky').exists())
+
+    def test_whisper_setup_pins_existing_files_without_downloading(self):
+        config = self.root / "rocky-test.json"
+        assets = self.root / "assets-test.json"
+        shutil.copy2(self.root / "software" / "rocky" / "config" / "rocky.json", config)
+        shutil.copy2(self.root / "software" / "rocky" / "config" / "assets.example.json", assets)
+        cli = self.root / "reviewed whisper-cli.exe"
+        model = self.root / "reviewed model.bin"
+        cli.write_bytes(b"fixture-cli")
+        model.write_bytes(b"fixture-model")
+        script = self.root / "scripts" / "Setup-WhisperCpp.ps1"
+        result = subprocess.run(
+            [
+                "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", str(script),
+                "-WhisperCliPath", str(cli),
+                "-WhisperModelPath", str(model),
+                "-ConfigPath", str(config),
+                "-AssetsPath", str(assets),
+            ],
+            env=self.env,
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        configured = json.loads(config.read_text(encoding="utf-8-sig"))
+        self.assertEqual(configured["stt_backend"], "whisper-cpp")
+        self.assertEqual(Path(configured["whisper_cli_path"]), cli)
+        self.assertEqual(Path(configured["whisper_model_path"]), model)
+        manifest = json.loads(assets.read_text(encoding="utf-8-sig"))
+        rows = {row["id"]: row for row in manifest["assets"]}
+        self.assertEqual(rows["whisper_cli"]["path"], str(cli))
+        self.assertEqual(rows["whisper_cli"]["sha256"], hashlib.sha256(cli.read_bytes()).hexdigest())
+        self.assertEqual(rows["whisper_model"]["sha256"], hashlib.sha256(model.read_bytes()).hexdigest())
+        self.assertIn("does NOT download", result.stdout)
+
+    def test_launcher_uses_real_setup_script_paths(self):
+        text = (self.root / "scripts" / "Launch-Rocky.ps1").read_text(encoding="utf-8")
+        self.assertIn("scripts\\Setup-Piper.ps1", text)
+        self.assertIn("scripts\\Setup-WhisperCpp.ps1", text)
+        self.assertNotIn("scriptsSetup-Piper.ps1", text)
 
     def test_valid_environment_and_broken_explicit_override(self):
         target = self.root / '.venv-rocky'

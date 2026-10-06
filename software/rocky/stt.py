@@ -8,11 +8,14 @@ from __future__ import annotations
 
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import threading
 import wave
+
+from .portability import PortabilityError, load_asset_manifest, sha256_file
 
 
 SAMPLE_RATE = 16000
@@ -74,6 +77,41 @@ def _strict_json(raw: str):
     return json.loads(raw, object_pairs_hook=pairs, parse_constant=reject_constant)
 
 
+def _verified_manifest_asset(manifest_path: Path, asset_id: str, configured_path: object) -> Path:
+    """Resolve one checksum-pinned STT file and require config/manifest agreement."""
+    manifest_path = Path(manifest_path).expanduser()
+    try:
+        manifest = load_asset_manifest(manifest_path)
+    except PortabilityError as exc:
+        raise SpeechToTextError(f"STT asset manifest is invalid: {exc}") from exc
+    matches = [asset for asset in manifest["assets"] if asset["id"] == asset_id]
+    if len(matches) != 1 or matches[0]["kind"] != "file":
+        raise SpeechToTextError(f"STT asset manifest requires one file asset named {asset_id}")
+    asset = matches[0]
+    if not asset["path"] or not asset["sha256"]:
+        raise SpeechToTextError(f"STT asset {asset_id} is not provisioned in the asset manifest")
+    target = Path(asset["path"]).expanduser()
+    if not target.is_absolute():
+        target = manifest_path.parent / target
+    if target.is_symlink() or not target.is_file():
+        raise SpeechToTextError(f"STT asset {asset_id} is missing or unsafe")
+    actual = sha256_file(target)
+    if actual != asset["sha256"]:
+        raise SpeechToTextError(f"STT asset {asset_id} checksum mismatch")
+    if type(configured_path) is not str or not configured_path.strip():
+        raise SpeechToTextError(f"configured path for {asset_id} is missing")
+    configured = Path(configured_path).expanduser()
+    if configured.is_symlink() or not configured.is_file():
+        raise SpeechToTextError(f"configured path for {asset_id} is missing or unsafe")
+    try:
+        same = os.path.normcase(str(configured.resolve())) == os.path.normcase(str(target.resolve()))
+    except OSError as exc:
+        raise SpeechToTextError(f"could not resolve STT asset {asset_id}") from exc
+    if not same:
+        raise SpeechToTextError(f"configured path for {asset_id} does not match verified asset manifest")
+    return target.resolve()
+
+
 class WhisperCppTranscriber:
     """Explicitly provisioned whisper.cpp CLI adapter.
 
@@ -104,19 +142,31 @@ class WhisperCppTranscriber:
         self.last_transcript = ""
 
     @classmethod
-    def from_settings(cls, settings: dict):
+    def from_settings(cls, settings: dict, *, asset_manifest: Path | str | None = None):
         backend = settings.get("stt_backend", "disabled")
         if backend == "disabled":
             return None
         if backend != "whisper-cpp":
             raise SpeechToTextError("unsupported STT backend")
+        if asset_manifest is None:
+            raise SpeechToTextError(
+                "whisper.cpp requires an explicit checksum-verified asset manifest"
+            )
+        cli_path = _verified_manifest_asset(
+            Path(asset_manifest), "whisper_cli", settings.get("whisper_cli_path", "")
+        )
+        model_path = _verified_manifest_asset(
+            Path(asset_manifest), "whisper_model", settings.get("whisper_model_path", "")
+        )
         return cls(
-            settings.get("whisper_cli_path", ""),
-            settings.get("whisper_model_path", ""),
+            cli_path,
+            model_path,
             max_seconds=settings.get("stt_max_seconds", 30),
         )
 
     def check_available(self):
+        if self.cli_path.is_symlink() or self.model_path.is_symlink():
+            raise SpeechToTextError("whisper.cpp executable/model paths must not be symbolic links")
         if not str(self.cli_path) or not self.cli_path.is_file():
             raise SpeechToTextError(
                 "whisper-cli executable is not provisioned at the configured path"
