@@ -80,3 +80,24 @@ The hardware/model choice remains illustrative rather than a benchmark claim.
 ## Reproducibility boundary
 
 File asset checksums prove the exact file bytes selected by the user. Runtime-managed Ollama/Windows voice references are listed as references, not falsely described as checksum verified. Rocky's normal provider checks remain responsible for confirming the selected Ollama model is local rather than remote/cloud-backed.
+
+## Safe restore staging follow-up
+
+Portable backup V0 now has an explicit **staging restore**, not an automatic live-profile overwrite.
+
+`python -m rocky restore-backup --backup-input BACKUP.zip --restore-output NEW_DIR --restore-confirm`:
+
+1. verifies the complete archive before extraction;
+2. requires an explicit confirmation flag;
+3. refuses any destination that already exists;
+4. extracts only the already-allowlisted Rocky settings/personality/memory members into a newly created temporary staging directory;
+5. rechecks size and SHA-256 after writing each staged file;
+6. atomically renames the completed temporary directory into the requested new destination;
+7. deletes the partial temporary directory on failure;
+8. reports `live_profile_modified=False`.
+
+The active Rocky settings, personality, and memory paths are never overwritten by the restore command. This deliberately keeps schema/config migration separate from archive extraction: the user can inspect a staged backup before deciding what to import.
+
+Windows launcher option **17 — Verify and stage a portable backup restore** creates a new timestamped directory under `~/.rpa1/restore-staging`.
+
+This is a safer foundation for future guided migrations than writing ZIP members directly into the live profile.
