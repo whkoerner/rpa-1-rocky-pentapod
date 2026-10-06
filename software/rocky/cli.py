@@ -700,7 +700,7 @@ def main(argv=None):
                 Path(__file__).resolve().parents[2]
                 / "experiments"
                 / "assistant"
-                / "assistant-v2-benchmark-v0.1.json"
+                / "assistant-v2-benchmark-v0.2.json"
             )
             output_path = args.benchmark_output or (
                 args.data_dir / "assistant-benchmark-latest.json"
@@ -717,9 +717,12 @@ def main(argv=None):
                 "Assistant benchmark: "
                 f'run={summary["run"]}; skipped={summary["skipped"]}; '
                 f'failed={summary["failed"]}; '
-                f'mean_latency={summary["mean_latency_seconds"]}; '
+                f'failure_rate={summary["failure_rate_percent"]}%; '
+                f'mean_provider_latency={summary["mean_provider_turn_latency_seconds"]}; '
+                f'mean_total_latency={summary["mean_total_latency_seconds"]}; '
                 f'mean_EXP003_coverage={summary["mean_semantic_coverage_percent"]}; '
-                f'fallback_spans={summary["total_fallback_spans"]}'
+                f'fallback_spans={summary["total_fallback_spans"]}; '
+                f'auto_check_failures={summary["auto_check_failures"]}'
             )
             print("Report: " + str(output_path))
             print(

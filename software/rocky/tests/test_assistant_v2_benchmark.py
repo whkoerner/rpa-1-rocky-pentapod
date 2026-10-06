@@ -16,7 +16,7 @@ from rocky.tools import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
-BENCHMARK = ROOT / "experiments" / "assistant" / "assistant-v2-benchmark-v0.1.json"
+BENCHMARK = ROOT / "experiments" / "assistant" / "assistant-v2-benchmark-v0.2.json"
 
 
 def context():
@@ -128,6 +128,18 @@ class AssistantV2BenchmarkTests(unittest.TestCase):
             with self.subTest(case=case["id"]):
                 self.assertTrue(result.ok, result.error)
                 self.assertEqual(result.output, case["expected"])
+
+    def test_real_model_matrix_has_required_high_value_cases(self):
+        topics = {case["topic"] for case in self.data["model_cases"]}
+        required = {
+            "algebra", "calculus", "physics", "biology", "coding", "engineering",
+            "arithmetic-8x8", "arithmetic-8x12", "fraction", "percentage",
+            "malformed-question", "long-detail-response", "short-response",
+            "persistent-memory-recall", "memory-injection-safety", "follow-up-question",
+        }
+        self.assertTrue(required.issubset(topics))
+        memory_case = next(case for case in self.data["model_cases"] if case["topic"] == "persistent-memory-recall")
+        self.assertEqual(memory_case["memory_fixture"]["benchmark_color"], "violet")
 
     def test_nonautomated_model_and_audio_cases_remain_explicitly_not_run(self):
         for group in ("model_cases", "audio_cases"):
