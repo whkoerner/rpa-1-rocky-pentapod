@@ -2,6 +2,7 @@
 
 from io import BytesIO
 from pathlib import Path
+import hashlib
 import json
 import tempfile
 import unittest
@@ -15,6 +16,38 @@ from rocky.stt import (
     WhisperCppTranscriber,
     validate_voice_wav,
 )
+
+
+def write_asset_manifest(path, cli, model, *, cli_sha=None, model_sha=None):
+    cli_sha = cli_sha or hashlib.sha256(cli.read_bytes()).hexdigest()
+    model_sha = model_sha or hashlib.sha256(model.read_bytes()).hexdigest()
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "manifest_id": "rocky-assets-v1",
+                "assets": [
+                    {
+                        "id": "whisper_cli",
+                        "kind": "file",
+                        "required": False,
+                        "reference": "fixture whisper-cli",
+                        "path": str(cli),
+                        "sha256": cli_sha,
+                    },
+                    {
+                        "id": "whisper_model",
+                        "kind": "file",
+                        "required": False,
+                        "reference": "fixture model",
+                        "path": str(model),
+                        "sha256": model_sha,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def wav_bytes(seconds=0.25, *, rate=SAMPLE_RATE, channels=1, width=2):
@@ -116,6 +149,54 @@ class SttValidationTests(unittest.TestCase):
             self.assertIn(str(model), process.argv)
             self.assertNotIn("sh", process.argv)
             self.assertNotIn("cmd.exe", process.argv)
+
+    def test_enabled_stt_requires_matching_checksum_verified_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cli = root / "whisper-cli.exe"
+            model = root / "model.bin"
+            cli.write_bytes(b"reviewed-cli-fixture")
+            model.write_bytes(b"reviewed-model-fixture")
+            settings = {
+                "stt_backend": "whisper-cpp",
+                "whisper_cli_path": str(cli),
+                "whisper_model_path": str(model),
+                "stt_max_seconds": 30,
+            }
+            with self.assertRaisesRegex(SpeechToTextError, "asset manifest"):
+                WhisperCppTranscriber.from_settings(settings)
+            manifest = root / "assets.json"
+            write_asset_manifest(manifest, cli, model)
+            transcriber = WhisperCppTranscriber.from_settings(
+                settings, asset_manifest=manifest
+            )
+            self.assertEqual(transcriber.cli_path, cli.resolve())
+            self.assertEqual(transcriber.model_path, model.resolve())
+            self.assertTrue(transcriber.check_available())
+
+            cli.write_bytes(b"tampered-after-manifest")
+            with self.assertRaisesRegex(SpeechToTextError, "checksum mismatch"):
+                WhisperCppTranscriber.from_settings(settings, asset_manifest=manifest)
+
+    def test_manifest_and_configured_stt_paths_must_agree(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cli = root / "whisper-cli.exe"
+            other_cli = root / "other-cli.exe"
+            model = root / "model.bin"
+            cli.write_bytes(b"cli")
+            other_cli.write_bytes(b"other")
+            model.write_bytes(b"model")
+            manifest = root / "assets.json"
+            write_asset_manifest(manifest, cli, model)
+            settings = {
+                "stt_backend": "whisper-cpp",
+                "whisper_cli_path": str(other_cli),
+                "whisper_model_path": str(model),
+                "stt_max_seconds": 30,
+            }
+            with self.assertRaisesRegex(SpeechToTextError, "does not match"):
+                WhisperCppTranscriber.from_settings(settings, asset_manifest=manifest)
 
     def test_paths_must_be_explicitly_provisioned(self):
         transcriber = WhisperCppTranscriber("missing-whisper-cli", "missing-model.bin")

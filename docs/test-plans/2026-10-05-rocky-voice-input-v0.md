@@ -48,3 +48,31 @@ Required tests cover:
 - microphone device selection behavior.
 
 No CI result is evidence that speech recognition is acoustically accurate.
+
+## Checksum-provisioning follow-up
+
+A stacked follow-up adds:
+
+- explicit no-download Windows whisper.cpp provisioning;
+- SHA-256 pinning for `whisper_cli` and `whisper_model`;
+- runtime requirement for an explicit verified asset manifest whenever STT is enabled;
+- rejection of checksum mismatch;
+- rejection when configured STT paths disagree with verified manifest paths;
+- symlink rejection at the transcriber boundary;
+- Windows CI exercising the provisioning script with local fixture files;
+- launcher asset-manifest forwarding;
+- correction of the Piper setup launcher path discovered during review.
+
+### Still manual NOT RUN
+
+- real whisper.cpp executable provisioning on the user's Windows PC;
+- real Whisper model provisioning/license review;
+- actual microphone capture;
+- quiet-room recognition accuracy;
+- classroom/noisy-room accuracy;
+- edit/confirm/send behavior with a real transcript;
+- Cancel/STOP during real recognition;
+- long lecture transcription throughput;
+- offline acceptance after provisioning.
+
+The checksum tests do not imply acoustic acceptance.
