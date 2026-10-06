@@ -9,7 +9,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
+import shutil
+import tempfile
 import zipfile
 
 
@@ -341,4 +344,80 @@ def verify_user_backup(path: Path) -> dict:
         "format": BACKUP_FORMAT,
         "verified": True,
         "files": rows,
+    }
+
+
+def stage_user_backup_restore(
+    path: Path,
+    destination: Path,
+    *,
+    confirm: bool = False,
+) -> dict:
+    """Verify then extract a Rocky backup into a new staging directory only.
+
+    This intentionally never overwrites the active Rocky profile. The caller must
+    inspect/import staged files separately.
+    """
+    if confirm is not True:
+        raise PortabilityError("backup restore staging requires explicit confirmation")
+    source = Path(path)
+    report = verify_user_backup(source)
+    destination = Path(destination).expanduser()
+    if destination.exists() or destination.is_symlink():
+        raise PortabilityError("restore staging destination must not already exist")
+    parent = destination.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    if parent.is_symlink():
+        raise PortabilityError("restore staging parent must not be a symbolic link")
+
+    temporary = Path(
+        tempfile.mkdtemp(prefix=destination.name + ".restore-", dir=parent)
+    )
+    try:
+        with zipfile.ZipFile(source, "r") as archive:
+            manifest_raw = archive.read("manifest.json")
+            manifest_target = temporary / "manifest.json"
+            manifest_target.write_bytes(manifest_raw)
+            try:
+                os.chmod(manifest_target, 0o600)
+            except OSError:
+                pass
+
+            restored = []
+            for row in report["files"]:
+                name = row["path"]
+                if name not in _ALLOWED_BACKUP_NAMES:
+                    raise PortabilityError("verified restore file is not allowlisted")
+                raw = archive.read(name)
+                target = temporary.joinpath(*Path(name).parts)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if target.exists() or target.is_symlink():
+                    raise PortabilityError("restore staging path collision")
+                target.write_bytes(raw)
+                try:
+                    os.chmod(target, 0o600)
+                except OSError:
+                    pass
+                actual = hashlib.sha256(target.read_bytes()).hexdigest()
+                if target.stat().st_size != row["size_bytes"] or actual != row["sha256"]:
+                    raise PortabilityError("staged restore checksum or size mismatch")
+                restored.append(
+                    {
+                        "path": name,
+                        "size_bytes": target.stat().st_size,
+                        "sha256": actual,
+                        "verified": True,
+                    }
+                )
+        os.replace(temporary, destination)
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
+
+    return {
+        "format": BACKUP_FORMAT,
+        "staged": True,
+        "destination": str(destination),
+        "files": restored,
+        "live_profile_modified": False,
     }

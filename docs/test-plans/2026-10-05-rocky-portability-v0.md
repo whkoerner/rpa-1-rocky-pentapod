@@ -35,3 +35,25 @@
 - uninstall/update experience.
 
 No test claims that external model weights are small or bundled.
+
+## Safe restore staging follow-up
+
+Automated scope now additionally requires:
+
+- restore requires explicit confirmation;
+- full backup verification runs before staging;
+- restore destination must not already exist;
+- only allowlisted verified files are written;
+- staged file sizes and SHA-256 are rechecked after write;
+- partial staging directory is cleaned on failure;
+- live Rocky settings/memory are not overwritten;
+- completed staging directory contains the verified backup manifest for inspection.
+
+Manual NOT RUN remains:
+
+- move a real backup to another Windows PC;
+- stage it through launcher option 17;
+- inspect staged settings/personality/memory;
+- manually import selected files;
+- validate any future schema migration against real older backups;
+- fresh-machine reinstall/update/uninstall experience.

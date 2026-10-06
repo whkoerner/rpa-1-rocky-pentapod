@@ -137,6 +137,20 @@ function Run-Rocky($choice) {
         if ($LASTEXITCODE -ne 0) { throw 'Local whisper.cpp provisioning failed.' }
         return
     }
+    if ($choice -eq '17') {
+        $source = Read-Host 'Path to a Rocky backup ZIP to verify and stage'
+        if ([string]::IsNullOrWhiteSpace($source) -or -not (Test-Path -LiteralPath $source)) {
+            throw 'A valid Rocky backup ZIP path is required.'
+        }
+        $restoreRoot = Join-Path $env:USERPROFILE '.rpa1\restore-staging'
+        New-Item -ItemType Directory -Force -Path $restoreRoot | Out-Null
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $target = Join-Path $restoreRoot "rocky-restore-$stamp"
+        & $python -m rocky restore-backup --backup-input $source --restore-output $target --restore-confirm
+        if ($LASTEXITCODE -ne 0) { throw 'Backup restore staging failed.' }
+        Write-Host "Staged only; live profile unchanged. Inspect: $target"
+        return
+    }
     if ($choice -eq '1' -or $choice -eq '9') {
         Write-Host 'Local model availability check only; this does not establish GPU stability.'
         & $python -m rocky check @arguments --provider local
@@ -157,7 +171,7 @@ try {
     if ($Action -eq 'shortcut') { Create-Shortcut; Read-Host 'Press Enter to close'; exit 0 }
     if ($Action -eq 'tests') { Run-Rocky '4'; Read-Host 'Press Enter to close'; exit 0 }
     while ($true) {
-        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n11 Export portable user backup`n12 Verify external asset manifest`n13 Transcribe recorded lecture session`n14 Generate study notes from lecture`n15 Setup optional Piper neural voice sidecar`n16 Configure local whisper.cpp voice input`n0 Exit"
+        Write-Host "`nRocky desktop menu`n1 Talk with real local model (terminal)`n2 DummyAI diagnostics`n3 Audio test`n4 Automated tests`n5 Settings/personality instructions`n6 Latest test output`n7 Setup/repair (explicit package installation)`n8 Create desktop shortcut`n9 Open local Rocky web UI`n10 Run real Assistant benchmark`n11 Export portable user backup`n12 Verify external asset manifest`n13 Transcribe recorded lecture session`n14 Generate study notes from lecture`n15 Setup optional Piper neural voice sidecar`n16 Configure local whisper.cpp voice input`n17 Verify and stage a portable backup restore`n0 Exit"
         $choice = Read-Host 'Choose'
         try {
             switch ($choice) {
@@ -174,8 +188,8 @@ try {
                 }
                 '7' { Setup-Rocky }
                 '8' { Create-Shortcut }
-                { $_ -in '1','2','3','4','9','10','11','12','13','14','15','16' } { Run-Rocky $choice }
-                default { Write-Host 'Choose 0 through 16.' }
+                { $_ -in '1','2','3','4','9','10','11','12','13','14','15','16','17' } { Run-Rocky $choice }
+                default { Write-Host 'Choose 0 through 17.' }
             }
         } catch { Write-Host "ERROR: $_" -ForegroundColor Red }
     }

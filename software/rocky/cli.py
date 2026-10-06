@@ -510,7 +510,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "lecture-notes", "lecture-recover", "lecture-delete", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "restore-backup", "verify-assets", "lecture-transcribe", "lecture-notes", "lecture-recover", "lecture-delete", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -525,6 +525,8 @@ def main(argv=None):
     parser.add_argument("--benchmark-output", type=Path)
     parser.add_argument("--backup-output", type=Path)
     parser.add_argument("--backup-input", type=Path)
+    parser.add_argument("--restore-output", type=Path)
+    parser.add_argument("--restore-confirm", action="store_true")
     parser.add_argument("--asset-manifest", type=Path)
     parser.add_argument("--memory-path", type=Path, default=Path.home() / ".rpa1" / "memory-v1.json")
     parser.add_argument("--connected-mode", choices=("offline", "online"))
@@ -558,6 +560,26 @@ def main(argv=None):
     conversation = None
     brain = None
     try:
+        if args.command == "restore-backup":
+            from .portability import stage_user_backup_restore
+            if args.backup_input is None or args.restore_output is None:
+                raise ValueError(
+                    "restore-backup requires --backup-input FILE.zip and --restore-output DIR"
+                )
+            if not args.restore_confirm:
+                raise ValueError("restore-backup requires --restore-confirm")
+            report = stage_user_backup_restore(
+                args.backup_input, args.restore_output, confirm=True
+            )
+            print(
+                f"Rocky backup staged safely: {report['destination']}; "
+                f"files={len(report['files'])}; live_profile_modified=False"
+            )
+            print(
+                "Inspect the staged files before manually importing them. "
+                "No live Rocky settings or memory were overwritten."
+            )
+            return 0
         settings = configuration(args)
         if args.connected_mode is not None:
             settings["connected_enabled"] = args.connected_mode == "online"

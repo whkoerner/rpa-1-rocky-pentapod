@@ -10,6 +10,7 @@ import zipfile
 from rocky.portability import (
     PortabilityError,
     export_user_backup,
+    stage_user_backup_restore,
     verify_asset_manifest,
     verify_user_backup,
 )
@@ -122,6 +123,41 @@ class PortabilityTests(unittest.TestCase):
                 )
                 self.assertNotIn("model.gguf", names)
                 self.assertFalse(any(".venv" in name for name in names))
+
+    def test_backup_restore_is_confirmation_gated_and_stages_without_overwrite(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            settings = root / "rocky.json"
+            personality = root / "personality.json"
+            memory = root / "memory.json"
+            settings.write_text('{"provider":"local"}', encoding="utf-8")
+            personality.write_text('{"name":"Rocky"}', encoding="utf-8")
+            memory.write_text('{"schema_version":1,"revision":0,"items":[]}', encoding="utf-8")
+            backup = root / "backup.zip"
+            export_user_backup(
+                settings_path=settings,
+                personality_path=personality,
+                memory_path=memory,
+                output_path=backup,
+            )
+            destination = root / "restore-stage"
+            with self.assertRaisesRegex(PortabilityError, "confirmation"):
+                stage_user_backup_restore(backup, destination)
+            report = stage_user_backup_restore(backup, destination, confirm=True)
+            self.assertTrue(report["staged"])
+            self.assertFalse(report["live_profile_modified"])
+            self.assertEqual(
+                (destination / "settings" / "rocky.json").read_text(encoding="utf-8"),
+                settings.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                (destination / "memory" / "memory-v1.json").read_text(encoding="utf-8"),
+                memory.read_text(encoding="utf-8"),
+            )
+            self.assertTrue((destination / "manifest.json").is_file())
+            self.assertEqual(settings.read_text(encoding="utf-8"), '{"provider":"local"}')
+            with self.assertRaisesRegex(PortabilityError, "must not already exist"):
+                stage_user_backup_restore(backup, destination, confirm=True)
 
     def test_backup_checksum_detects_tampering(self):
         with tempfile.TemporaryDirectory() as temp:

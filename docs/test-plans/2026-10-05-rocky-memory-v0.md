@@ -63,3 +63,7 @@ Tests cover:
 - attempt hostile remembered instructions against the real local model.
 
 No manual result should be inferred from automated tests.
+
+## Backup/restore status follow-up
+
+Persistent memory remains included only when present in the bounded portable user backup. The newer portability layer can verify and stage `memory/memory-v1.json` into a new restore directory without overwriting the live memory file. Real restore/import into the user's active memory remains manual NOT RUN so schema compatibility can be inspected first.
