@@ -210,6 +210,45 @@ class PersistentTranslationTests(unittest.TestCase):
             places=3,
         )
 
+    def test_overlap_scheduler_covers_short_equal_long_and_very_short_english(self):
+        handle_command("/translate on", self.conversation, self.settings, self.display)
+        cases = (
+            ("english-shorter", 10.0, 3.0, 7.75, 0.75),
+            ("equal", 6.0, 6.0, 0.75, 0.75),
+            ("english-longer", 4.0, 8.0, 0.75, 4.75),
+            ("very-short", 0.5, 0.2, 1.05, 0.75),
+        )
+        for name, chordic, english, expected_delay, expected_margin in cases:
+            with self.subTest(name=name):
+                self.hardware.duration = chordic
+                self.hardware._playback_started_at = None
+                self.voice.estimated_duration_seconds = english
+                self.voice.last_duration_seconds = 0.0
+                self.assertTrue(self.hardware.speak_translation("Rocky ready."))
+                self.assertAlmostEqual(
+                    self.hardware.translation_delay_seconds, expected_delay, places=3
+                )
+                self.voice.last_duration_seconds = english
+                self.assertAlmostEqual(
+                    self.hardware.translation_finish_margin, expected_margin, places=3
+                )
+                self.assertGreaterEqual(
+                    self.hardware.translation_delay_seconds,
+                    self.hardware.translation_min_lead_seconds,
+                )
+                self.assertGreaterEqual(self.hardware.translation_finish_margin, 0.0)
+
+    def test_translation_enable_fails_closed_when_voice_is_unavailable(self):
+        def unavailable():
+            raise RuntimeError("fixture voice unavailable")
+
+        self.voice.check_available = unavailable
+        with self.assertRaisesRegex(RuntimeError, "unavailable"):
+            handle_command("/translate on", self.conversation, self.settings, self.display)
+        self.assertFalse(self.conversation.translation_enabled)
+        self.assertFalse(self.hardware.translation_enabled)
+        self.assertEqual(len(self.voice.starts), 0)
+
     def test_explicit_session_name_capture_and_clear(self):
         self.assertEqual(explicit_user_name("My name is wyatt"), "Wyatt")
         self.assertEqual(explicit_user_name("Call me Wyatt."), "Wyatt")
