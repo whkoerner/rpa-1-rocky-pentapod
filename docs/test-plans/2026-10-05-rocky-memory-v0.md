@@ -67,3 +67,20 @@ No manual result should be inferred from automated tests.
 ## Backup/restore status follow-up
 
 Persistent memory remains included only when present in the bounded portable user backup. The newer portability layer can verify and stage `memory/memory-v1.json` into a new restore directory without overwriting the live memory file. Real restore/import into the user's active memory remains manual NOT RUN so schema compatibility can be inspected first.
+
+## Filesystem/edge-case hardening follow-up
+
+A stacked follow-up adds explicit coverage for:
+
+- value larger than the 512 UTF-8 byte limit;
+- case-insensitive duplicate/update semantics;
+- duplicate case-colliding keys loaded from disk;
+- unsupported schema version fails closed;
+- memory-file symlink rejection where the test platform can create the fixture;
+- unpredictable same-directory atomic temporary files instead of a fixed `.tmp` path;
+- fsync-before-replace best effort;
+- existing corruption/provenance/prompt-injection/disabled-mode cases.
+
+There is no historical Rocky memory schema older than V1 to migrate. Therefore the correct current migration behavior is **fail closed on an unknown schema**, stage/inspect backups, and add an explicit one-way migration only when a real newer schema exists. Tests must not fabricate a fake legacy schema and call it migrated evidence.
+
+Real Windows restart/retrieval/edit/delete/clear and real backup import remain manual NOT RUN.

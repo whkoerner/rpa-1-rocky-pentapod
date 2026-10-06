@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import tempfile
 
 
 SCHEMA_VERSION = 1
@@ -115,11 +116,15 @@ class MemoryStore:
         self.enabled = enabled
 
     def _load(self):
+        if self.path.is_symlink():
+            raise MemoryError("memory file must not be a symbolic link")
         if not self.path.exists():
             self._items = {}
             self.revision = 0
             self._loaded = True
             return
+        if not self.path.is_file():
+            raise MemoryError("memory path must be a regular file")
         if self.path.stat().st_size > 128 * 1024:
             raise MemoryError("memory file exceeds safe size limit")
         data = _strict_json(self.path.read_text(encoding="utf-8"))
@@ -178,6 +183,12 @@ class MemoryStore:
 
     def _write(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.path.parent.is_symlink():
+            raise MemoryError("memory parent directory must not be a symbolic link")
+        if self.path.is_symlink():
+            raise MemoryError("memory file must not be a symbolic link")
+        if self.path.exists() and not self.path.is_file():
+            raise MemoryError("memory path must be a regular file")
         payload = {
             "schema_version": SCHEMA_VERSION,
             "revision": self.revision,
@@ -186,20 +197,31 @@ class MemoryStore:
                 for item in sorted(self._items.values(), key=lambda row: row.key.lower())
             ],
         }
-        temporary = self.path.with_name(self.path.name + ".tmp")
-        temporary.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=self.path.name + ".tmp-", dir=self.path.parent, text=True
         )
+        temporary = Path(temporary_name)
         try:
-            os.chmod(temporary, 0o600)
-        except OSError:
-            pass
-        os.replace(temporary, self.path)
-        try:
-            os.chmod(self.path, 0o600)
-        except OSError:
-            pass
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+                handle.flush()
+                try:
+                    os.fsync(handle.fileno())
+                except OSError:
+                    pass
+            try:
+                os.chmod(temporary, 0o600)
+            except OSError:
+                pass
+            if self.path.is_symlink():
+                raise MemoryError("memory file became a symbolic link before replace")
+            os.replace(temporary, self.path)
+            try:
+                os.chmod(self.path, 0o600)
+            except OSError:
+                pass
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def remember(self, key: object, value: object) -> MemoryItem:
         self._require_enabled()
