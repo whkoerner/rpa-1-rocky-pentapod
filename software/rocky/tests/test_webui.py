@@ -291,11 +291,58 @@ class WebUITests(unittest.TestCase):
                 {"title": "Class", "consent_confirmed": True}
             )
             self.assertTrue(app.status()["lecture"]["active"])
-            saved = app.lecture_chunk(tiny_wav())
+            wrong = "lecture-20000101T000000Z-deadbeef"
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                app.lecture_chunk(wrong, 1, tiny_wav())
+            saved = app.lecture_chunk(started["session_id"], 1, tiny_wav())
             self.assertEqual(saved["chunk_count"], 1)
+            with self.assertRaisesRegex(ValueError, "duplicate"):
+                app.lecture_chunk(started["session_id"], 1, tiny_wav())
             stopped = app.lecture_stop({"session_id": started["session_id"]})
             self.assertEqual(stopped["state"], "recorded")
             self.assertFalse(app.status()["lecture"]["active"])
+
+    def test_lecture_chunk_http_requires_session_and_sequence_headers(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = LectureSessionStore(
+                Path(temp) / "lectures", max_seconds=600, chunk_max_seconds=10
+            )
+            app = self.app(lecture_store=store)
+            started = app.lecture_start({"title": "Class", "consent_confirmed": True})
+            server = build_server(app, 0)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                port = server.server_address[1]
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                body = tiny_wav()
+                base_headers = {
+                    "Content-Type": "audio/wav",
+                    "X-Rocky-Token": app.token,
+                }
+                connection.request("POST", "/api/lecture/chunk", body=body, headers=base_headers)
+                response = connection.getresponse()
+                response.read()
+                self.assertEqual(response.status, 400)
+
+                headers = dict(base_headers)
+                headers["X-Rocky-Lecture-Session"] = started["session_id"]
+                headers["X-Rocky-Lecture-Chunk"] = "1"
+                connection.request("POST", "/api/lecture/chunk", body=body, headers=headers)
+                response = connection.getresponse()
+                payload = json.loads(response.read().decode("utf-8"))
+                self.assertEqual(response.status, 200)
+                self.assertEqual(payload["chunk_count"], 1)
+
+                connection.request("POST", "/api/lecture/chunk", body=body, headers=headers)
+                response = connection.getresponse()
+                response.read()
+                self.assertEqual(response.status, 400)
+                connection.close()
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
 
     def test_stt_endpoint_is_token_gated_and_never_auto_sends(self):
         transcriber = FakeTranscriber()

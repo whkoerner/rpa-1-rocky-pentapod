@@ -2,12 +2,16 @@
 
 from io import BytesIO
 import json
+import os
+import shutil
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import wave
 
 from rocky.lecture import LectureError, LectureSessionStore
+from rocky.stt import MAX_WAV_BYTES
 
 
 def wav_bytes(seconds=0.1):
@@ -71,9 +75,71 @@ class LectureTests(unittest.TestCase):
         with self.assertRaisesRegex(LectureError, "not recording"):
             self.store.add_chunk(session, raw)
 
+    def test_chunk_sequence_rejects_duplicate_and_out_of_order_retries(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        raw = wav_bytes()
+        self.store.add_chunk(session, raw, index=1)
+        with self.assertRaisesRegex(LectureError, "duplicate"):
+            self.store.add_chunk(session, raw, index=1)
+        with self.assertRaisesRegex(LectureError, "out-of-order"):
+            self.store.add_chunk(session, raw, index=3)
+        status = self.store.add_chunk(session, raw, index=2)
+        self.assertEqual(status["chunk_count"], 2)
+
+    def test_malformed_oversized_and_total_duration_limits_fail_closed(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        with self.assertRaises(LectureError):
+            self.store.add_chunk(session, b"not-a-wave", index=1)
+        with self.assertRaisesRegex(LectureError, "byte limit"):
+            self.store.add_chunk(session, b"x" * (MAX_WAV_BYTES + 1), index=1)
+        with patch("rocky.lecture.validate_voice_wav", side_effect=[599.5, 1.0]):
+            self.store.add_chunk(session, b"RIFF-a", index=1)
+            with self.assertRaisesRegex(LectureError, "maximum duration"):
+                self.store.add_chunk(session, b"RIFF-b", index=2)
+
+    def test_manifest_persists_and_interrupted_session_can_be_recovered(self):
+        session = self.store.start(title="Recovery", consent_confirmed=True)["session_id"]
+        self.store.add_chunk(session, wav_bytes(), index=1)
+        reopened = LectureSessionStore(self.root, max_seconds=600, chunk_max_seconds=10)
+        before = reopened.status(session)
+        self.assertEqual(before["state"], "recording")
+        recovered = reopened.recover_interrupted(session)
+        self.assertEqual(recovered["state"], "recorded")
+        self.assertTrue(recovered["recovered_interrupted"])
+        with self.assertRaisesRegex(LectureError, "not interrupted"):
+            reopened.recover_interrupted(session)
+
+    def test_delete_requires_finalized_session_and_removes_only_session_directory(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        directory = self.store.session_directory(session)
+        with self.assertRaisesRegex(LectureError, "before deletion"):
+            self.store.delete(session)
+        self.store.stop(session)
+        result = self.store.delete(session)
+        self.assertTrue(result["deleted"])
+        self.assertFalse(directory.exists())
+        with self.assertRaises(LectureError):
+            self.store.status(session)
+
     def test_invalid_session_id_cannot_escape_root(self):
         with self.assertRaisesRegex(LectureError, "invalid lecture session id"):
             self.store.status("../../outside")
+
+    @unittest.skipIf(os.name == "nt", "symlink creation is not reliable on Windows CI")
+    def test_session_directory_symlink_is_rejected(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        original = self.root / session
+        outside = self.root.parent / (session + "-outside")
+        if outside.exists():
+            shutil.rmtree(outside)
+        shutil.move(str(original), str(outside))
+        os.symlink(outside, original, target_is_directory=True)
+        try:
+            with self.assertRaisesRegex(LectureError, "directory.*unsafe"):
+                self.store.status(session)
+        finally:
+            original.unlink(missing_ok=True)
+            shutil.rmtree(outside, ignore_errors=True)
 
     def test_deferred_transcription_has_timestamps_and_local_outputs(self):
         session = self.store.start(title="Physics", consent_confirmed=True)["session_id"]
@@ -93,6 +159,19 @@ class LectureTests(unittest.TestCase):
         self.assertIn("lecture segment 1", text)
         self.assertIn("lecture segment 2", text)
         self.assertEqual(self.store.status(session)["state"], "transcribed")
+
+    def test_transcription_rejects_manifest_chunk_reordering(self):
+        session = self.store.start(consent_confirmed=True)["session_id"]
+        self.store.add_chunk(session, wav_bytes(), index=1)
+        self.store.add_chunk(session, wav_bytes(), index=2)
+        self.store.stop(session)
+        directory = self.store.session_directory(session)
+        path = directory / "manifest.json"
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["chunks"].reverse()
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(LectureError, "sequence"):
+            self.store.transcribe(session, FakeTranscriber())
 
     def test_transcription_detects_chunk_tampering(self):
         session = self.store.start(consent_confirmed=True)["session_id"]

@@ -510,7 +510,7 @@ def terminal(conversation, settings):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Rocky Assistant V2")
-    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "lecture-notes", "audio-test", "check"), default="chat")
+    parser.add_argument("command", nargs="?", choices=("chat", "web", "benchmark", "backup", "verify-backup", "verify-assets", "lecture-transcribe", "lecture-notes", "lecture-recover", "lecture-delete", "audio-test", "check"), default="chat")
     parser.add_argument("--provider", choices=("local", "dummy"))
     parser.add_argument("--model")
     parser.add_argument("--port", type=int)
@@ -540,6 +540,7 @@ def main(argv=None):
     parser.add_argument("--lecture-root", type=Path, default=Path.home() / ".rpa1" / "lectures")
     parser.add_argument("--lecture-max-seconds", type=float)
     parser.add_argument("--lecture-chunk-seconds", type=float)
+    parser.add_argument("--lecture-confirm-delete", action="store_true")
     parser.add_argument("--tone-style", choices=("pure", "resonant", "contour-v1", "vocal-v1"))
     parser.add_argument("--translation-voice")
     parser.add_argument("--translation-voice-backend", choices=("system-speech", "piper-sidecar"))
@@ -561,6 +562,27 @@ def main(argv=None):
         if args.connected_mode is not None:
             settings["connected_enabled"] = args.connected_mode == "online"
         personality = load_personality(args.personality or Path(settings["personality_profile"]))
+        if args.command in {"lecture-recover", "lecture-delete"}:
+            from .lecture import LectureSessionStore
+            if not args.lecture_session:
+                raise ValueError(f"{args.command} requires --lecture-session SESSION_ID")
+            store = LectureSessionStore(
+                args.lecture_root,
+                max_seconds=settings["lecture_max_seconds"],
+                chunk_max_seconds=settings["lecture_chunk_seconds"],
+            )
+            if args.command == "lecture-recover":
+                result = store.recover_interrupted(args.lecture_session)
+                print(
+                    f"Lecture session recovered as recorded: {result['session_id']}; "
+                    f"chunks={result['chunk_count']}; seconds={result['total_seconds']}"
+                )
+            else:
+                if not args.lecture_confirm_delete:
+                    raise ValueError("lecture-delete requires --lecture-confirm-delete")
+                result = store.delete(args.lecture_session)
+                print("Lecture session deleted: " + result["session_id"])
+            return 0
         if args.command == "lecture-transcribe":
             from .lecture import LectureSessionStore
             from .stt import WhisperCppTranscriber

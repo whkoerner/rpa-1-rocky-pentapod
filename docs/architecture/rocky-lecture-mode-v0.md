@@ -124,3 +124,17 @@ These are later layers built on the local source-of-truth recording/session form
 - transcription speed/accuracy;
 - cancellation/recovery after laptop sleep or browser crash;
 - classroom permission/consent for any actual recording.
+
+## Durability hardening follow-up
+
+A stacked follow-up adds explicit upload sequencing and persisted-session recovery without changing the V0 PCM storage format:
+
+- every browser upload carries the active session ID and a monotonically increasing chunk index;
+- the server rejects wrong-session, duplicate, and out-of-order chunk uploads before writing audio;
+- an interrupted manifest that still says `recording` can be explicitly recovered to `recorded` after the browser/process is gone;
+- recovery is never automatic and is marked in the persisted manifest as `recovered_interrupted=true`;
+- deletion is explicit, requires a non-recording session, and removes only the validated generated session directory;
+- session-directory symlinks are rejected, in addition to existing manifest/chunk symlink rejection;
+- deferred transcription verifies contiguous chunk indices and contiguous manifest timing before invoking STT.
+
+These controls make retry/crash behavior inspectable. They do not establish that a real 2 h 40 min browser session survives sleep, power loss, or microphone/device changes; those remain manual acceptance items.
