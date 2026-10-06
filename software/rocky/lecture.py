@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 import re
 import secrets
+import shutil
 
 from .stt import MAX_WAV_BYTES, SpeechToTextError, validate_voice_wav
 
@@ -83,6 +84,8 @@ class LectureSessionStore:
 
     def _load_manifest(self, session_id: str) -> tuple[Path, dict]:
         session = self._session_path(session_id)
+        if not session.is_dir() or session.is_symlink():
+            raise LectureError("lecture session directory not found or unsafe")
         path = self._manifest_path(session)
         if not path.is_file() or path.is_symlink():
             raise LectureError("lecture session manifest not found")
@@ -130,6 +133,7 @@ class LectureSessionStore:
             "chunks": [],
             "transcript": None,
             "consent_confirmed": True,
+            "recovered_interrupted": False,
         }
         self._write_manifest(session, manifest)
         return self.public_status(manifest)
@@ -144,16 +148,26 @@ class LectureSessionStore:
             "max_seconds": float(manifest["max_seconds"]),
             "chunk_max_seconds": float(manifest["chunk_max_seconds"]),
             "transcript_ready": manifest.get("transcript") is not None,
+            "recovered_interrupted": bool(manifest.get("recovered_interrupted", False)),
         }
 
     def status(self, session_id: str) -> dict:
         _, manifest = self._load_manifest(session_id)
         return self.public_status(manifest)
 
-    def add_chunk(self, session_id: str, raw: bytes) -> dict:
+    def add_chunk(self, session_id: str, raw: bytes, *, index: int | None = None) -> dict:
         session, manifest = self._load_manifest(session_id)
         if manifest["state"] != "recording":
             raise LectureError("lecture session is not recording")
+        expected_index = len(manifest["chunks"]) + 1
+        if index is None:
+            index = expected_index
+        if type(index) is not int or index < 1:
+            raise LectureError("lecture chunk index must be a positive integer")
+        if index < expected_index:
+            raise LectureError("duplicate lecture chunk index")
+        if index > expected_index:
+            raise LectureError("out-of-order lecture chunk index")
         if type(raw) is not bytes or not raw or len(raw) > MAX_WAV_BYTES:
             raise LectureError("lecture chunk exceeds safe WAV byte limit")
         try:
@@ -163,7 +177,6 @@ class LectureSessionStore:
         total = float(manifest["total_seconds"]) + duration
         if total > self.max_seconds + 0.001:
             raise LectureError("lecture session exceeds configured maximum duration")
-        index = len(manifest["chunks"]) + 1
         filename = f"chunk-{index:05d}.wav"
         path = session / filename
         if path.exists():
@@ -193,6 +206,23 @@ class LectureSessionStore:
         self._write_manifest(session, manifest)
         return self.public_status(manifest)
 
+    def recover_interrupted(self, session_id: str) -> dict:
+        session, manifest = self._load_manifest(session_id)
+        if manifest["state"] != "recording":
+            raise LectureError("lecture session is not interrupted/recording")
+        manifest["state"] = "recorded"
+        manifest["stopped_utc"] = datetime.now(timezone.utc).isoformat()
+        manifest["recovered_interrupted"] = True
+        self._write_manifest(session, manifest)
+        return self.public_status(manifest)
+
+    def delete(self, session_id: str) -> dict:
+        session, manifest = self._load_manifest(session_id)
+        if manifest["state"] == "recording":
+            raise LectureError("stop or recover lecture recording before deletion")
+        shutil.rmtree(session)
+        return {"session_id": session_id, "deleted": True}
+
     def _verified_chunk(self, session: Path, row: dict) -> bytes:
         if type(row) is not dict:
             raise LectureError("invalid lecture chunk manifest row")
@@ -206,10 +236,12 @@ class LectureSessionStore:
         }
         if set(row) != required:
             raise LectureError("lecture chunk manifest fields are invalid")
+        if type(row["index"]) is not int or row["index"] < 1:
+            raise LectureError("invalid lecture chunk index")
         filename = row["filename"]
         if (
             type(filename) is not str
-            or filename != f"chunk-{int(row['index']):05d}.wav"
+            or filename != f"chunk-{row['index']:05d}.wav"
         ):
             raise LectureError("invalid lecture chunk filename")
         path = session / filename
@@ -238,7 +270,16 @@ class LectureSessionStore:
             raise LectureError("lecture session has no recorded audio chunks")
         segments = []
         text_lines = []
-        for row in manifest["chunks"]:
+        expected_start = 0.0
+        for expected_index, row in enumerate(manifest["chunks"], start=1):
+            if type(row) is not dict or row.get("index") != expected_index:
+                raise LectureError("lecture chunk manifest sequence is not contiguous")
+            try:
+                row_start = float(row.get("start_seconds"))
+            except (TypeError, ValueError) as exc:
+                raise LectureError("invalid lecture chunk start time") from exc
+            if abs(row_start - expected_start) > 0.01:
+                raise LectureError("lecture chunk manifest timing is not contiguous")
             raw = self._verified_chunk(session, row)
             result = transcriber.transcribe_wav(raw)
             text = result.get("text")
@@ -246,6 +287,7 @@ class LectureSessionStore:
                 raise LectureError("transcriber returned empty lecture text")
             start = float(row["start_seconds"])
             end = start + float(row["duration_seconds"])
+            expected_start = end
             segment = {
                 "chunk": int(row["index"]),
                 "start_seconds": round(start, 3),

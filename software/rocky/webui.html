@@ -356,6 +356,7 @@ const lecture={
   chunkSeconds:30,
   maxSeconds:10800,
   sessionId:"",
+  nextChunkIndex:1,
   uploadChain:Promise.resolve()
 };
 
@@ -366,10 +367,12 @@ async function uploadLectureChunk() {
   const samples=resampleMono(mergeFloat32(chunks),lecture.sampleRate,16000);
   if(!samples.length) return;
   const wav=pcmWav(samples,16000);
+  const sessionId=lecture.sessionId;
+  const chunkIndex=lecture.nextChunkIndex++;
   lecture.uploadChain=lecture.uploadChain.then(async function(){
     const response=await fetch("/api/lecture/chunk",{
       method:"POST",
-      headers:{"X-Rocky-Token":TOKEN,"Content-Type":"audio/wav"},
+      headers:{"X-Rocky-Token":TOKEN,"Content-Type":"audio/wav","X-Rocky-Lecture-Session":sessionId,"X-Rocky-Lecture-Chunk":String(chunkIndex)},
       body:wav
     });
     const text=await response.text();
@@ -412,6 +415,7 @@ async function startLecture() {
   lecture.stream=stream; lecture.context=context; lecture.source=source; lecture.processor=processor; lecture.silent=silent;
   lecture.chunks=[]; lecture.sampleRate=context.sampleRate; lecture.startedAt=Date.now();
   lecture.sessionId=started.session_id; lecture.chunkSeconds=Number(started.chunk_max_seconds||30); lecture.maxSeconds=Number(started.max_seconds||10800);
+  lecture.nextChunkIndex=1;
   lecture.uploadChain=Promise.resolve();
   processor.onaudioprocess=function(event){
     if(!lecture.recording)return;
@@ -464,6 +468,7 @@ async function stopLecture() {
     });
   } finally {
     lecture.sessionId="";
+    lecture.nextChunkIndex=1;
     el("lecturestart").disabled=false;
   }
   if(uploadFailure) {

@@ -46,3 +46,23 @@ Tests cover:
 - classroom/instructor consent verification.
 
 Automated tests do not establish microphone quality, legal permission, or transcription usefulness.
+
+## Durability follow-up automated scope
+
+A stacked follow-up adds automated cases for the remaining storage/protocol boundary items:
+
+- explicit chunk index accepted in order;
+- duplicate chunk index rejected;
+- out-of-order chunk index rejected;
+- wrong active session rejected by the UI boundary;
+- malformed WAV rejected;
+- oversized WAV rejected;
+- cumulative max-duration enforcement;
+- persisted manifest reopened after simulated interruption;
+- explicit interrupted-session recovery;
+- deletion rejected while recording and allowed only after finalization/recovery;
+- session-directory symlink rejection where the platform can create the fixture;
+- manifest chunk reordering rejected before transcription;
+- HTTP chunk endpoint requires session and sequence headers.
+
+The browser still must be manually exercised for actual microphone capture, long-duration stability, sleep/display-lock behavior, and real interruption recovery.

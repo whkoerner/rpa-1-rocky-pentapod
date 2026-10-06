@@ -178,10 +178,12 @@ class LocalWebUI:
         self.active_lecture_session = status["session_id"]
         return status
 
-    def lecture_chunk(self, raw):
+    def lecture_chunk(self, session_id, index, raw):
         if self.lecture_store is None or not self.active_lecture_session:
             raise ValueError("no active lecture recording")
-        return self.lecture_store.add_chunk(self.active_lecture_session, raw)
+        if session_id != self.active_lecture_session:
+            raise ValueError("lecture session does not match active recording")
+        return self.lecture_store.add_chunk(self.active_lecture_session, raw, index=index)
 
     def lecture_stop(self, payload):
         if self.lecture_store is None:
@@ -484,6 +486,18 @@ class RockyWebHandler(BaseHTTPRequestHandler):
             raise ValueError("voice WAV body exceeds safe byte limit")
         return self.rfile.read(length)
 
+    def _read_lecture_chunk_headers(self):
+        session_id = self.headers.get("X-Rocky-Lecture-Session", "")
+        raw_index = self.headers.get("X-Rocky-Lecture-Chunk", "")
+        if not session_id:
+            raise ValueError("X-Rocky-Lecture-Session required")
+        if not raw_index or not raw_index.isascii() or not raw_index.isdecimal():
+            raise ValueError("X-Rocky-Lecture-Chunk must be a positive integer")
+        index = int(raw_index)
+        if not 1 <= index <= 100000:
+            raise ValueError("X-Rocky-Lecture-Chunk is out of range")
+        return session_id, index
+
     def do_GET(self):
         if not self._host_ok():
             self._error(400, ValueError("loopback Host required"))
@@ -529,7 +543,9 @@ class RockyWebHandler(BaseHTTPRequestHandler):
                 self._json(200, self.server.app.transcribe_voice(self._read_wav()))
                 return
             if self.path == "/api/lecture/chunk":
-                self._json(200, self.server.app.lecture_chunk(self._read_wav()))
+                raw = self._read_wav()
+                session_id, index = self._read_lecture_chunk_headers()
+                self._json(200, self.server.app.lecture_chunk(session_id, index, raw))
                 return
             payload = self._read_json()
             if self.path == "/api/chat":
